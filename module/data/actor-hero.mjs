@@ -43,6 +43,13 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     schema.morale = new fields.NumberField({ ...requiredInteger, initial: 0 });
     schema.level = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
     schema.experience = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
+
+    // §4.3: specialization from level 10 (requires expert tier in a skill
+    // or owning a spell). The book's full specialization list (p. 23)
+    // isn't reproduced in rules.md, so this is free text rather than a
+    // choices list.
+    schema.specialization = new fields.StringField({ required: true, blank: true });
+
     schema.gold = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
     // §2.3-2.5
@@ -68,8 +75,9 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
   }
 
   prepareDerivedData() {
+    // Not clamped to `value` — artifacts can grant bonus Mana beyond this
+    // computed cap, so `max` is purely informational, not a hard ceiling.
     this.mana.max = this.knowledge * this.#getManaMultiplier();
-    if (this.mana.value > this.mana.max) this.mana.value = this.mana.max;
   }
 
   /**

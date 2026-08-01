@@ -1,0 +1,179 @@
+<section class="actor-sheet__body actor-sheet__body--hero">
+  <div class="hero-sheet__columns">
+
+    {{!-- ==================== LEFT COLUMN ==================== --}}
+    <div class="hero-sheet__column hero-sheet__column--left">
+
+      <div class="hero-sheet__primary-skills">
+        <label class="hero-sheet__primary-skill">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.attack" value="{{system.attack}}" min="0">
+          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
+        </label>
+        <label class="hero-sheet__primary-skill">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.defense" value="{{system.defense}}" min="0">
+          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
+        </label>
+        <label class="hero-sheet__primary-skill">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.magicPower" value="{{system.magicPower}}" min="0">
+          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
+        </label>
+        <label class="hero-sheet__primary-skill">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.knowledge" value="{{system.knowledge}}" min="0">
+          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
+        </label>
+      </div>
+
+      <div class="grid grid-3col">
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Specialization'}}</span>
+          <input type="text" name="system.specialization" value="{{system.specialization}}">
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Morale'}}</span>
+          <input type="number" name="system.morale" value="{{system.morale}}">
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Luck'}}</span>
+          <input type="number" name="system.luck" value="{{system.luck}}" min="-3" max="3">
+        </label>
+      </div>
+
+      <div class="grid grid-3col">
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Experience'}}</span>
+          <input type="number" name="system.experience" value="{{system.experience}}" min="0">
+        </label>
+        <div class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Mana'}}</span>
+          <div class="actor-sheet__value-pair">
+            <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
+            <span class="actor-sheet__value-sep">/</span>
+            <span class="actor-sheet__value-max">{{system.mana.max}}</span>
+          </div>
+        </div>
+        <div class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Health'}}</span>
+          <div class="actor-sheet__value-pair">
+            <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
+            <span class="actor-sheet__value-sep">/</span>
+            <input type="number" name="system.health.max" value="{{system.health.max}}" min="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-4col">
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Speed'}}</span>
+          <input type="number" name="system.speed" value="{{system.speed}}" min="0">
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Vision'}}</span>
+          <select name="system.vision">
+            {{selectOptions config.visionTypes selected=system.vision localize=true}}
+          </select>
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Gold'}}</span>
+          <input type="number" name="system.gold" value="{{system.gold}}" min="0">
+        </label>
+        <label class="actor-sheet__field actor-sheet__field--checkbox">
+          <input type="checkbox" name="system.hasSpellbook" {{checked system.hasSpellbook}}>
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HasSpellbook'}}</span>
+        </label>
+      </div>
+
+      <div class="grid grid-3col">
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Race'}}</span>
+          <select name="system.race">
+            {{selectOptions config.races selected=system.race localize=true}}
+          </select>
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Faction'}}</span>
+          <select name="system.faction">
+            {{selectOptions config.factions selected=system.faction localize=true}}
+          </select>
+        </label>
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Class'}}</span>
+          <select name="system.heroClass">
+            {{selectOptions config.classes selected=system.heroClass localize=true}}
+          </select>
+        </label>
+      </div>
+
+      <div class="hero-sheet__section">
+        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.SecondarySkills'}}</h3>
+        <ul class="hero-sheet__skill-list">
+          {{#each secondarySkills}}
+            <li class="hero-sheet__skill-entry" data-action="openItem" data-item-id="{{this.item.id}}">
+              {{localize this.tierLabel}} — {{localize this.skillLabel}}
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+
+    </div>
+
+    {{!-- ==================== RIGHT COLUMN ==================== --}}
+    <div class="hero-sheet__column hero-sheet__column--right">
+
+      <div class="hero-sheet__section">
+        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Equipped'}}</h3>
+        <ul class="hero-sheet__item-list">
+          <li class="hero-sheet__item-slot{{#if meleeWeapon}} hero-sheet__item-slot--filled{{/if}}"
+            {{#if meleeWeapon}}data-action="openItem" data-item-id="{{meleeWeapon.id}}"{{/if}}>
+            <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.MeleeWeapon'}}</span>
+            <span class="hero-sheet__item-slot-value">
+              {{#if meleeWeapon}}{{meleeWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
+            </span>
+          </li>
+          <li class="hero-sheet__item-slot{{#if rangedWeapon}} hero-sheet__item-slot--filled{{/if}}"
+            {{#if rangedWeapon}}data-action="openItem" data-item-id="{{rangedWeapon.id}}"{{/if}}>
+            <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.RangedWeapon'}}</span>
+            <span class="hero-sheet__item-slot-value">
+              {{#if rangedWeapon}}{{rangedWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
+            </span>
+          </li>
+          {{#each artifactSlots}}
+            <li class="hero-sheet__item-slot{{#if this.item}} hero-sheet__item-slot--filled{{/if}}"
+              {{#if this.item}}data-action="openItem" data-item-id="{{this.item.id}}"{{/if}}>
+              <span class="hero-sheet__item-slot-label">{{localize this.labelKey}}</span>
+              <span class="hero-sheet__item-slot-value">
+                {{#if this.item}}{{this.item.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
+              </span>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+
+      <div class="hero-sheet__section">
+        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Inventory'}}</h3>
+        <ul class="hero-sheet__item-list">
+          {{#each inventory}}
+            <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="openItem" data-item-id="{{this.id}}">
+              <span class="hero-sheet__item-slot-value">{{this.name}}</span>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+
+      <div class="hero-sheet__section">
+        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Spells'}}</h3>
+        {{#if system.hasSpellbook}}
+          <ul class="hero-sheet__item-list">
+            {{#each spells}}
+              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="openItem" data-item-id="{{this.id}}">
+                <span class="hero-sheet__item-slot-value">{{this.name}}</span>
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="hero-sheet__empty-note">{{localize 'HEROES_GLORY.Hero.NoSpellbook'}}</p>
+        {{/if}}
+      </div>
+
+    </div>
+  </div>
+</section>

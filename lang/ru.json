@@ -104,12 +104,61 @@
       "Expert": "Эксперт"
     },
     "SheetLabels": {
-      "Actor": "Лист персонажа Heroes & Glory",
       "Item": "Лист предмета Heroes & Glory",
       "Weapon": "Лист оружия Heroes & Glory",
       "Spell": "Лист заклинания Heroes & Glory",
       "Artifact": "Лист артефакта Heroes & Glory",
-      "Skill": "Лист навыка Heroes & Glory"
+      "Skill": "Лист навыка Heroes & Glory",
+      "Hero": "Лист героя Heroes & Glory",
+      "Creature": "Лист существа Heroes & Glory"
+    },
+    "Actor": {
+      "ChangeImage": "Сменить изображение",
+      "NamePlaceholder": "Имя"
+    },
+    "Hero": {
+      "Level": "Уровень",
+      "Attack": "Атака",
+      "Defense": "Защита",
+      "MagicPower": "Сила Магии",
+      "Knowledge": "Знания",
+      "Specialization": "Специализация",
+      "Morale": "Боевой дух",
+      "Luck": "Удача",
+      "Experience": "Опыт",
+      "Mana": "Мана",
+      "Health": "Здоровье",
+      "Speed": "Скорость",
+      "Vision": "Зрение",
+      "Gold": "Золото",
+      "HasSpellbook": "Книга Магии",
+      "Race": "Раса",
+      "Faction": "Фракция",
+      "Class": "Класс",
+      "SecondarySkills": "Вторичные навыки",
+      "Equipped": "Экипировка",
+      "MeleeWeapon": "Оружие ближнего боя",
+      "RangedWeapon": "Оружие дальнего боя",
+      "Inventory": "Инвентарь",
+      "Spells": "Заклинания",
+      "EmptySlot": "— пусто —",
+      "NoSpellbook": "Нет Книги Магии"
+    },
+    "Creature": {
+      "Faction": "Фракция",
+      "Level": "Уровень",
+      "Legendary": "Легендарное",
+      "Attack": "Атака",
+      "Defense": "Защита",
+      "Damage": "Урон",
+      "DamageWeak": "Урон ×0.5",
+      "DamageStrong": "Урон ×2",
+      "AttacksCount": "Кол-во атак",
+      "Health": "Здоровье",
+      "Speed": "Скорость",
+      "SpecialSkills": "Особые навыки",
+      "EpicTable": "Эпик-таблица (d6)",
+      "EpicRow": "Строка"
     },
     "Item": {
       "ChangeImage": "Сменить изображение",

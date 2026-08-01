@@ -2,7 +2,8 @@
 import { HeroesGloryActor } from './documents/actor.mjs';
 import { HeroesGloryItem } from './documents/item.mjs';
 // Import sheet classes.
-import { HeroesGloryActorSheet } from './sheets/actor-sheet.mjs';
+import { HeroesGloryHeroSheet } from './sheets/actor/hero-sheet.mjs';
+import { HeroesGloryCreatureSheet } from './sheets/actor/creature-sheet.mjs';
 import { HeroesGloryWeaponSheet } from './sheets/item/weapon-sheet.mjs';
 import { HeroesGlorySpellSheet } from './sheets/item/spell-sheet.mjs';
 import { HeroesGloryArtifactSheet } from './sheets/item/artifact-sheet.mjs';
@@ -66,13 +67,16 @@ Hooks.once('init', function () {
   // `foundry.appv1.sheets`.
   const { DocumentSheetConfig } = foundry.applications.apps;
 
-  // The Actor sheet itself is still the legacy v1 ActorSheet for now
-  // (separate task); only the registration call is fixed here so this hook
-  // doesn't throw before it reaches the item sheet registration below.
   DocumentSheetConfig.unregisterSheet(Actor, 'core', foundry.appv1.sheets.ActorSheet);
-  DocumentSheetConfig.registerSheet(Actor, 'heroes-glory', HeroesGloryActorSheet, {
+  DocumentSheetConfig.registerSheet(Actor, 'heroes-glory', HeroesGloryHeroSheet, {
+    types: ['hero'],
     makeDefault: true,
-    label: 'HEROES_GLORY.SheetLabels.Actor',
+    label: 'HEROES_GLORY.SheetLabels.Hero',
+  });
+  DocumentSheetConfig.registerSheet(Actor, 'heroes-glory', HeroesGloryCreatureSheet, {
+    types: ['creature'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Creature',
   });
 
   DocumentSheetConfig.unregisterSheet(Item, 'core', foundry.appv1.sheets.ItemSheet);

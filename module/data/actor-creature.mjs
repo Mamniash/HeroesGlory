@@ -27,8 +27,11 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
     schema.speed = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
     // §9 says "текст/список" for Особые навыки — modeled as a tag list.
+    // Entries are blank-ok so the sheet can render one extra empty input
+    // to append a new tag without that blank slot failing validation on
+    // every unrelated field edit (the whole form resubmits on each change).
     schema.specialSkills = new fields.ArrayField(
-      new fields.StringField({ blank: false }), { initial: [] }
+      new fields.StringField({ blank: true }), { initial: [] }
     );
 
     schema.level = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });

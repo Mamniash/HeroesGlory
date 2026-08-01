@@ -1,0 +1,14 @@
+<header class="actor-sheet__header">
+  <button type="button" class="actor-sheet__image-button" data-action="editImage" data-edit="img"
+    aria-label="{{localize 'HEROES_GLORY.Actor.ChangeImage'}}">
+    <img class="actor-sheet__image" src="{{actor.img}}" alt="{{actor.name}}">
+  </button>
+  <div class="actor-sheet__title">
+    <input class="actor-sheet__name" type="text" name="name" value="{{actor.name}}"
+      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">
+    <label class="actor-sheet__field actor-sheet__field--checkbox">
+      <input type="checkbox" name="system.legendary" {{checked system.legendary}}>
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Legendary'}}</span>
+    </label>
+  </div>
+</header>

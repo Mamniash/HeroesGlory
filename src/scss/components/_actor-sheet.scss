@@ -1,0 +1,222 @@
+// Styles for the hero/creature actor sheets (ActorSheetV2).
+// Scoped under .heroes-glory by src/scss/heroes-glory.scss.
+
+.actor-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: $padding-md;
+  margin-bottom: $padding-md;
+}
+
+.actor-sheet__image-button {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.actor-sheet__image {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border: $border-groove;
+}
+
+.actor-sheet__title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actor-sheet__name {
+  height: 32px;
+  font-size: 20px;
+  font-family: $font-primary;
+}
+
+.actor-sheet__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: $c-tan;
+}
+
+.actor-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-md;
+}
+
+.actor-sheet__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: $padding-sm;
+  }
+}
+
+.actor-sheet__label {
+  font-size: 12px;
+  font-weight: bold;
+  color: $c-tan;
+}
+
+.actor-sheet__value-pair {
+  display: flex;
+  align-items: center;
+  gap: $padding-sm;
+
+  input {
+    width: 0;
+    flex: 1;
+  }
+}
+
+.actor-sheet__value-sep {
+  color: $c-tan;
+}
+
+.actor-sheet__value-max {
+  min-width: 2em;
+  text-align: center;
+  font-weight: bold;
+}
+
+.actor-sheet__computed {
+  margin: 0;
+  font-size: 12px;
+  color: $c-tan;
+}
+
+.actor-sheet__special-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $padding-sm;
+  border: $border-groove;
+  padding: $padding-sm $padding-md $padding-md;
+
+  legend {
+    padding: 0 $padding-sm;
+    font-weight: bold;
+  }
+
+  .actor-sheet__special-skill {
+    flex: 1 1 140px;
+  }
+}
+
+// ---------------------------------------------------------------
+// Hero sheet: two-column layout modelled on the HoMM3 hero screen.
+// ---------------------------------------------------------------
+
+.hero-sheet__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $padding-lg;
+  align-items: start;
+}
+
+.hero-sheet__column {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-md;
+}
+
+.hero-sheet__primary-skills {
+  display: flex;
+  gap: $padding-sm;
+}
+
+.hero-sheet__primary-skill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: $padding-sm;
+  border: $border-groove;
+}
+
+.hero-sheet__primary-skill-value {
+  width: 100%;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.hero-sheet__primary-skill-label {
+  font-size: 11px;
+  color: $c-tan;
+}
+
+.hero-sheet__section-title {
+  margin: 0 0 $padding-sm;
+  font-size: 14px;
+  border-bottom: $border-groove;
+  padding-bottom: 2px;
+}
+
+.hero-sheet__skill-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $padding-sm;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hero-sheet__skill-entry {
+  font-size: 12px;
+  padding: 2px $padding-sm;
+  border: 1px solid $c-faint;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.hero-sheet__item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hero-sheet__item-slot {
+  display: flex;
+  justify-content: space-between;
+  gap: $padding-sm;
+  padding: 3px $padding-sm;
+  border: 1px solid $c-faint;
+  font-size: 12px;
+
+  &--filled {
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+  }
+}
+
+.hero-sheet__item-slot-label {
+  color: $c-tan;
+}
+
+.hero-sheet__item-slot-value {
+  font-weight: bold;
+}
+
+.hero-sheet__empty-note {
+  margin: 0;
+  font-size: 12px;
+  color: $c-tan;
+}

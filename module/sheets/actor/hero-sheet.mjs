@@ -1,0 +1,52 @@
+import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
+
+export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
+  static PARTS = {
+    header: { template: 'systems/heroes-glory/templates/actor/parts/actor-hero-header.hbs' },
+    body: { template: 'systems/heroes-glory/templates/actor/actor-hero-sheet.hbs', scrollable: [''] },
+  };
+
+  /** @override */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    const config = CONFIG.HEROES_GLORY;
+    const system = this.actor.system;
+
+    context.raceLabel = config.races[system.race] ?? '';
+    context.factionLabel = config.factions[system.faction] ?? '';
+    context.classLabel = config.classes[system.heroClass] ?? '';
+
+    const weapons = this.actor.items.filter((i) => i.type === 'weapon');
+    const artifacts = this.actor.items.filter((i) => i.type === 'artifact');
+
+    // §8.1: at most one equipped melee weapon and one equipped ranged weapon.
+    context.meleeWeapon = weapons.find((i) => i.system.equipped && i.system.weaponType !== 'ranged') ?? null;
+    context.rangedWeapon = weapons.find((i) => i.system.equipped && i.system.weaponType === 'ranged') ?? null;
+
+    // §8.2: one equipped slot per artifact type.
+    context.artifactSlots = Object.entries(config.artifactTypes).map(([key, labelKey]) => ({
+      key,
+      labelKey,
+      item: artifacts.find((i) => i.system.equipped && i.system.artifactType === key) ?? null,
+    }));
+
+    // §8.3: everything else carried but not worn/wielded.
+    context.inventory = [
+      ...weapons.filter((i) => !i.system.equipped),
+      ...artifacts.filter((i) => !i.system.equipped),
+    ];
+
+    // §3: owned secondary-skill items, with their tier/skill labels resolved.
+    context.secondarySkills = this.actor.items
+      .filter((i) => i.type === 'skill')
+      .map((i) => ({
+        item: i,
+        tierLabel: config.skillTiers[i.system.tier] ?? '',
+        skillLabel: config.secondarySkills[i.system.skillKey] ?? '',
+      }));
+
+    context.spells = this.actor.items.filter((i) => i.type === 'spell');
+
+    return context;
+  }
+}
