@@ -84,3 +84,65 @@
   margin: 0;
   font-size: 14px;
 }
+
+.item-sheet__modifiers {
+  border: $border-groove;
+  padding: $padding-sm $padding-md $padding-md;
+
+  legend {
+    padding: 0 $padding-sm;
+    font-weight: bold;
+  }
+}
+
+.item-sheet__modifier-row {
+  display: flex;
+  align-items: center;
+  gap: $padding-sm;
+  margin-bottom: $padding-sm;
+
+  select {
+    flex: 1;
+  }
+
+  input[type='number'] {
+    width: 70px;
+    flex: 0 0 auto;
+  }
+}
+
+.item-sheet__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid $c-faint;
+  background: $c-white;
+  color: $c-tan;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: $c-dark;
+  }
+}
+
+.item-sheet__add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px $padding-sm;
+  border: 1px solid $c-faint;
+  background: $c-white;
+  color: $c-tan;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: $c-dark;
+  }
+}

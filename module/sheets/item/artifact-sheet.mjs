@@ -5,4 +5,32 @@ export class HeroesGloryArtifactSheet extends HeroesGloryItemSheet {
     header: { template: 'systems/heroes-glory/templates/item/parts/item-sheet-header.hbs' },
     body: { template: 'systems/heroes-glory/templates/item/item-artifact-sheet.hbs' },
   };
+
+  static DEFAULT_OPTIONS = {
+    actions: {
+      addModifier: this.#onAddModifier,
+      deleteModifier: this.#onDeleteModifier,
+    },
+  };
+
+  /**
+   * Append a default modifier row (§8.2 structured bonuses).
+   * @this {HeroesGloryArtifactSheet}
+   */
+  static async #onAddModifier() {
+    const modifiers = [...this.item.system.modifiers, { stat: 'attack', mode: 'add', value: 0 }];
+    return this.item.update({ 'system.modifiers': modifiers });
+  }
+
+  /**
+   * Remove the modifier row at `data-index`.
+   * @this {HeroesGloryArtifactSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static async #onDeleteModifier(event, target) {
+    const index = Number(target.dataset.index);
+    const modifiers = this.item.system.modifiers.filter((_, i) => i !== index);
+    return this.item.update({ 'system.modifiers': modifiers });
+  }
 }
