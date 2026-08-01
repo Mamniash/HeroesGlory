@@ -572,13 +572,20 @@
   padding: 0;
 }
 .heroes-glory .hero-sheet__skill-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
   font-size: 12px;
   padding: 2px 5px;
   border: 1px solid #c9c7b8;
+}
+.heroes-glory .hero-sheet__skill-entry-value {
+  flex: 1;
   cursor: pointer;
 }
-.heroes-glory .hero-sheet__skill-entry:hover {
-  background: rgba(0, 0, 0, 0.05);
+.heroes-glory .hero-sheet__skill-entry-value:hover {
+  text-decoration: underline;
 }
 .heroes-glory .hero-sheet__item-list {
   display: flex;
@@ -590,6 +597,7 @@
 }
 .heroes-glory .hero-sheet__item-slot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 5px;
   padding: 3px 5px;
@@ -597,13 +605,42 @@
   font-size: 12px;
 }
 .heroes-glory .hero-sheet__item-slot--filled {
-  cursor: pointer;
-}
-.heroes-glory .hero-sheet__item-slot--filled:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.03);
 }
 .heroes-glory .hero-sheet__item-slot-label {
+  flex: 0 0 auto;
   color: #444;
+}
+.heroes-glory .hero-sheet__item-slot-value {
+  flex: 1;
+}
+.heroes-glory .hero-sheet__item-slot-value[data-action] {
+  cursor: pointer;
+}
+.heroes-glory .hero-sheet__item-slot-value[data-action]:hover {
+  text-decoration: underline;
+}
+.heroes-glory .hero-sheet__item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+.heroes-glory .hero-sheet__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #c9c7b8;
+  background: #fff;
+  color: #444;
+  font-size: 11px;
+  cursor: pointer;
+}
+.heroes-glory .hero-sheet__icon-button:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #191813;
 }
 .heroes-glory .hero-sheet__item-slot-value {
   font-weight: bold;

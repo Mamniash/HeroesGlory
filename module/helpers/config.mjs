@@ -64,7 +64,9 @@ HEROES_GLORY.classes = {
 };
 
 /**
- * The 4 schools of magic (rules.md §6.2).
+ * The 5 schools of magic (rules.md §6.2): the 4 elements plus
+ * "Универсальные" (str. 62 — spells not tied to an element, e.g.
+ * Волшебная Стрела and Призыв Элементаля).
  * @type {Object}
  */
 HEROES_GLORY.schools = {
@@ -72,6 +74,7 @@ HEROES_GLORY.schools = {
   air: 'HEROES_GLORY.School.Air',
   water: 'HEROES_GLORY.School.Water',
   fire: 'HEROES_GLORY.School.Fire',
+  universal: 'HEROES_GLORY.School.Universal',
 };
 
 /**

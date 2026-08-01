@@ -23,6 +23,8 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       rollAttack: this.#onRollAttack,
       castSpell: this.#onCastSpell,
       rollAbilityCheck: this.#onRollAbilityCheck,
+      unequipItem: this.#onUnequipItem,
+      deleteItem: this.#onDeleteItem,
     },
   };
 
@@ -99,5 +101,34 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
    */
   static #onRollAbilityCheck(event, target) {
     return rollAbilityCheck(this.actor, target.dataset.skill);
+  }
+
+  /**
+   * §8.1/§8.2: take an equipped weapon or artifact off, returning it to
+   * the unequipped inventory.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onUnequipItem(event, target) {
+    const item = this.actor.items.get(target.dataset.itemId);
+    return item?.update({ 'system.equipped': false });
+  }
+
+  /**
+   * Delete an owned item after confirming, since there was previously no
+   * way to remove an item dropped onto the actor sheet.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static async #onDeleteItem(event, target) {
+    const item = this.actor.items.get(target.dataset.itemId);
+    if (!item) return;
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: 'HEROES_GLORY.Item.DeleteConfirmTitle' },
+      content: `<p>${game.i18n.format('HEROES_GLORY.Item.DeleteConfirmContent', { name: item.name })}</p>`,
+    });
+    if (confirmed) return item.delete();
   }
 }

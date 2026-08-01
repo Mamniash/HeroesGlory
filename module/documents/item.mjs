@@ -51,6 +51,47 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
+   * §8.1/§8.3: a hero can have at most one equipped melee weapon, one
+   * equipped ranged weapon, and one equipped artifact per artifact type.
+   * When this item transitions to `equipped: true`, unequip whatever else
+   * currently occupies its slot instead of silently letting two items
+   * share it (which made the previous occupant unreachable — not shown in
+   * the equipped slot, and not shown in inventory either).
+   * @override
+   */
+  _onUpdate(changed, options, userId) {
+    super._onUpdate(changed, options, userId);
+
+    // Only the client that made this change drives the cascade, so it
+    // doesn't get attempted redundantly on every connected client.
+    if (userId !== game.user.id) return;
+    if (!this.actor) return;
+    if (changed.system?.equipped !== true) return;
+    if (this.type !== 'weapon' && this.type !== 'artifact') return;
+
+    const conflict = this.#findEquippedSlotConflict();
+    conflict?.update({ 'system.equipped': false });
+  }
+
+  /**
+   * Find another owned item occupying the same equip slot as this one.
+   * @returns {Item|undefined}
+   */
+  #findEquippedSlotConflict() {
+    if (this.type === 'weapon') {
+      const ranged = this.system.weaponType === 'ranged';
+      return this.actor.items.find((i) =>
+        i.id !== this.id && i.type === 'weapon' && i.system.equipped
+        && (i.system.weaponType === 'ranged') === ranged
+      );
+    }
+    return this.actor.items.find((i) =>
+      i.id !== this.id && i.type === 'artifact' && i.system.equipped
+      && i.system.artifactType === this.system.artifactType
+    );
+  }
+
+  /**
    * Handle clickable rolls.
    * @param {Event} event   The originating click event
    * @private

@@ -8,6 +8,7 @@ import {
   resolveHit,
   resolveDefeat,
   resolveDamage,
+  resolvePotentialDamage,
   resolveEpicTableRow,
   resolveEpicSeverity,
   resolveHitLocation,
@@ -79,6 +80,7 @@ export async function rollAttack(actor, weapon = null) {
     die: targetActor ? mainRoll.dice[1].total : null,
   });
   const damage = resolveDamage({ baseDamage, hit, defeat });
+  const potentialDamage = resolvePotentialDamage({ baseDamage, hit });
 
   const rolls = [mainRoll];
   let epicRow = null;
@@ -117,6 +119,7 @@ export async function rollAttack(actor, weapon = null) {
       defeat,
       damage,
       damageKnown: damage !== null,
+      potentialDamage,
       hasEpicTable: !!epicTable,
       epicRow,
       severe,

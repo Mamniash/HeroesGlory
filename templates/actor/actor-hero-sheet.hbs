@@ -111,8 +111,12 @@
         <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.SecondarySkills'}}</h3>
         <ul class="hero-sheet__skill-list">
           {{#each secondarySkills}}
-            <li class="hero-sheet__skill-entry" data-action="openItem" data-item-id="{{this.item.id}}">
-              {{localize this.tierLabel}} — {{localize this.skillLabel}}
+            <li class="hero-sheet__skill-entry">
+              <span class="hero-sheet__skill-entry-value" data-action="openItem" data-item-id="{{this.item.id}}">
+                {{localize this.tierLabel}} — {{localize this.skillLabel}}
+              </span>
+              <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.item.id}}"
+                title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
             </li>
           {{/each}}
         </ul>
@@ -126,27 +130,52 @@
       <div class="hero-sheet__section">
         <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Equipped'}}</h3>
         <ul class="hero-sheet__item-list">
-          <li class="hero-sheet__item-slot{{#if meleeWeapon}} hero-sheet__item-slot--filled{{/if}}"
-            {{#if meleeWeapon}}data-action="rollAttack" data-item-id="{{meleeWeapon.id}}" title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"{{/if}}>
+          <li class="hero-sheet__item-slot{{#if meleeWeapon}} hero-sheet__item-slot--filled{{/if}}">
             <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.MeleeWeapon'}}</span>
-            <span class="hero-sheet__item-slot-value">
-              {{#if meleeWeapon}}{{meleeWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
-            </span>
+            {{#if meleeWeapon}}
+              <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{meleeWeapon.id}}">{{meleeWeapon.name}}</span>
+              <span class="hero-sheet__item-actions">
+                <button type="button" class="hero-sheet__icon-button" data-action="rollAttack" data-item-id="{{meleeWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
+                <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{meleeWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{meleeWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+              </span>
+            {{else}}
+              <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
+            {{/if}}
           </li>
-          <li class="hero-sheet__item-slot{{#if rangedWeapon}} hero-sheet__item-slot--filled{{/if}}"
-            {{#if rangedWeapon}}data-action="rollAttack" data-item-id="{{rangedWeapon.id}}" title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"{{/if}}>
+          <li class="hero-sheet__item-slot{{#if rangedWeapon}} hero-sheet__item-slot--filled{{/if}}">
             <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.RangedWeapon'}}</span>
-            <span class="hero-sheet__item-slot-value">
-              {{#if rangedWeapon}}{{rangedWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
-            </span>
+            {{#if rangedWeapon}}
+              <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{rangedWeapon.id}}">{{rangedWeapon.name}}</span>
+              <span class="hero-sheet__item-actions">
+                <button type="button" class="hero-sheet__icon-button" data-action="rollAttack" data-item-id="{{rangedWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
+                <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{rangedWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{rangedWeapon.id}}"
+                  title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+              </span>
+            {{else}}
+              <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
+            {{/if}}
           </li>
           {{#each artifactSlots}}
-            <li class="hero-sheet__item-slot{{#if this.item}} hero-sheet__item-slot--filled{{/if}}"
-              {{#if this.item}}data-action="openItem" data-item-id="{{this.item.id}}"{{/if}}>
+            <li class="hero-sheet__item-slot{{#if this.item}} hero-sheet__item-slot--filled{{/if}}">
               <span class="hero-sheet__item-slot-label">{{localize this.labelKey}}</span>
-              <span class="hero-sheet__item-slot-value">
-                {{#if this.item}}{{this.item.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
-              </span>
+              {{#if this.item}}
+                <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.item.id}}">{{this.item.name}}</span>
+                <span class="hero-sheet__item-actions">
+                  <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{this.item.id}}"
+                    title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
+                  <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.item.id}}"
+                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+                </span>
+              {{else}}
+                <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
+              {{/if}}
             </li>
           {{/each}}
         </ul>
@@ -156,8 +185,12 @@
         <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Inventory'}}</h3>
         <ul class="hero-sheet__item-list">
           {{#each inventory}}
-            <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="openItem" data-item-id="{{this.id}}">
-              <span class="hero-sheet__item-slot-value">{{this.name}}</span>
+            <li class="hero-sheet__item-slot hero-sheet__item-slot--filled">
+              <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.id}}">{{this.name}}</span>
+              <span class="hero-sheet__item-actions">
+                <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.id}}"
+                  title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+              </span>
             </li>
           {{/each}}
         </ul>
@@ -168,9 +201,14 @@
         {{#if system.hasSpellbook}}
           <ul class="hero-sheet__item-list">
             {{#each spells}}
-              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="castSpell" data-item-id="{{this.id}}"
-                title="{{localize 'HEROES_GLORY.Roll.CastHint'}}">
-                <span class="hero-sheet__item-slot-value">{{this.name}}</span>
+              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled">
+                <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.id}}">{{this.name}}</span>
+                <span class="hero-sheet__item-actions">
+                  <button type="button" class="hero-sheet__icon-button" data-action="castSpell" data-item-id="{{this.id}}"
+                    title="{{localize 'HEROES_GLORY.Roll.CastHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
+                  <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.id}}"
+                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+                </span>
               </li>
             {{/each}}
           </ul>

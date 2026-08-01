@@ -76,6 +76,22 @@ export function resolveDamage({ baseDamage, hit, defeat }) {
 }
 
 /**
+ * §5.3: the damage a hit *would* deal if the defeat test succeeds —
+ * `floor(base × multiplier)` regardless of whether the defeat test has
+ * actually been resolved. Used to show a caveated damage figure when no
+ * target is selected: the d6 already fixes the multiplier, only the
+ * defeat test's outcome is unknown.
+ * @param {object} params
+ * @param {number} params.baseDamage
+ * @param {{multiplier: number}} params.hit   Result of {@link resolveHit}.
+ * @returns {number}
+ */
+export function resolvePotentialDamage({ baseDamage, hit }) {
+  if (hit.multiplier === 0) return 0;
+  return Math.floor(baseDamage * hit.multiplier);
+}
+
+/**
  * §5.4: look up the epic-table row for a d6 roll. `table` is a weapon's or
  * creature's 6-entry epicTable array (index 0 = row "1"). Returns `null`
  * if there's no table at all (e.g. a ranged weapon — §5.4: "Стрелковые

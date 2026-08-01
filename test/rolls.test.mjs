@@ -5,6 +5,7 @@ import {
   resolveHit,
   resolveDefeat,
   resolveDamage,
+  resolvePotentialDamage,
   resolveEpicTableRow,
   resolveEpicSeverity,
   resolveHitLocation,
@@ -116,6 +117,27 @@ describe('resolveDamage — §5.3 damage formula', () => {
     const hit = resolveHit(4);
     const defeat = resolveDefeat({ attackerAttack: 5, targetDefense: null });
     assert.equal(resolveDamage({ baseDamage: 10, hit, defeat }), null);
+  });
+});
+
+describe('resolvePotentialDamage — §5.3 damage shown when no target is selected', () => {
+  test('floors base x multiplier regardless of the defeat test', () => {
+    const hit = resolveHit(5); // strongHit, x2
+    assert.equal(resolvePotentialDamage({ baseDamage: 6, hit }), 12);
+  });
+
+  test('0 on a miss', () => {
+    const hit = resolveHit(2);
+    assert.equal(resolvePotentialDamage({ baseDamage: 100, hit }), 0);
+  });
+
+  test('matches resolveDamage whenever the defeat test does succeed', () => {
+    const hit = resolveHit(6); // epic, x2
+    const defeat = resolveDefeat({ attackerAttack: 10, targetDefense: 10, die: 1 }); // auto-success
+    assert.equal(
+      resolvePotentialDamage({ baseDamage: 7, hit }),
+      resolveDamage({ baseDamage: 7, hit, defeat }),
+    );
   });
 });
 

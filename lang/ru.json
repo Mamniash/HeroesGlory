@@ -52,7 +52,8 @@
       "Earth": "Земля",
       "Air": "Воздух",
       "Water": "Вода",
-      "Fire": "Огонь"
+      "Fire": "Огонь",
+      "Universal": "Универсальные"
     },
     "WeaponType": {
       "Piercing": "Колющий",
@@ -166,6 +167,10 @@
       "Equipped": "Экипировано",
       "EpicTable": "Эпик-таблица (d6)",
       "EpicRow": "Строка",
+      "UnequipHint": "Снять",
+      "DeleteHint": "Удалить",
+      "DeleteConfirmTitle": "Удалить предмет?",
+      "DeleteConfirmContent": "Удалить «{name}»? Это действие нельзя отменить.",
       "Spell": {
         "SpellLVL": "Заклинания {level} уровня",
         "AddLVL": "Добавить {level} ур."
@@ -230,7 +235,7 @@
       "DefeatFail": "провал",
       "DefeatUnknown": "Порог поражения неизвестен — цель не выбрана",
       "Damage": "Урон: {damage}",
-      "DamageUnknown": "Урон неизвестен — выберите цель",
+      "DamagePotential": "Урон: {damage}, если поражение пройдёт",
       "EpicTitle": "Эпик-попадание!",
       "EpicNoTable": "У стрелкового оружия нет эпик-таблицы",
       "EpicSevere": "Существенное повреждение!",
