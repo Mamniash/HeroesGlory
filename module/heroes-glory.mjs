@@ -53,14 +53,10 @@ Hooks.once('init', function () {
     skill: models.HeroesGlorySkill
   }
 
-  // Boilerplate default was `false` (opting into item-effect auto-transfer
-  // without a `transfer` flag). Reverted to the legacy/default `true`: we
-  // have no Active Effects workflow built yet, and `false` routes actor
-  // data prep through v14's newer transfer/registry code, which is still
-  // explicitly under active development per Foundry's own v14.352 release
-  // notes and where a real actor-creation crash was traced to (see the
-  // required/nullable fixes on the `mana`/`health` SchemaFields).
-  CONFIG.ActiveEffect.legacyTransferral = true;
+  // Active Effects are never copied to the Actor,
+  // but will still apply to the Actor from within the Item
+  // if the transfer property on the Active Effect is true.
+  CONFIG.ActiveEffect.legacyTransferral = false;
 
   // Register sheet application classes.
   //

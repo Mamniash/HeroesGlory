@@ -18,14 +18,11 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
     schema.attacksCount = new fields.NumberField({ ...requiredInteger, initial: 1, min: 0 });
 
     // §9 only says "Здоровье: число" — split into value/max purely so
-    // Foundry's token resource bars have something to target. Explicitly
-    // {required: true, nullable: false} so it can never resolve to
-    // undefined/null on a freshly-created actor — see actor-hero.mjs's
-    // `mana`/`health` for why that matters (foundryvtt/foundryvtt#13383).
+    // Foundry's token resource bars have something to target.
     schema.health = new fields.SchemaField({
       value: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
       max: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
-    }, { required: true, nullable: false });
+    });
 
     schema.speed = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
