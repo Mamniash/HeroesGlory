@@ -7,19 +7,23 @@
       <div class="hero-sheet__primary-skills">
         <label class="hero-sheet__primary-skill">
           <input class="hero-sheet__primary-skill-value" type="number" name="system.attack" value="{{system.attack}}" min="0">
-          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
+          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="attack"
+            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
           <input class="hero-sheet__primary-skill-value" type="number" name="system.defense" value="{{system.defense}}" min="0">
-          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
+          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="defense"
+            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
           <input class="hero-sheet__primary-skill-value" type="number" name="system.magicPower" value="{{system.magicPower}}" min="0">
-          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
+          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="magicPower"
+            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
           <input class="hero-sheet__primary-skill-value" type="number" name="system.knowledge" value="{{system.knowledge}}" min="0">
-          <span class="hero-sheet__primary-skill-label">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
+          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="knowledge"
+            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
         </label>
       </div>
 
@@ -123,14 +127,14 @@
         <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Equipped'}}</h3>
         <ul class="hero-sheet__item-list">
           <li class="hero-sheet__item-slot{{#if meleeWeapon}} hero-sheet__item-slot--filled{{/if}}"
-            {{#if meleeWeapon}}data-action="openItem" data-item-id="{{meleeWeapon.id}}"{{/if}}>
+            {{#if meleeWeapon}}data-action="rollAttack" data-item-id="{{meleeWeapon.id}}" title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"{{/if}}>
             <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.MeleeWeapon'}}</span>
             <span class="hero-sheet__item-slot-value">
               {{#if meleeWeapon}}{{meleeWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
             </span>
           </li>
           <li class="hero-sheet__item-slot{{#if rangedWeapon}} hero-sheet__item-slot--filled{{/if}}"
-            {{#if rangedWeapon}}data-action="openItem" data-item-id="{{rangedWeapon.id}}"{{/if}}>
+            {{#if rangedWeapon}}data-action="rollAttack" data-item-id="{{rangedWeapon.id}}" title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"{{/if}}>
             <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.RangedWeapon'}}</span>
             <span class="hero-sheet__item-slot-value">
               {{#if rangedWeapon}}{{rangedWeapon.name}}{{else}}{{localize 'HEROES_GLORY.Hero.EmptySlot'}}{{/if}}
@@ -164,7 +168,8 @@
         {{#if system.hasSpellbook}}
           <ul class="hero-sheet__item-list">
             {{#each spells}}
-              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="openItem" data-item-id="{{this.id}}">
+              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled" data-action="castSpell" data-item-id="{{this.id}}"
+                title="{{localize 'HEROES_GLORY.Roll.CastHint'}}">
                 <span class="hero-sheet__item-slot-value">{{this.name}}</span>
               </li>
             {{/each}}

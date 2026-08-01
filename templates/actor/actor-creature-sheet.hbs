@@ -40,6 +40,11 @@
     <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageStrong'}}: {{damageStrong}}</p>
   </div>
 
+  <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
+    title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
+    {{localize 'HEROES_GLORY.Roll.AttackRow' attack=system.attack damage=system.damage count=system.attacksCount}}
+  </div>
+
   <div class="actor-sheet__field">
     <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Health'}}</span>
     <div class="actor-sheet__value-pair">

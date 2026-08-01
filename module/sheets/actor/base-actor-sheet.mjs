@@ -1,3 +1,5 @@
+import { rollAttack, castSpell, rollAbilityCheck } from '../../helpers/roll-actions.mjs';
+
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -18,6 +20,9 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     actions: {
       editImage: this.#onEditImage,
       openItem: this.#onOpenItem,
+      rollAttack: this.#onRollAttack,
+      castSpell: this.#onCastSpell,
+      rollAbilityCheck: this.#onRollAbilityCheck,
     },
   };
 
@@ -58,5 +63,41 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   static #onOpenItem(event, target) {
     const item = this.actor.items.get(target.dataset.itemId);
     return item?.sheet.render(true);
+  }
+
+  /**
+   * §5.3/§5.4: roll an attack. With `data-item-id`, attacks with that
+   * owned weapon (hero); without it, attacks with the actor's own stats
+   * (creature).
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onRollAttack(event, target) {
+    const itemId = target.dataset.itemId;
+    const weapon = itemId ? this.actor.items.get(itemId) : null;
+    return rollAttack(this.actor, weapon);
+  }
+
+  /**
+   * §6.3: cast the owned spell identified by `data-item-id`.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onCastSpell(event, target) {
+    const spell = this.actor.items.get(target.dataset.itemId);
+    if (!spell) return;
+    return castSpell(this.actor, spell);
+  }
+
+  /**
+   * §7: roll a non-combat check for the primary skill named by `data-skill`.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onRollAbilityCheck(event, target) {
+    return rollAbilityCheck(this.actor, target.dataset.skill);
   }
 }

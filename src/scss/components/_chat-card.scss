@@ -1,0 +1,45 @@
+// Styles for Heroes & Glory roll chat cards (templates/chat/*.hbs).
+// NOT nested under .heroes-glory — chat log messages render outside any
+// sheet wrapper, so this file is imported at the top level instead.
+
+.heroes-glory-chat-card {
+  font-family: $font-primary;
+
+  &__title {
+    margin: 0 0 $padding-sm;
+    font-size: 14px;
+  }
+
+  &__line {
+    margin: 2px 0;
+    font-size: 12px;
+
+    &--muted {
+      color: $c-tan;
+      font-style: italic;
+    }
+  }
+
+  &__damage {
+    margin: $padding-sm 0 2px;
+    font-size: 13px;
+    font-weight: bold;
+  }
+
+  &__description {
+    margin: 2px 0;
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  &__epic {
+    margin-top: $padding-sm;
+    padding: $padding-sm;
+    border: $border-groove;
+  }
+
+  &__epic-title {
+    margin: 0 0 2px;
+    font-size: 13px;
+  }
+}

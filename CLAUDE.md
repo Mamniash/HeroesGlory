@@ -6,6 +6,7 @@
 
 ### Команды
 - `npm run build` — сборка SCSS в watch-режиме
+- `npm test` — юнит-тесты чистой логики бросков (module/helpers/rolls.mjs), без Foundry
 - система должна лежать в Data/systems/heroes-glory (симлинк)
 
 ### Проверка перед коммитом

@@ -206,6 +206,50 @@
       "Temporary": "Временные эффекты",
       "Passive": "Пассивные эффекты",
       "Inactive": "Неактивные эффекты"
+    },
+    "Roll": {
+      "CheckHint": "Клик — проверка (d20 + значение)",
+      "AttackHint": "Клик — бросок атаки",
+      "CastHint": "Клик — сотворить заклинание",
+      "AttackRow": "Атака {attack}, Урон {damage}, атак за раунд: {count}",
+      "AttackTitle": "{attacker} атакует",
+      "Weapon": "Оружие: {weapon}",
+      "Target": "Цель: {target}",
+      "NoTarget": "Цель не выбрана",
+      "HitResult": "Тест на попадание: {die} — {result} (×{multiplier})",
+      "Hit": {
+        "Miss": "Промах",
+        "Graze": "Задел",
+        "Hit": "Попал",
+        "StrongHit": "Сильно попал",
+        "Epic": "Эпик-попадание"
+      },
+      "DefeatAuto": "Поражение автоматическое (Защита цели ≤ Атаки атакующего)",
+      "DefeatThreshold": "Тест на поражение: {die} против порога {threshold}",
+      "DefeatSuccess": "успех",
+      "DefeatFail": "провал",
+      "DefeatUnknown": "Порог поражения неизвестен — цель не выбрана",
+      "Damage": "Урон: {damage}",
+      "DamageUnknown": "Урон неизвестен — выберите цель",
+      "EpicTitle": "Эпик-попадание!",
+      "EpicNoTable": "У стрелкового оружия нет эпик-таблицы",
+      "EpicSevere": "Существенное повреждение!",
+      "Location": {
+        "Leg": "Нога",
+        "LegEffect": "−1 к Скорости до излечения",
+        "Arm": "Рука",
+        "ArmEffect": "Роняет предмет",
+        "Torso": "Торс",
+        "TorsoEffect": "Цель падает",
+        "Head": "Голова",
+        "HeadEffect": "Цель теряет сознание"
+      },
+      "SpellTitle": "{caster} творит «{spell}»",
+      "ManaCost": "Стоимость: {cost} Маны",
+      "ManaRemaining": "Осталось Маны: {mana}",
+      "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",
+      "CheckTitle": "{actor}: проверка «{skill}»",
+      "CheckResult": "{die} + {value} = {total}"
     }
   },
 
