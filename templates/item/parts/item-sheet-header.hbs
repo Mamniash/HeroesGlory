@@ -1,9 +1,8 @@
 {{!-- Shared header for every Heroes & Glory item sheet: image + name. --}}
 <header class="item-sheet__header">
-  <button type="button" class="item-sheet__image-button" data-action="editImage" data-edit="img"
+  <img class="item-sheet__image" src="{{item.img}}" alt="{{item.name}}"
+    data-action="editImage" data-edit="img" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Item.ChangeImage'}}">
-    <img class="item-sheet__image" src="{{item.img}}" alt="{{item.name}}">
-  </button>
   <input class="item-sheet__name" type="text" name="name" value="{{item.name}}"
     placeholder="{{localize 'HEROES_GLORY.Item.NamePlaceholder'}}">
 </header>
