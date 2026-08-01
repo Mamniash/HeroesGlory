@@ -1,0 +1,34 @@
+{{> "systems/heroes-glory/templates/item/parts/item-sheet-header.hbs"}}
+
+<section class="item-sheet__body item-sheet__body--skill">
+  <div class="grid grid-2col">
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.Key'}}</span>
+      <select name="system.skillKey">
+        {{selectOptions config.secondarySkills selected=system.skillKey localize=true}}
+      </select>
+    </label>
+
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.Tier'}}</span>
+      <select name="system.tier">
+        {{selectOptions config.skillTiers selected=system.tier localize=true}}
+      </select>
+    </label>
+  </div>
+
+  <label class="item-sheet__field item-sheet__field--wide">
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.EffectBase'}}</span>
+    <textarea name="system.effects.base" rows="3">{{system.effects.base}}</textarea>
+  </label>
+
+  <label class="item-sheet__field item-sheet__field--wide">
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.EffectAdvanced'}}</span>
+    <textarea name="system.effects.advanced" rows="3">{{system.effects.advanced}}</textarea>
+  </label>
+
+  <label class="item-sheet__field item-sheet__field--wide">
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.EffectExpert'}}</span>
+    <textarea name="system.effects.expert" rows="3">{{system.effects.expert}}</textarea>
+  </label>
+</section>

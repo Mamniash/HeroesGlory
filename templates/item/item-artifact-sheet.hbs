@@ -1,0 +1,27 @@
+{{> "systems/heroes-glory/templates/item/parts/item-sheet-header.hbs"}}
+
+<section class="item-sheet__body item-sheet__body--artifact">
+  <div class="grid grid-3col">
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Type'}}</span>
+      <select name="system.artifactType">
+        {{selectOptions config.artifactTypes selected=system.artifactType localize=true}}
+      </select>
+    </label>
+
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Level'}}</span>
+      <input type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
+    </label>
+
+    <label class="item-sheet__field item-sheet__field--checkbox">
+      <input type="checkbox" name="system.equipped" {{checked system.equipped}}>
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Item.Equipped'}}</span>
+    </label>
+  </div>
+
+  <label class="item-sheet__field item-sheet__field--wide">
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Bonus'}}</span>
+    <textarea name="system.bonus" rows="4">{{system.bonus}}</textarea>
+  </label>
+</section>

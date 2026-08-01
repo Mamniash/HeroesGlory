@@ -1,0 +1,92 @@
+// Styles for the weapon/spell/artifact/skill item sheets (ItemSheetV2).
+// Scoped under .heroes-glory by src/scss/heroes-glory.scss.
+
+.item-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: $padding-md;
+  margin-bottom: $padding-md;
+}
+
+.item-sheet__image-button {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.item-sheet__image {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border: $border-groove;
+}
+
+.item-sheet__name {
+  flex: 1;
+  height: 40px;
+  font-size: 20px;
+  font-family: $font-primary;
+}
+
+.item-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-md;
+}
+
+.item-sheet__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: $padding-sm;
+  }
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.item-sheet__label {
+  font-size: 12px;
+  font-weight: bold;
+  color: $c-tan;
+}
+
+.item-sheet__epic-table {
+  border: $border-groove;
+  padding: $padding-sm $padding-md $padding-md;
+
+  legend {
+    padding: 0 $padding-sm;
+    font-weight: bold;
+  }
+}
+
+.item-sheet__variants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $padding-md;
+}
+
+.item-sheet__variant {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-sm;
+  padding: $padding-md;
+  border: $border-groove;
+}
+
+.item-sheet__variant-title {
+  margin: 0;
+  font-size: 14px;
+}

@@ -1,54 +1,77 @@
-<form class='{{cssClass}}' autocomplete='off'>
-  <header class='sheet-header'>
-    <img
-      class='profile-img'
-      src='{{item.img}}'
-      data-edit='img'
-      title='{{item.name}}'
-    />
-    <div class='header-fields'>
-      <h1 class='charname'><input
-          name='name'
-          type='text'
-          value='{{item.name}}'
-          placeholder='Name'
-        /></h1>
-    </div>
-  </header>
+{{> "systems/heroes-glory/templates/item/parts/item-sheet-header.hbs"}}
 
-  {{! Sheet Tab Navigation }}
-  <nav class='sheet-tabs tabs' data-group='primary'>
-    <a class='item' data-tab='description'>Description</a>
-    <a class='item' data-tab='attributes'>Attributes</a>
-  </nav>
+<section class="item-sheet__body item-sheet__body--spell">
+  <div class="grid grid-3col">
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.School'}}</span>
+      <select name="system.school">
+        {{selectOptions config.schools selected=system.school localize=true}}
+      </select>
+    </label>
 
-  {{! Sheet Body }}
-  <section class='sheet-body'>
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Level'}}</span>
+      <input type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
+    </label>
 
-    {{! Description Tab }}
-    <div class='tab' data-group='primary' data-tab='description'>
-      {{! Editors must receive enriched text data from getData to properly handle rolls }}
-      {{editor
-        enrichedDescription
-        target='system.description'
-        engine='prosemirror'
-        button=true
-        editable=editable
-      }}
-    </div>
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Range'}}</span>
+      <input type="number" name="system.range" value="{{system.range}}" min="0" step="1">
+    </label>
+  </div>
 
-    {{! Attributes Tab }}
-    <div class='tab attributes' data-group='primary' data-tab='attributes'>
-      {{! As you add new fields, add them in here! }}
-      <div class='resource'>
-        <label class='resource-label'>Spell Level</label>
-        <input
-          type='text'
-          name='system.spellLevel'
-          value='{{system.spellLevel}}'
-          data-dtype='Number'
-        />
-      </div>
-    </div>
-  </section>
-</form>
+  {{!--
+    §6.3: every spell has FOUR mastery variants, each with its own
+    effect description and its own mana cost. All four are shown at
+    once, not just the one matching the caster's current skill tier.
+  --}}
+  <div class="item-sheet__variants">
+    <article class="item-sheet__variant">
+      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantNone'}}</h3>
+      <label class="item-sheet__field item-sheet__field--wide">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+        <textarea name="system.variants.none.description" rows="3">{{system.variants.none.description}}</textarea>
+      </label>
+      <label class="item-sheet__field">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
+        <input type="number" name="system.variants.none.manaCost" value="{{system.variants.none.manaCost}}" min="0" step="1">
+      </label>
+    </article>
+
+    <article class="item-sheet__variant">
+      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantBasic'}}</h3>
+      <label class="item-sheet__field item-sheet__field--wide">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+        <textarea name="system.variants.basic.description" rows="3">{{system.variants.basic.description}}</textarea>
+      </label>
+      <label class="item-sheet__field">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
+        <input type="number" name="system.variants.basic.manaCost" value="{{system.variants.basic.manaCost}}" min="0" step="1">
+      </label>
+    </article>
+
+    <article class="item-sheet__variant">
+      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantAdvanced'}}</h3>
+      <label class="item-sheet__field item-sheet__field--wide">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+        <textarea name="system.variants.advanced.description" rows="3">{{system.variants.advanced.description}}</textarea>
+      </label>
+      <label class="item-sheet__field">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
+        <input type="number" name="system.variants.advanced.manaCost" value="{{system.variants.advanced.manaCost}}" min="0" step="1">
+      </label>
+    </article>
+
+    <article class="item-sheet__variant">
+      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantExpert'}}</h3>
+      <label class="item-sheet__field item-sheet__field--wide">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+        <textarea name="system.variants.expert.description" rows="3">{{system.variants.expert.description}}</textarea>
+      </label>
+      <label class="item-sheet__field">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
+        <input type="number" name="system.variants.expert.manaCost" value="{{system.variants.expert.manaCost}}" min="0" step="1">
+      </label>
+    </article>
+  </div>
+</section>

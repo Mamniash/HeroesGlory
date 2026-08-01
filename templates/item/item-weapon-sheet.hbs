@@ -1,0 +1,42 @@
+{{> "systems/heroes-glory/templates/item/parts/item-sheet-header.hbs"}}
+
+<section class="item-sheet__body item-sheet__body--weapon">
+  <div class="grid grid-3col">
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Type'}}</span>
+      <select name="system.weaponType">
+        {{selectOptions config.weaponTypes selected=system.weaponType localize=true}}
+      </select>
+    </label>
+
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Damage'}}</span>
+      <input type="number" name="system.damage" value="{{system.damage}}" min="2" max="50" step="1">
+    </label>
+
+    <label class="item-sheet__field item-sheet__field--checkbox">
+      <input type="checkbox" name="system.twoHanded" {{checked system.twoHanded}}>
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.TwoHanded'}}</span>
+    </label>
+  </div>
+
+  <label class="item-sheet__field item-sheet__field--checkbox">
+    <input type="checkbox" name="system.equipped" {{checked system.equipped}}>
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Item.Equipped'}}</span>
+  </label>
+
+  <label class="item-sheet__field">
+    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Source'}}</span>
+    <input type="text" name="system.source" value="{{system.source}}">
+  </label>
+
+  <fieldset class="item-sheet__epic-table">
+    <legend>{{localize 'HEROES_GLORY.Item.EpicTable'}}</legend>
+    {{#each system.epicTable}}
+      <label class="item-sheet__field">
+        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Item.EpicRow'}} {{inc @index}}</span>
+        <input type="text" name="system.epicTable.{{@index}}" value="{{this}}">
+      </label>
+    {{/each}}
+  </fieldset>
+</section>
