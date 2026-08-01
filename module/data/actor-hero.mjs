@@ -21,16 +21,23 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     // every prepareDerivedData() pass from Знания × Интеллект multiplier —
     // it exists as a schema field only so Foundry's token resource-bar
     // picker can target it, not because it should ever be edited directly.
+    //
+    // The wrapping SchemaField is explicitly {required: true, nullable:
+    // false} so it can never resolve to undefined/null on a freshly-created
+    // actor — a possibly-undefined nested SchemaField is a known Foundry
+    // crash trigger when Active Effects (or v14's new DataField-guided
+    // effect application) walk the schema (foundryvtt/foundryvtt#13383,
+    // #11527).
     schema.mana = new fields.SchemaField({
       value: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
       max: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
-    });
+    }, { required: true, nullable: false });
 
-    // Здоровье / ОЗ (§2.2)
+    // Здоровье / ОЗ (§2.2). Same required/nullable rationale as `mana` above.
     schema.health = new fields.SchemaField({
       value: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
       max: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
-    });
+    }, { required: true, nullable: false });
 
     schema.speed = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
