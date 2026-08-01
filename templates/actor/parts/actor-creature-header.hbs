@@ -1,8 +1,7 @@
 <header class="actor-sheet__header">
-  <button type="button" class="actor-sheet__image-button" data-action="editImage" data-edit="img"
+  <img class="actor-sheet__image" src="{{actor.img}}" alt="{{actor.name}}"
+    data-action="editImage" data-edit="img" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Actor.ChangeImage'}}">
-    <img class="actor-sheet__image" src="{{actor.img}}" alt="{{actor.name}}">
-  </button>
   <div class="actor-sheet__title">
     <input class="actor-sheet__name" type="text" name="name" value="{{actor.name}}"
       placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">

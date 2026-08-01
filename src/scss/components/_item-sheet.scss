@@ -8,16 +8,10 @@
   margin-bottom: $padding-md;
 }
 
-.item-sheet__image-button {
-  flex: 0 0 auto;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
 .item-sheet__image {
+  flex: 0 0 auto;
   display: block;
+  cursor: pointer;
   width: 64px;
   height: 64px;
   border: $border-groove;
