@@ -1,0 +1,175 @@
+{
+  "HEROES_GLORY": {
+    "Race": {
+      "Human": "Человек",
+      "Gnome": "Гном",
+      "Elf": "Эльф",
+      "Goblin": "Гоблин",
+      "Vampire": "Вампир",
+      "Troglodyte": "Троглодит",
+      "Gnoll": "Гнолл",
+      "Demon": "Демон",
+      "Djinn": "Джин",
+      "Minotaur": "Минотавр",
+      "Elemental": "Элементал",
+      "Saurian": "Звероящер"
+    },
+    "Faction": {
+      "Castle": "Замок",
+      "Stronghold": "Оплот",
+      "Tower": "Башня",
+      "Fortress": "Крепость",
+      "Dungeon": "Темница",
+      "Inferno": "Инферно",
+      "Necropolis": "Некрополис",
+      "Citadel": "Цитадель",
+      "Nexus": "Сопряжение",
+      "Haven": "Причал"
+    },
+    "Class": {
+      "Knight": "Рыцарь",
+      "Cleric": "Клирик",
+      "Ranger": "Следопыт",
+      "Druid": "Друид",
+      "Alchemist": "Алхимик",
+      "Mage": "Маг",
+      "Beastmaster": "Зверолов",
+      "Witch": "Ведьма",
+      "Lord": "Лорд",
+      "Warlock": "Чернокнижник",
+      "Possessed": "Одержимый",
+      "Heretic": "Еретик",
+      "DeathKnight": "Рыцарь Смерти",
+      "Necromancer": "Некромант",
+      "Barbarian": "Варвар",
+      "Battlemage": "Боевой маг",
+      "Wanderer": "Странник",
+      "Elementalist": "Элементалист",
+      "Captain": "Капитан",
+      "Navigator": "Навигатор"
+    },
+    "School": {
+      "Earth": "Земля",
+      "Air": "Воздух",
+      "Water": "Вода",
+      "Fire": "Огонь"
+    },
+    "WeaponType": {
+      "Piercing": "Колющий",
+      "Slashing": "Рубящий",
+      "Bludgeoning": "Дробящий",
+      "PiercingSlashing": "Колющий/рубящий",
+      "Ranged": "Стрелковое"
+    },
+    "ArtifactType": {
+      "EnchantedWeapon": "Зачарованное оружие",
+      "EnchantedArmor": "Зачарованные доспехи",
+      "EnchantedShield": "Зачарованные щиты",
+      "Necklace": "Ожерелья",
+      "MagicClothing": "Волшебная одежда",
+      "MagicItem": "Волшебные предметы"
+    },
+    "Vision": {
+      "Normal": "Обычное",
+      "Darkvision": "В темноте",
+      "Nightvision": "Ночное",
+      "Blindsense": "Слеповидение"
+    },
+    "SecondarySkill": {
+      "Assault": "Нападение",
+      "Armor": "Доспехи",
+      "Archery": "Стрельба",
+      "Tactics": "Тактика",
+      "Interference": "Помехи",
+      "Leadership": "Лидерство",
+      "Luck": "Удача",
+      "Pathfinding": "Поиск пути",
+      "AirMagic": "Магия Воздуха",
+      "EarthMagic": "Магия Земли",
+      "WaterMagic": "Магия Воды",
+      "FireMagic": "Магия Огня",
+      "Wisdom": "Мудрость",
+      "Intellect": "Интеллект",
+      "Mysticism": "Мистицизм",
+      "Sorcery": "Волшебство",
+      "Diplomacy": "Дипломатия",
+      "Scouting": "Разведка",
+      "Aptitude": "Обучаемость",
+      "Healing": "Лечение",
+      "Necromancy": "Некромантия"
+    },
+    "SkillTier": {
+      "Base": "Базовый",
+      "Advanced": "Продвинутый",
+      "Expert": "Эксперт"
+    },
+    "SheetLabels": {
+      "Actor": "Лист персонажа Heroes & Glory",
+      "Item": "Лист предмета Heroes & Glory",
+      "Weapon": "Лист оружия Heroes & Glory",
+      "Spell": "Лист заклинания Heroes & Glory",
+      "Artifact": "Лист артефакта Heroes & Glory",
+      "Skill": "Лист навыка Heroes & Glory"
+    },
+    "Item": {
+      "ChangeImage": "Сменить изображение",
+      "NamePlaceholder": "Название",
+      "Equipped": "Экипировано",
+      "EpicTable": "Эпик-таблица (d6)",
+      "EpicRow": "Строка",
+      "Spell": {
+        "SpellLVL": "Заклинания {level} уровня",
+        "AddLVL": "Добавить {level} ур."
+      }
+    },
+    "Weapon": {
+      "Type": "Тип оружия",
+      "Damage": "Урон",
+      "TwoHanded": "Двуручное",
+      "Source": "Где встречается"
+    },
+    "Artifact": {
+      "Type": "Тип артефакта",
+      "Level": "Уровень (доспехи/щиты)",
+      "Bonus": "Бонус"
+    },
+    "Skill": {
+      "Key": "Навык",
+      "Tier": "Текущий уровень",
+      "EffectBase": "Эффект: базовый",
+      "EffectAdvanced": "Эффект: продвинутый",
+      "EffectExpert": "Эффект: эксперт"
+    },
+    "Spell": {
+      "School": "Школа",
+      "Level": "Уровень заклинания",
+      "Range": "Дальность (клетки)",
+      "VariantNone": "Без Навыка",
+      "VariantBasic": "Базовый Навык",
+      "VariantAdvanced": "Продвинутый Навык",
+      "VariantExpert": "Экспертный Навык",
+      "Description": "Описание эффекта",
+      "ManaCost": "Стоимость Маны"
+    },
+    "Effect": {
+      "Source": "Источник",
+      "Toggle": "Переключить эффект",
+      "Temporary": "Временные эффекты",
+      "Passive": "Пассивные эффекты",
+      "Inactive": "Неактивные эффекты"
+    }
+  },
+
+  "TYPES": {
+    "Actor": {
+      "hero": "Герой",
+      "creature": "Существо"
+    },
+    "Item": {
+      "weapon": "Оружие",
+      "spell": "Заклинание",
+      "artifact": "Артефакт",
+      "skill": "Навык"
+    }
+  }
+}

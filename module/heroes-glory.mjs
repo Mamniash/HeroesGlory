@@ -3,7 +3,10 @@ import { HeroesGloryActor } from './documents/actor.mjs';
 import { HeroesGloryItem } from './documents/item.mjs';
 // Import sheet classes.
 import { HeroesGloryActorSheet } from './sheets/actor-sheet.mjs';
-import { HeroesGloryItemSheet } from './sheets/item-sheet.mjs';
+import { HeroesGloryWeaponSheet } from './sheets/item/weapon-sheet.mjs';
+import { HeroesGlorySpellSheet } from './sheets/item/spell-sheet.mjs';
+import { HeroesGloryArtifactSheet } from './sheets/item/artifact-sheet.mjs';
+import { HeroesGlorySkillSheet } from './sheets/item/skill-sheet.mjs';
 // Import helper/utility classes and constants.
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
@@ -55,16 +58,43 @@ Hooks.once('init', function () {
   // if the transfer property on the Active Effect is true.
   CONFIG.ActiveEffect.legacyTransferral = false;
 
-  // Register sheet application classes
-  Actors.unregisterSheet('core', ActorSheet);
-  Actors.registerSheet('heroes-glory', HeroesGloryActorSheet, {
+  // Register sheet application classes.
+  //
+  // v13 moved sheet (un)registration off the old `Actors`/`Items` collection
+  // statics and the bare `ActorSheet`/`ItemSheet` globals onto
+  // DocumentSheetConfig, with the legacy v1 sheet classes now living under
+  // `foundry.appv1.sheets`.
+  const { DocumentSheetConfig } = foundry.applications.apps;
+
+  // The Actor sheet itself is still the legacy v1 ActorSheet for now
+  // (separate task); only the registration call is fixed here so this hook
+  // doesn't throw before it reaches the item sheet registration below.
+  DocumentSheetConfig.unregisterSheet(Actor, 'core', foundry.appv1.sheets.ActorSheet);
+  DocumentSheetConfig.registerSheet(Actor, 'heroes-glory', HeroesGloryActorSheet, {
     makeDefault: true,
     label: 'HEROES_GLORY.SheetLabels.Actor',
   });
-  Items.unregisterSheet('core', ItemSheet);
-  Items.registerSheet('heroes-glory', HeroesGloryItemSheet, {
+
+  DocumentSheetConfig.unregisterSheet(Item, 'core', foundry.appv1.sheets.ItemSheet);
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGloryWeaponSheet, {
+    types: ['weapon'],
     makeDefault: true,
-    label: 'HEROES_GLORY.SheetLabels.Item',
+    label: 'HEROES_GLORY.SheetLabels.Weapon',
+  });
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGlorySpellSheet, {
+    types: ['spell'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Spell',
+  });
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGloryArtifactSheet, {
+    types: ['artifact'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Artifact',
+  });
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGlorySkillSheet, {
+    types: ['skill'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Skill',
   });
 
   // Preload Handlebars templates.
@@ -78,6 +108,12 @@ Hooks.once('init', function () {
 // If you need to add Handlebars helpers, here is a useful example:
 Handlebars.registerHelper('toLowerCase', function (str) {
   return str.toLowerCase();
+});
+
+// Used to print 1-based row numbers next to `{{#each}}`-rendered fields
+// (e.g. the weapon epic table's 6 rows).
+Handlebars.registerHelper('inc', function (value) {
+  return Number(value) + 1;
 });
 
 /* -------------------------------------------- */

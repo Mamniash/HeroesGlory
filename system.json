@@ -45,6 +45,11 @@
   "styles": ["css/heroes-glory.css"],
   "languages": [
     {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "lang/ru.json"
+    },
+    {
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"

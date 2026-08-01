@@ -12,5 +12,6 @@ export const preloadHandlebarsTemplates = async function () {
     'systems/heroes-glory/templates/actor/parts/actor-effects.hbs',
     // Item partials
     'systems/heroes-glory/templates/item/parts/item-effects.hbs',
+    'systems/heroes-glory/templates/item/parts/item-sheet-header.hbs',
   ]);
 };
