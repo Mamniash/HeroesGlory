@@ -1,12 +1,107 @@
 {
   "HEROES_GLORY": {
-    "Ability": {
-      "Str": { "long": "Strength", "abbr": "str" },
-      "Con": { "long": "Constitution", "abbr": "con" },
-      "Dex": { "long": "Dexterity", "abbr": "dex" },
-      "Int": { "long": "Intelligence", "abbr": "int" },
-      "Wis": { "long": "Wisdom", "abbr": "wis" },
-      "Cha": { "long": "Charisma", "abbr": "cha" }
+    "Race": {
+      "Human": "Human",
+      "Gnome": "Gnome",
+      "Elf": "Elf",
+      "Goblin": "Goblin",
+      "Vampire": "Vampire",
+      "Troglodyte": "Troglodyte",
+      "Gnoll": "Gnoll",
+      "Demon": "Demon",
+      "Djinn": "Djinn",
+      "Minotaur": "Minotaur",
+      "Elemental": "Elemental",
+      "Saurian": "Saurian"
+    },
+    "Faction": {
+      "Castle": "Castle",
+      "Stronghold": "Stronghold",
+      "Tower": "Tower",
+      "Fortress": "Fortress",
+      "Dungeon": "Dungeon",
+      "Inferno": "Inferno",
+      "Necropolis": "Necropolis",
+      "Citadel": "Citadel",
+      "Nexus": "Nexus",
+      "Haven": "Haven"
+    },
+    "Class": {
+      "Knight": "Knight",
+      "Cleric": "Cleric",
+      "Ranger": "Ranger",
+      "Druid": "Druid",
+      "Alchemist": "Alchemist",
+      "Mage": "Mage",
+      "Beastmaster": "Beastmaster",
+      "Witch": "Witch",
+      "Lord": "Lord",
+      "Warlock": "Warlock",
+      "Possessed": "Possessed",
+      "Heretic": "Heretic",
+      "DeathKnight": "Death Knight",
+      "Necromancer": "Necromancer",
+      "Barbarian": "Barbarian",
+      "Battlemage": "Battlemage",
+      "Wanderer": "Wanderer",
+      "Elementalist": "Elementalist",
+      "Captain": "Captain",
+      "Navigator": "Navigator"
+    },
+    "School": {
+      "Earth": "Earth",
+      "Air": "Air",
+      "Water": "Water",
+      "Fire": "Fire"
+    },
+    "WeaponType": {
+      "Piercing": "Piercing",
+      "Slashing": "Slashing",
+      "Bludgeoning": "Bludgeoning",
+      "PiercingSlashing": "Piercing/Slashing",
+      "Ranged": "Ranged"
+    },
+    "ArtifactType": {
+      "EnchantedWeapon": "Enchanted Weapon",
+      "EnchantedArmor": "Enchanted Armor",
+      "EnchantedShield": "Enchanted Shield",
+      "Necklace": "Necklace",
+      "MagicClothing": "Magic Clothing",
+      "MagicItem": "Magic Item"
+    },
+    "Vision": {
+      "Normal": "Normal",
+      "Darkvision": "Darkvision",
+      "Nightvision": "Nightvision",
+      "Blindsense": "Blindsense"
+    },
+    "SecondarySkill": {
+      "Assault": "Assault",
+      "Armor": "Armor",
+      "Archery": "Archery",
+      "Tactics": "Tactics",
+      "Interference": "Interference",
+      "Leadership": "Leadership",
+      "Luck": "Luck",
+      "Pathfinding": "Pathfinding",
+      "AirMagic": "Air Magic",
+      "EarthMagic": "Earth Magic",
+      "WaterMagic": "Water Magic",
+      "FireMagic": "Fire Magic",
+      "Wisdom": "Wisdom",
+      "Intellect": "Intellect",
+      "Mysticism": "Mysticism",
+      "Sorcery": "Sorcery",
+      "Diplomacy": "Diplomacy",
+      "Scouting": "Scouting",
+      "Aptitude": "Aptitude",
+      "Healing": "Healing",
+      "Necromancy": "Necromancy"
+    },
+    "SkillTier": {
+      "Base": "Base",
+      "Advanced": "Advanced",
+      "Expert": "Expert"
     },
     "SheetLabels": {
       "Actor": "HeroesGlory Actor Sheet",
@@ -29,13 +124,14 @@
 
   "TYPES": {
     "Actor": {
-      "character": "Character",
-      "npc": "NPC"
+      "hero": "Hero",
+      "creature": "Creature"
     },
     "Item": {
-      "item": "Item",
-      "feature": "Feature",
-      "spell": "Spell"
+      "weapon": "Weapon",
+      "spell": "Spell",
+      "artifact": "Artifact",
+      "skill": "Skill"
     }
   }
 }

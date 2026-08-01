@@ -31,25 +31,23 @@ Hooks.once('init', function () {
    * @type {String}
    */
   CONFIG.Combat.initiative = {
-    formula: '1d20 + @abilities.dex.mod',
+    formula: '1d20 + @speed',
     decimals: 2,
   };
 
   // Define custom Document and DataModel classes
   CONFIG.Actor.documentClass = HeroesGloryActor;
 
-  // Note that you don't need to declare a DataModel
-  // for the base actor/item classes - they are included
-  // with the Character/NPC as part of super.defineSchema()
   CONFIG.Actor.dataModels = {
-    character: models.HeroesGloryCharacter,
-    npc: models.HeroesGloryNPC
+    hero: models.HeroesGloryHero,
+    creature: models.HeroesGloryCreature
   }
   CONFIG.Item.documentClass = HeroesGloryItem;
   CONFIG.Item.dataModels = {
-    item: models.HeroesGloryItem,
-    feature: models.HeroesGloryFeature,
-    spell: models.HeroesGlorySpell
+    weapon: models.HeroesGloryWeapon,
+    spell: models.HeroesGlorySpell,
+    artifact: models.HeroesGloryArtifact,
+    skill: models.HeroesGlorySkill
   }
 
   // Active Effects are never copied to the Actor,
