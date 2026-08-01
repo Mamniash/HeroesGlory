@@ -20,6 +20,11 @@ export default class HeroesGloryWeapon extends HeroesGloryDataModel {
     // Двуручное
     schema.twoHanded = new fields.BooleanField({ initial: false });
 
+    // §8.1/§8.3: whether this weapon is currently wielded — a hero can
+    // have at most one equipped melee weapon and one equipped ranged
+    // weapon at a time.
+    schema.equipped = new fields.BooleanField({ initial: false });
+
     // Deviation from §8.1, which ties the epic table to the weapon's
     // CATEGORY rather than the individual weapon — kept on the weapon
     // item itself per explicit project decision.

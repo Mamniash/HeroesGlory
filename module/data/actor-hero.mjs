@@ -57,6 +57,10 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       required: true, blank: true, initial: "", choices: CONFIG.HEROES_GLORY.classes,
     });
 
+    // §6.1: spells cannot be cast without a Книга Магии. Волшебник/Алхимик
+    // start with one; everyone else must buy one for 500 gold.
+    schema.hasSpellbook = new fields.BooleanField({ initial: false });
+
     // Not present in rules.md — generic free-text notes field for the sheet.
     schema.biography = new fields.StringField({ required: true, blank: true });
 
