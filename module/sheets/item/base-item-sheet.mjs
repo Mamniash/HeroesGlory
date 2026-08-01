@@ -3,8 +3,13 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 
 /**
  * Shared behaviour for every Heroes & Glory item sheet. Type-specific
- * sheets (weapon/spell/artifact/skill) only need to supply their own
- * `PARTS` template.
+ * sheets (weapon/spell/artifact/skill) supply their own `PARTS` — each
+ * declares both `header` (the shared name/image partial) and `body`
+ * (its own fields template). PARTS is not defined here and left for
+ * each subclass to declare in full: a subclass's `static PARTS`
+ * replaces rather than merges with an ancestor's, unlike
+ * `DEFAULT_OPTIONS`, so a header-only PARTS entry here would silently
+ * do nothing once a subclass adds its own `PARTS`.
  */
 export class HeroesGloryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
