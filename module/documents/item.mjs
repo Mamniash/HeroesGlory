@@ -1,3 +1,12 @@
+import { buildEffectChanges } from '../helpers/modifiers.mjs';
+
+/**
+ * The flag namespace/key marking the ActiveEffect this system auto-manages
+ * on an artifact from its `system.modifiers` — distinguishes it from any
+ * effect a GM might add by hand through Foundry's own effects UI.
+ */
+const MODIFIER_EFFECT_FLAG = ['heroes-glory', 'artifactModifiers'];
+
 /**
  * Extend the basic Item with some very simple modifications.
  * @extends {Item}
@@ -51,20 +60,42 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
+   * A brand-new artifact might already carry `system.modifiers` (e.g.
+   * imported from a compendium), so the backing ActiveEffect needs to
+   * exist from creation, not just from a later edit.
+   * @override
+   */
+  _onCreate(data, options, userId) {
+    super._onCreate(data, options, userId);
+    if (userId !== game.user.id) return;
+    if (this.type === 'artifact') this.#syncModifierEffect();
+  }
+
+  /**
    * §8.1/§8.3: a hero can have at most one equipped melee weapon, one
    * equipped ranged weapon, and one equipped artifact per artifact type.
    * When this item transitions to `equipped: true`, unequip whatever else
    * currently occupies its slot instead of silently letting two items
    * share it (which made the previous occupant unreachable — not shown in
    * the equipped slot, and not shown in inventory either).
+   *
+   * Also keeps an artifact's structured `system.modifiers` (§8.2) synced
+   * onto a real embedded ActiveEffect, so the bonuses actually apply
+   * instead of just being displayed as text — see module/helpers/
+   * modifiers.mjs and #syncModifierEffect below.
    * @override
    */
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
 
-    // Only the client that made this change drives the cascade, so it
-    // doesn't get attempted redundantly on every connected client.
+    // Only the client that made this change drives these cascades, so
+    // they don't get attempted redundantly on every connected client.
     if (userId !== game.user.id) return;
+
+    if (this.type === 'artifact' && ('modifiers' in (changed.system ?? {}) || 'equipped' in (changed.system ?? {}))) {
+      this.#syncModifierEffect();
+    }
+
     if (!this.actor) return;
     if (changed.system?.equipped !== true) return;
     if (this.type !== 'weapon' && this.type !== 'artifact') return;
@@ -89,6 +120,43 @@ export class HeroesGloryItem extends Item {
       i.id !== this.id && i.type === 'artifact' && i.system.equipped
       && i.system.artifactType === this.system.artifactType
     );
+  }
+
+  /**
+   * Keep this artifact's single auto-managed ActiveEffect in sync with
+   * `system.modifiers` and `system.equipped`. Always rebuilds the full
+   * effect data and calls `update()` rather than diffing — Foundry only
+   * writes an actual change if something differs, so this is simple
+   * without being wasteful in practice (an equip toggle recomputes the
+   * same `changes` and only `disabled` actually differs; a modifiers
+   * edit recomputes `changes` and `disabled` stays the same).
+   *
+   * The effect has `transfer: true` (Foundry's own default for
+   * ActiveEffect), so it applies to the owning actor automatically once
+   * enabled — no manual transfer plumbing needed.
+   * @returns {Promise<void>}
+   */
+  async #syncModifierEffect() {
+    const modifiers = this.system.modifiers ?? [];
+    const existing = this.effects.find((e) => e.getFlag(...MODIFIER_EFFECT_FLAG));
+
+    if (modifiers.length === 0) {
+      if (existing) await existing.delete();
+      return;
+    }
+
+    const effectData = {
+      name: this.name,
+      img: this.img,
+      transfer: true,
+      disabled: !this.system.equipped,
+      origin: this.uuid,
+      system: { changes: buildEffectChanges(modifiers) },
+      flags: { [MODIFIER_EFFECT_FLAG[0]]: { [MODIFIER_EFFECT_FLAG[1]]: true } },
+    };
+
+    if (existing) await existing.update(effectData);
+    else await this.createEmbeddedDocuments('ActiveEffect', [effectData]);
   }
 
   /**

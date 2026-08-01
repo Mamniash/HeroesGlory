@@ -22,4 +22,24 @@
     <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Bonus'}}</span>
     <textarea name="system.bonus" rows="4">{{system.bonus}}</textarea>
   </label>
+
+  <fieldset class="item-sheet__modifiers">
+    <legend>{{localize 'HEROES_GLORY.Artifact.Modifiers'}}</legend>
+    {{#each system.modifiers}}
+      <div class="item-sheet__modifier-row">
+        <select name="system.modifiers.{{@index}}.stat">
+          {{selectOptions ../config.artifactModifierStats selected=this.stat localize=true}}
+        </select>
+        <select name="system.modifiers.{{@index}}.mode">
+          {{selectOptions ../config.artifactModifierModes selected=this.mode localize=true}}
+        </select>
+        <input type="number" name="system.modifiers.{{@index}}.value" value="{{this.value}}">
+        <button type="button" class="item-sheet__icon-button" data-action="deleteModifier" data-index="{{@index}}"
+          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    {{/each}}
+    <button type="button" class="item-sheet__add-button" data-action="addModifier">
+      <i class="fa-solid fa-plus"></i> {{localize 'HEROES_GLORY.Artifact.AddModifier'}}
+    </button>
+  </fieldset>
 </section>

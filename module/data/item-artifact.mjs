@@ -26,6 +26,22 @@ export default class HeroesGloryArtifact extends HeroesGloryDataModel {
     // inventory limits.
     schema.equipped = new fields.BooleanField({ initial: false });
 
+    // Structured bonuses (§8.2), separate from the free-text `bonus` above
+    // — many book bonuses aren't a single number ("Восстанавливает 1 ОЗ за
+    // каждый факт нанесения урона") and stay text-only, unmodeled. These
+    // are the ones that are just a number on a stat. module/documents/
+    // item.mjs syncs this list onto a real embedded ActiveEffect so it
+    // actually affects the actor, not just the sheet.
+    schema.modifiers = new fields.ArrayField(new fields.SchemaField({
+      stat: new fields.StringField({
+        required: true, blank: false, initial: 'attack', choices: CONFIG.HEROES_GLORY.artifactModifierStats,
+      }),
+      mode: new fields.StringField({
+        required: true, blank: false, initial: 'add', choices: CONFIG.HEROES_GLORY.artifactModifierModes,
+      }),
+      value: new fields.NumberField({ required: true, nullable: false, initial: 0 }),
+    }), { initial: [] });
+
     return schema;
   }
 }

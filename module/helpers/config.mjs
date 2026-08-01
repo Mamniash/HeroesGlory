@@ -154,3 +154,36 @@ HEROES_GLORY.skillTiers = {
   advanced: 'HEROES_GLORY.SkillTier.Advanced',
   expert: 'HEROES_GLORY.SkillTier.Expert',
 };
+
+/**
+ * Stats an artifact's structured modifiers (rules.md §8.2) can target.
+ * Keys match `Actor#system` field paths one-to-one, so a modifier's `key`
+ * for the underlying ActiveEffect change is just `system.${stat}`.
+ * @type {Object}
+ */
+HEROES_GLORY.artifactModifierStats = {
+  attack: 'HEROES_GLORY.Hero.Attack',
+  defense: 'HEROES_GLORY.Hero.Defense',
+  magicPower: 'HEROES_GLORY.Hero.MagicPower',
+  knowledge: 'HEROES_GLORY.Hero.Knowledge',
+  speed: 'HEROES_GLORY.Hero.Speed',
+  luck: 'HEROES_GLORY.Hero.Luck',
+  morale: 'HEROES_GLORY.Hero.Morale',
+  'health.max': 'HEROES_GLORY.Hero.Health',
+  'mana.max': 'HEROES_GLORY.Hero.Mana',
+};
+
+/**
+ * The non-"custom" ActiveEffect change types (CONST.ACTIVE_EFFECT_CHANGE_TYPES
+ * in v14), offered as an artifact modifier's `mode`. "custom" is excluded —
+ * it requires bespoke handler code we don't have.
+ * @type {Object}
+ */
+HEROES_GLORY.artifactModifierModes = {
+  add: 'HEROES_GLORY.ArtifactModifier.ModeAdd',
+  subtract: 'HEROES_GLORY.ArtifactModifier.ModeSubtract',
+  multiply: 'HEROES_GLORY.ArtifactModifier.ModeMultiply',
+  downgrade: 'HEROES_GLORY.ArtifactModifier.ModeDowngrade',
+  upgrade: 'HEROES_GLORY.ArtifactModifier.ModeUpgrade',
+  override: 'HEROES_GLORY.ArtifactModifier.ModeOverride',
+};
