@@ -21,3 +21,6 @@
   @import 'components/actor-sheet';
   @import 'components/effects';
 }
+
+/* Chat cards render in the chat log, outside any .heroes-glory wrapper */
+@import 'components/chat-card';

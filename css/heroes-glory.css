@@ -495,6 +495,16 @@
   font-size: 12px;
   color: #444;
 }
+.heroes-glory .actor-sheet__attack-row {
+  padding: 5px 10px;
+  border: 2px groove #eeede0;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+}
+.heroes-glory .actor-sheet__attack-row:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
 .heroes-glory .actor-sheet__special-skills {
   display: flex;
   flex-wrap: wrap;
@@ -542,6 +552,10 @@
 .heroes-glory .hero-sheet__primary-skill-label {
   font-size: 11px;
   color: #444;
+  cursor: pointer;
+}
+.heroes-glory .hero-sheet__primary-skill-label:hover {
+  text-decoration: underline;
 }
 .heroes-glory .hero-sheet__section-title {
   margin: 0 0 5px;
@@ -609,4 +623,40 @@
 }
 .heroes-glory .effects .item .effect-controls {
   border: none;
+}
+
+/* Chat cards render in the chat log, outside any .heroes-glory wrapper */
+.heroes-glory-chat-card {
+  font-family: "Roboto", sans-serif;
+}
+.heroes-glory-chat-card__title {
+  margin: 0 0 5px;
+  font-size: 14px;
+}
+.heroes-glory-chat-card__line {
+  margin: 2px 0;
+  font-size: 12px;
+}
+.heroes-glory-chat-card__line--muted {
+  color: #444;
+  font-style: italic;
+}
+.heroes-glory-chat-card__damage {
+  margin: 5px 0 2px;
+  font-size: 13px;
+  font-weight: bold;
+}
+.heroes-glory-chat-card__description {
+  margin: 2px 0;
+  font-size: 12px;
+  font-style: italic;
+}
+.heroes-glory-chat-card__epic {
+  margin-top: 5px;
+  padding: 5px;
+  border: 2px groove #eeede0;
+}
+.heroes-glory-chat-card__epic-title {
+  margin: 0 0 2px;
+  font-size: 13px;
 }

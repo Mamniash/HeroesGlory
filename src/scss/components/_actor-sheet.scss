@@ -87,6 +87,18 @@
   color: $c-tan;
 }
 
+.actor-sheet__attack-row {
+  padding: $padding-sm $padding-md;
+  border: $border-groove;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
 .actor-sheet__special-skills {
   display: flex;
   flex-wrap: wrap;
@@ -146,6 +158,11 @@
 .hero-sheet__primary-skill-label {
   font-size: 11px;
   color: $c-tan;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .hero-sheet__section-title {

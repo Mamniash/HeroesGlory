@@ -1,0 +1,60 @@
+<div class="heroes-glory-chat-card heroes-glory-chat-card--attack">
+  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.AttackTitle' attacker=attackerName}}</h3>
+
+  {{#if weaponName}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Weapon' weapon=weaponName}}</p>
+  {{/if}}
+
+  {{#if targetName}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Target' target=targetName}}</p>
+  {{else}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
+  {{/if}}
+
+  <p class="heroes-glory-chat-card__line">
+    {{localize 'HEROES_GLORY.Roll.HitResult' die=hit.die result=(localize hit.labelKey) multiplier=hit.multiplier}}
+  </p>
+
+  {{#if defeat.known}}
+    {{#if defeat.auto}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.DefeatAuto'}}</p>
+    {{else}}
+      <p class="heroes-glory-chat-card__line">
+        {{localize 'HEROES_GLORY.Roll.DefeatThreshold' die=defeat.die threshold=defeat.threshold}}
+        —
+        {{#if defeat.success}}{{localize 'HEROES_GLORY.Roll.DefeatSuccess'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefeatFail'}}{{/if}}
+      </p>
+    {{/if}}
+  {{else}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.DefeatUnknown'}}</p>
+  {{/if}}
+
+  <p class="heroes-glory-chat-card__damage">
+    {{#if damageKnown}}
+      {{localize 'HEROES_GLORY.Roll.Damage' damage=damage}}
+    {{else}}
+      {{localize 'HEROES_GLORY.Roll.DamageUnknown'}}
+    {{/if}}
+  </p>
+
+  {{#if hit.epic}}
+    <div class="heroes-glory-chat-card__epic">
+      <h4 class="heroes-glory-chat-card__epic-title">{{localize 'HEROES_GLORY.Roll.EpicTitle'}}</h4>
+      {{#if hasEpicTable}}
+        {{#if epicRow}}
+          <p class="heroes-glory-chat-card__line">{{epicRow}}</p>
+        {{/if}}
+        {{#if severe}}
+          <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>
+          {{#if location}}
+            <p class="heroes-glory-chat-card__line">
+              {{localize location.labelKey}} — {{localize location.effectKey}}
+            </p>
+          {{/if}}
+        {{/if}}
+      {{else}}
+        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicNoTable'}}</p>
+      {{/if}}
+    </div>
+  {{/if}}
+</div>
