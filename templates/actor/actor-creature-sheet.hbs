@@ -1,0 +1,69 @@
+<section class="actor-sheet__body actor-sheet__body--creature">
+  <div class="grid grid-3col">
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Faction'}}</span>
+      <select name="system.faction">
+        {{selectOptions config.factions selected=system.faction localize=true}}
+      </select>
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Level'}}</span>
+      <input type="number" name="system.level" value="{{system.level}}" min="0">
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Speed'}}</span>
+      <input type="number" name="system.speed" value="{{system.speed}}" min="0">
+    </label>
+  </div>
+
+  <div class="grid grid-4col">
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Attack'}}</span>
+      <input type="number" name="system.attack" value="{{system.attack}}" min="0">
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Defense'}}</span>
+      <input type="number" name="system.defense" value="{{system.defense}}" min="0">
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Damage'}}</span>
+      <input type="number" name="system.damage" value="{{system.damage}}" min="0">
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.AttacksCount'}}</span>
+      <input type="number" name="system.attacksCount" value="{{system.attacksCount}}" min="0">
+    </label>
+  </div>
+
+  <div class="grid grid-2col">
+    <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageWeak'}}: {{damageWeak}}</p>
+    <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageStrong'}}: {{damageStrong}}</p>
+  </div>
+
+  <div class="actor-sheet__field">
+    <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Health'}}</span>
+    <div class="actor-sheet__value-pair">
+      <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
+      <span class="actor-sheet__value-sep">/</span>
+      <input type="number" name="system.health.max" value="{{system.health.max}}" min="0">
+    </div>
+  </div>
+
+  <fieldset class="actor-sheet__special-skills">
+    <legend>{{localize 'HEROES_GLORY.Creature.SpecialSkills'}}</legend>
+    {{#each system.specialSkills}}
+      <input type="text" class="actor-sheet__special-skill" name="system.specialSkills.{{@index}}" value="{{this}}">
+    {{/each}}
+    <input type="text" class="actor-sheet__special-skill" name="system.specialSkills.{{system.specialSkills.length}}" value="">
+  </fieldset>
+
+  <fieldset class="item-sheet__epic-table">
+    <legend>{{localize 'HEROES_GLORY.Creature.EpicTable'}}</legend>
+    {{#each system.epicTable}}
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.EpicRow'}} {{inc @index}}</span>
+        <input type="text" name="system.epicTable.{{@index}}" value="{{this}}">
+      </label>
+    {{/each}}
+  </fieldset>
+</section>
