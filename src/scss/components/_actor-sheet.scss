@@ -182,13 +182,21 @@
 }
 
 .hero-sheet__skill-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $padding-sm;
   font-size: 12px;
   padding: 2px $padding-sm;
   border: 1px solid $c-faint;
+}
+
+.hero-sheet__skill-entry-value {
+  flex: 1;
   cursor: pointer;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.05);
+    text-decoration: underline;
   }
 }
 
@@ -203,6 +211,7 @@
 
 .hero-sheet__item-slot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: $padding-sm;
   padding: 3px $padding-sm;
@@ -210,16 +219,50 @@
   font-size: 12px;
 
   &--filled {
-    cursor: pointer;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.05);
-    }
+    background: rgba(0, 0, 0, 0.03);
   }
 }
 
 .hero-sheet__item-slot-label {
+  flex: 0 0 auto;
   color: $c-tan;
+}
+
+.hero-sheet__item-slot-value {
+  flex: 1;
+
+  &[data-action] {
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.hero-sheet__item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.hero-sheet__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid $c-faint;
+  background: $c-white;
+  color: $c-tan;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: $c-dark;
+  }
 }
 
 .hero-sheet__item-slot-value {
