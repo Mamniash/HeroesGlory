@@ -226,6 +226,11 @@
       "Passive": "Пассивные эффекты",
       "Inactive": "Неактивные эффекты"
     },
+    "Status": {
+      "Prone": "Падение",
+      "Unconscious": "Без сознания",
+      "Incapacitated": "Недееспособен"
+    },
     "Roll": {
       "CheckHint": "Клик — проверка (d20 + значение)",
       "AttackHint": "Клик — бросок атаки",
@@ -281,7 +286,21 @@
       "MoraleExtraTurn": "ходит снова",
       "MoraleNoExtraTurn": "хода не будет",
       "MoraleSkip": "пропускает ход",
-      "MoraleResist": "ход сохранён"
+      "MoraleResist": "ход сохранён",
+      "StateMultiplierNote": "Состояние цели: урон ×{multiplier}",
+      "KillConfirmTitle": "Убить недееспособную цель?",
+      "KillConfirmContent": "{attacker} атакует недееспособного «{target}». По правилам (§5.9) это автоматическое убийство навсегда, без броска. Действие необратимо. Продолжить?",
+      "KillTitle": "{attacker} атакует «{target}»",
+      "KillResult": "«{target}» недееспособен(на) — убит(а) без броска.",
+      "PostBattleCheck": "Проверка после боя",
+      "PostBattleCheckHint": "Клик — бросок d20: 10 и ниже — погиб, выше — приходит в себя через час",
+      "PostBattleHelp": "Получил помощь",
+      "PostBattleHelpHint": "Клик — без броска: сразу приходит в себя с 1 ОЗ и 1 Маной",
+      "PostBattleTitle": "{actor}: проверка после боя",
+      "PostBattleResult": "{die}",
+      "PostBattleSurvived": "Приходит в себя через час с 1 ОЗ и 1 Маны. +1 Ранение.",
+      "PostBattleDied": "Погиб(ла) навсегда.",
+      "PostBattleHelped": "Получил(а) помощь — сразу приходит в себя с 1 ОЗ и 1 Маны. +1 Ранение."
     }
   },
 

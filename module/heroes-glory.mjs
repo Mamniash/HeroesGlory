@@ -12,7 +12,7 @@ import { HeroesGlorySkillSheet } from './sheets/item/skill-sheet.mjs';
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
-import { resetMoraleAfterCombat } from './helpers/combat.mjs';
+import { resetMoraleAfterCombat, clearCombatStatesAfterCombat } from './helpers/combat.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -60,6 +60,18 @@ Hooks.once('init', function () {
   // but will still apply to the Actor from within the Item
   // if the transfer property on the Active Effect is true.
   CONFIG.ActiveEffect.legacyTransferral = false;
+
+  // §5.6/§5.9: the 3 combat states, registered through Foundry's own
+  // status-effect mechanism (not bespoke flags) so they get real token
+  // icons and can also be toggled by hand from the token HUD for cases
+  // our own automation doesn't cover (rules.md §5.6: "Падение — любая
+  // потеря равновесия", not just the specific epic-hit trigger we
+  // automate). `CONFIG.statusEffects` is a live, push-appendable array.
+  CONFIG.statusEffects.push(
+    { id: HEROES_GLORY.statusEffects.prone, name: 'HEROES_GLORY.Status.Prone', img: 'icons/svg/falling.svg' },
+    { id: HEROES_GLORY.statusEffects.unconscious, name: 'HEROES_GLORY.Status.Unconscious', img: 'icons/svg/unconscious.svg' },
+    { id: HEROES_GLORY.statusEffects.incapacitated, name: 'HEROES_GLORY.Status.Incapacitated', img: 'icons/svg/blood.svg' },
+  );
 
   // Register sheet application classes.
   //
@@ -135,6 +147,9 @@ Hooks.on('renderChatMessageHTML', activateChatListeners);
 // §5.8: Боевой дух resets to 0, and its per-battle attempt counter clears,
 // once the encounter ends.
 Hooks.on('deleteCombat', resetMoraleAfterCombat);
+
+// §5.6: Падение and Без сознания both clear at the end of the battle.
+Hooks.on('deleteCombat', clearCombatStatesAfterCombat);
 
 /* -------------------------------------------- */
 /*  Ready Hook                                  */

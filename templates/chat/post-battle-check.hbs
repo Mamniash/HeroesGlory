@@ -1,0 +1,15 @@
+<div class="heroes-glory-chat-card heroes-glory-chat-card--post-battle">
+  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.PostBattleTitle' actor=actorName}}</h3>
+
+  {{#if helped}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.PostBattleHelped'}}</p>
+  {{else}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.PostBattleResult' die=die}}</p>
+  {{/if}}
+
+  {{#if survived}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.PostBattleSurvived'}}</p>
+  {{else}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.PostBattleDied'}}</p>
+  {{/if}}
+</div>
