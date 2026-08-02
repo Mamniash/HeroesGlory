@@ -108,6 +108,19 @@
         </p>
       {{/if}}
 
+      {{#if (and isGM isIncapacitated)}}
+        <div class="hero-sheet__morale-actions">
+          <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="roll"
+            title="{{localize 'HEROES_GLORY.Roll.PostBattleCheckHint'}}">
+            <i class="fa-solid fa-dice-d20"></i> {{localize 'HEROES_GLORY.Roll.PostBattleCheck'}}
+          </button>
+          <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="help"
+            title="{{localize 'HEROES_GLORY.Roll.PostBattleHelpHint'}}">
+            <i class="fa-solid fa-hand-holding-medical"></i> {{localize 'HEROES_GLORY.Roll.PostBattleHelp'}}
+          </button>
+        </div>
+      {{/if}}
+
       <div class="grid grid-4col">
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Speed'}}</span>

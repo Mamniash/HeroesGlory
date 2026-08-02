@@ -247,3 +247,53 @@ export function resolveMoraleCheck(d6) {
   }
   return { die: d6, passed: d6 >= 4 };
 }
+
+/**
+ * §5.6: the damage multiplier a target's own combat state adds on top of
+ * the d6 hit-table multiplier — прone doubles it, unconscious triples it.
+ * If a target somehow carries both, unconscious (the more severe state,
+ * and the one that implies prone no longer matters — "неподвижна")
+ * wins rather than the two compounding multiplicatively; the book gives
+ * no rule for that overlap, so this is an explicit interpretation call.
+ * @param {object} [state]
+ * @param {boolean} [state.prone=false]
+ * @param {boolean} [state.unconscious=false]
+ * @returns {number}   1, 2, or 3.
+ */
+export function resolveTargetStateMultiplier({ prone = false, unconscious = false } = {}) {
+  if (unconscious) return 3;
+  if (prone) return 2;
+  return 1;
+}
+
+/**
+ * §5.9: "ОЗ ≤ 0 → недееспособен до конца боя."
+ * @param {number} healthValue
+ * @returns {boolean}
+ */
+export function isIncapacitated(healthValue) {
+  return healthValue <= 0;
+}
+
+/**
+ * §5.9: how much Health/Mana an incapacitated hero wakes up with,
+ * whether they passed the post-battle check or were simply helped.
+ * @type {number}
+ */
+export const POST_BATTLE_RECOVERY_HEALTH = 1;
+export const POST_BATTLE_RECOVERY_MANA = 1;
+
+/**
+ * §5.9: the post-battle survival check for a hero left недееспособен
+ * without help — d20, 10 or below dies, above recovers (with
+ * {@link POST_BATTLE_RECOVERY_HEALTH}/{@link POST_BATTLE_RECOVERY_MANA}
+ * an hour later).
+ * @param {number} d20
+ * @returns {{die: number, survived: boolean}}
+ */
+export function resolvePostBattleCheck(d20) {
+  if (!Number.isInteger(d20) || d20 < 1 || d20 > 20) {
+    throw new RangeError(`resolvePostBattleCheck: d20 must be an integer 1-20, got ${d20}`);
+  }
+  return { die: d20, survived: d20 > 10 };
+}

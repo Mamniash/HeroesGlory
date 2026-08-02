@@ -4,6 +4,8 @@ import {
   rollAbilityCheck,
   rollPositiveMoraleCheck,
   rollNegativeMoraleCheck,
+  rollPostBattleCheck,
+  helpIncapacitatedActor,
 } from '../../helpers/roll-actions.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -31,6 +33,7 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       rollAbilityCheck: this.#onRollAbilityCheck,
       rollMoraleCheck: this.#onRollMoraleCheck,
       adjustWounds: this.#onAdjustWounds,
+      postBattleCheck: this.#onPostBattleCheck,
       unequipItem: this.#onUnequipItem,
       deleteItem: this.#onDeleteItem,
     },
@@ -141,6 +144,21 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     const delta = Number(target.dataset.delta);
     const next = Math.max(0, this.actor.system.wounds + delta);
     return this.actor.update({ 'system.wounds': next });
+  }
+
+  /**
+   * §5.9: resolve a Недееспособен hero after the battle — "roll" spends
+   * the d20 survival check, "help" skips straight to the guaranteed
+   * recovery. The template only renders these for the GM, matching how
+   * the book frames both as something decided about the hero, not by
+   * them.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onPostBattleCheck(event, target) {
+    if (target.dataset.variant === 'help') return helpIncapacitatedActor(this.actor);
+    return rollPostBattleCheck(this.actor);
   }
 
   /**

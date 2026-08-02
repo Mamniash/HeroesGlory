@@ -187,3 +187,18 @@ HEROES_GLORY.artifactModifierModes = {
   upgrade: 'HEROES_GLORY.ArtifactModifier.ModeUpgrade',
   override: 'HEROES_GLORY.ArtifactModifier.ModeOverride',
 };
+
+/**
+ * IDs for the 3 combat states (rules.md §5.6/§5.9) registered into
+ * `CONFIG.statusEffects` in heroes-glory.mjs's init hook — namespaced
+ * (`hg` prefix) so pushing them can't collide with/shadow any of core's
+ * own built-in status entries of the same conceptual name (e.g. core
+ * already has its own "prone"/"unconscious" ids with different English
+ * labels we don't want to inherit or fight over).
+ * @type {Object}
+ */
+HEROES_GLORY.statusEffects = {
+  prone: 'hgProne',
+  unconscious: 'hgUnconscious',
+  incapacitated: 'hgIncapacitated',
+};

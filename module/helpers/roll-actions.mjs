@@ -20,7 +20,12 @@ import {
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
+  resolveTargetStateMultiplier,
+  resolvePostBattleCheck,
+  POST_BATTLE_RECOVERY_HEALTH,
+  POST_BATTLE_RECOVERY_MANA,
 } from './rolls.mjs';
+import { buildEffectChanges } from './modifiers.mjs';
 
 /** The flag namespace every roll-related ChatMessage flag lives under. */
 const FLAG_SCOPE = 'heroes-glory';
@@ -95,12 +100,75 @@ async function rollEpicCascade(hit, epicTable, legendary) {
 }
 
 /**
+ * §5.4/§5.6: the mechanical half of a severe epic hit's "Куда попал"
+ * result. Торс and голова toggle the same real, iconed statuses a GM
+ * could otherwise apply by hand from the token HUD. Нога gets a real
+ * -1 Speed ActiveEffect, built the same way an artifact's structured
+ * modifier would be (see modifiers.mjs) — it persists "до излечения"
+ * rather than clearing when the battle ends, so unlike prone/
+ * unconscious it isn't touched by combat.mjs's combat-end cleanup, and
+ * stacks if the same leg (or the other one) gets hit again since the
+ * book gives no rule against that. Рука stays chat-text-only — the
+ * existing template already shows that message, and the task
+ * explicitly scopes it to "не трогаем инвентарь".
+ * @param {Actor} targetActor
+ * @param {string|null} location   'leg' | 'arm' | 'torso' | 'head' | null.
+ * @returns {Promise<void>}
+ */
+async function applyLocationConsequence(targetActor, location) {
+  if (location === 'torso') {
+    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.prone, { active: true });
+  } else if (location === 'head') {
+    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.unconscious, { active: true });
+  } else if (location === 'leg') {
+    await targetActor.createEmbeddedDocuments('ActiveEffect', [{
+      name: game.i18n.localize('HEROES_GLORY.Roll.Location.LegEffect'),
+      img: 'icons/svg/downgrade.svg',
+      system: { changes: buildEffectChanges([{ stat: 'speed', mode: 'subtract', value: 1 }]) },
+    }]);
+  }
+}
+
+/**
+ * §5.9: an attack against an incapacitated target needs no dice at all —
+ * it's an automatic, permanent kill — so it's gated behind an explicit
+ * confirmation instead of resolving on the same click every other
+ * attack uses. Marks the target with core's own "defeated" status
+ * (shows the standard skull overlay, doesn't delete anything) rather
+ * than deleting the Actor document — "не должен стирать чужого
+ * персонажа" is about preventing an accidental *destructive* click, not
+ * an instruction to actually erase the character sheet.
+ * @param {Actor} actor          The attacker.
+ * @param {Actor} targetActor    The incapacitated target.
+ * @returns {Promise<ChatMessage|null>}   `null` if the attacker declined.
+ */
+async function killIncapacitatedTarget(actor, targetActor) {
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    window: { title: 'HEROES_GLORY.Roll.KillConfirmTitle' },
+    content: `<p>${game.i18n.format('HEROES_GLORY.Roll.KillConfirmContent', { attacker: actor.name, target: targetActor.name })}</p>`,
+  });
+  if (!confirmed) return null;
+
+  await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
+  await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/kill-incapacitated.hbs',
+    { attackerName: actor.name, targetName: targetActor.name },
+  );
+
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+}
+
+/**
  * Rebuild the attack chat card's render context from the persisted
  * `heroes-glory.reroll` flag state. Pulled out of {@link rollAttack} so
  * {@link rerollAttackDie} can recompute the exact same card after either
  * die changes — hit and defeat are independent inputs to `resolveDamage`,
  * so either one can be recomputed alone from the flag state without
- * touching the other.
+ * touching the other. `stateMultiplier` is captured once at attack time
+ * (see rollAttack) and never re-read live, so a status this same attack
+ * just caused can't retroactively inflate its own damage.
  * @param {Actor} actor
  * @param {object} flags   The persisted `reroll` flag object (see rollAttack).
  * @returns {object}   Context for templates/chat/attack-roll.hbs.
@@ -112,8 +180,12 @@ function buildAttackContext(actor, flags) {
     targetDefense: flags.targetDefense,
     die: flags.defeatDie,
   });
-  const damage = resolveDamage({ baseDamage: flags.baseDamage, hit, defeat });
-  const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit });
+  // §5.6: the target's prone/unconscious state multiplies damage on top
+  // of the d6 hit-table multiplier — folded into a combined "effective
+  // hit" so resolveDamage/resolvePotentialDamage need no changes at all.
+  const effectiveHit = { ...hit, multiplier: hit.multiplier * flags.stateMultiplier };
+  const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
+  const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
 
   return {
     attackerName: actor.name,
@@ -121,6 +193,7 @@ function buildAttackContext(actor, flags) {
     targetName: flags.targetName,
     hit: { ...hit, labelKey: HIT_LABELS[hit.key], previousDie: flags.previousHitDie ?? null },
     defeat: { ...defeat, previousDie: flags.previousDefeatDie ?? null },
+    stateMultiplier: flags.stateMultiplier,
     damage,
     damageKnown: damage !== null,
     potentialDamage,
@@ -141,6 +214,14 @@ function buildAttackContext(actor, flags) {
  * @returns {Promise<ChatMessage>}
  */
 export async function rollAttack(actor, weapon = null) {
+  const targetToken = game.user.targets.first();
+  const targetActor = targetToken?.actor ?? null;
+
+  // §5.9: an attack on an incapacitated target skips the dice entirely.
+  if (targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.incapacitated)) {
+    return killIncapacitatedTarget(actor, targetActor);
+  }
+
   const baseDamage = weapon ? weapon.system.damage : actor.system.damage;
   // §5.4: ranged weapons have no epic table. Creatures always have their
   // own — the data model has no "ranged" concept for them.
@@ -148,10 +229,15 @@ export async function rollAttack(actor, weapon = null) {
     ? (weapon.system.weaponType === 'ranged' ? null : weapon.system.epicTable)
     : actor.system.epicTable;
   const legendary = weapon ? false : !!actor.system.legendary;
-
-  const targetToken = game.user.targets.first();
-  const targetActor = targetToken?.actor ?? null;
   const targetDefense = targetActor?.system?.defense ?? null;
+
+  // §5.6: captured before this attack can itself apply a new state to
+  // the target (see applyLocationConsequence below) — reflects what the
+  // target was going into the attack, not a state this same hit causes.
+  const stateMultiplier = resolveTargetStateMultiplier({
+    prone: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.prone) ?? false,
+    unconscious: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.unconscious) ?? false,
+  });
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
@@ -162,15 +248,18 @@ export async function rollAttack(actor, weapon = null) {
   const defeatDie = targetActor ? mainRoll.dice[1].total : null;
   const hit = resolveHit(hitDie);
   const epicCascade = await rollEpicCascade(hit, epicTable, legendary);
+  if (targetActor) await applyLocationConsequence(targetActor, epicCascade.location);
 
   const flags = {
     kind: 'attack',
     actorId: actor.id,
+    targetActorId: targetActor?.id ?? null,
     weaponName: weapon?.name ?? null,
     targetName: targetActor?.name ?? null,
     attackerAttack: actor.system.attack,
     baseDamage,
     targetDefense,
+    stateMultiplier,
     hasEpicTable: !!epicTable,
     epicTableData: epicTable ?? null,
     legendary,
@@ -229,6 +318,17 @@ export async function rerollAttackDie(message, slot) {
     nextFlags.severe = cascade.severe;
     nextFlags.location = cascade.location;
     extraRolls = [die, ...cascade.rolls];
+
+    // The hit die is what decides the epic cascade, so a hit reroll can
+    // produce a brand-new "Куда попал" result — apply its consequence
+    // the same way the initial roll would have. The previous cascade's
+    // consequence (if any) is intentionally left in place rather than
+    // reverted: a prone/unconscious toggle can't tell "caused by this
+    // attack" apart from "already true for some other reason", so
+    // undoing it here could clear a state the target had before this
+    // attack even started.
+    const targetActor = flags.targetActorId ? game.actors.get(flags.targetActorId) : null;
+    if (targetActor) await applyLocationConsequence(targetActor, nextFlags.location);
   } else if (slot === 'defeat') {
     if (flags.defeatDie == null) return;
     const die = new Roll('1d20');
@@ -429,4 +529,61 @@ export async function rollNegativeMoraleCheck(actor) {
   );
 
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
+}
+
+/**
+ * §5.9: bring a recovered hero back with the book's fixed amounts and
+ * record the Ранение that comes with waking up — shared by both ways an
+ * incapacitated hero can come back (passing the post-battle check, or
+ * simply being helped).
+ * @param {Actor} actor
+ * @returns {Promise<void>}
+ */
+async function recoverFromIncapacitation(actor) {
+  await actor.update({
+    'system.health.value': POST_BATTLE_RECOVERY_HEALTH,
+    'system.mana.value': POST_BATTLE_RECOVERY_MANA,
+    'system.wounds': actor.system.wounds + 1,
+  });
+  await actor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
+}
+
+/**
+ * §5.9: the post-battle survival check for a hero left недееспособен
+ * without help. On a fail, marks the hero with core's own "defeated"
+ * status (same non-destructive choice as {@link killIncapacitatedTarget}
+ * — no Ранение either, since that's tied to *waking up*, not dying).
+ * @param {Actor} actor
+ * @returns {Promise<ChatMessage>}
+ */
+export async function rollPostBattleCheck(actor) {
+  const roll = new Roll('1d20');
+  await roll.evaluate();
+  const result = resolvePostBattleCheck(roll.dice[0].total);
+
+  if (result.survived) await recoverFromIncapacitation(actor);
+  else await actor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/post-battle-check.hbs',
+    { actorName: actor.name, die: result.die, survived: result.survived, helped: false },
+  );
+
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
+}
+
+/**
+ * §5.9: "Если получил помощь — без броска, тоже с 1 ОЗ и 1 Маны."
+ * @param {Actor} actor
+ * @returns {Promise<ChatMessage>}
+ */
+export async function helpIncapacitatedActor(actor) {
+  await recoverFromIncapacitation(actor);
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/post-battle-check.hbs',
+    { actorName: actor.name, survived: true, helped: true },
+  );
+
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
 }

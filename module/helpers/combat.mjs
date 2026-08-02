@@ -15,3 +15,20 @@ export function resetMoraleAfterCombat(combat) {
     actor.unsetFlag('heroes-glory', 'moraleUsed');
   }
 }
+
+/**
+ * §5.6: "Встаёт в свой ход" (Падение) / "до конца боя" (Без сознания) —
+ * both explicitly last only through the end of the battle, unlike
+ * Недееспособен (§5.9, deliberately left alone here): that one persists
+ * past combat's end on purpose, since it's only resolved by the
+ * post-battle check or being helped (see roll-actions.mjs).
+ * @param {Combat} combat
+ */
+export function clearCombatStatesAfterCombat(combat) {
+  const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
+  const { prone, unconscious } = CONFIG.HEROES_GLORY.statusEffects;
+  for (const actor of actors) {
+    if (actor.statuses.has(prone)) actor.toggleStatusEffect(prone, { active: false });
+    if (actor.statuses.has(unconscious)) actor.toggleStatusEffect(unconscious, { active: false });
+  }
+}

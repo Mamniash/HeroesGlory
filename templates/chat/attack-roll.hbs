@@ -43,6 +43,12 @@
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.DefeatUnknown'}}</p>
   {{/if}}
 
+  {{#if (gt stateMultiplier 1)}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
+      {{localize 'HEROES_GLORY.Roll.StateMultiplierNote' multiplier=stateMultiplier}}
+    </p>
+  {{/if}}
+
   <p class="heroes-glory-chat-card__damage">
     {{#if damageKnown}}
       {{localize 'HEROES_GLORY.Roll.Damage' damage=damage}}

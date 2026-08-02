@@ -1,3 +1,5 @@
+import { isIncapacitated } from '../helpers/rolls.mjs';
+
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
  * @extends {Actor}
@@ -13,6 +15,26 @@ export class HeroesGloryActor extends Actor {
    */
   getRollData() {
     return { ...super.getRollData(), ...this.system.getRollData?.() ?? null };
+  }
+
+  /**
+   * §5.9: "ОЗ ≤ 0 → недееспособен до конца боя." Fires on *any* update
+   * that touches `system.health.value` — a manual GM edit on the sheet
+   * today, or automated damage in the future — rather than being tied to
+   * one specific code path, so it can't be bypassed by whichever way the
+   * value happens to change.
+   * @override
+   */
+  _onUpdate(changed, options, userId) {
+    super._onUpdate(changed, options, userId);
+
+    // Only the client that made this change drives the follow-up status
+    // toggle, so it isn't attempted redundantly on every connected client.
+    if (userId !== game.user.id) return;
+    if (changed.system?.health?.value === undefined) return;
+    if (!isIncapacitated(this.system.health.value)) return;
+
+    this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
   }
 
   /**

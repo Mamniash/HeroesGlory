@@ -16,6 +16,11 @@ import {
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
+  resolveTargetStateMultiplier,
+  isIncapacitated,
+  POST_BATTLE_RECOVERY_HEALTH,
+  POST_BATTLE_RECOVERY_MANA,
+  resolvePostBattleCheck,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit — §5.3 hit table', () => {
@@ -285,5 +290,59 @@ describe('resolveMoraleCheck — §5.8 the shared d6 gate', () => {
   test('rejects an out-of-range d6', () => {
     assert.throws(() => resolveMoraleCheck(0), RangeError);
     assert.throws(() => resolveMoraleCheck(7), RangeError);
+  });
+});
+
+describe('resolveTargetStateMultiplier — §5.6 combat-state damage multiplier', () => {
+  test('no state at all: x1', () => {
+    assert.equal(resolveTargetStateMultiplier(), 1);
+    assert.equal(resolveTargetStateMultiplier({}), 1);
+    assert.equal(resolveTargetStateMultiplier({ prone: false, unconscious: false }), 1);
+  });
+
+  test('prone: x2', () => {
+    assert.equal(resolveTargetStateMultiplier({ prone: true }), 2);
+  });
+
+  test('unconscious: x3', () => {
+    assert.equal(resolveTargetStateMultiplier({ unconscious: true }), 3);
+  });
+
+  test('both at once: unconscious wins, no compounding to x6', () => {
+    assert.equal(resolveTargetStateMultiplier({ prone: true, unconscious: true }), 3);
+  });
+});
+
+describe('isIncapacitated — §5.9 "ОЗ ≤ 0 → недееспособен"', () => {
+  test('true at exactly 0 and below', () => {
+    assert.equal(isIncapacitated(0), true);
+    assert.equal(isIncapacitated(-5), true);
+  });
+
+  test('false above 0', () => {
+    assert.equal(isIncapacitated(1), false);
+    assert.equal(isIncapacitated(10), false);
+  });
+});
+
+describe('resolvePostBattleCheck — §5.9 the unaided post-battle survival roll', () => {
+  test('10 or below dies', () => {
+    assert.equal(resolvePostBattleCheck(1).survived, false);
+    assert.equal(resolvePostBattleCheck(10).survived, false);
+  });
+
+  test('above 10 survives', () => {
+    assert.equal(resolvePostBattleCheck(11).survived, true);
+    assert.equal(resolvePostBattleCheck(20).survived, true);
+  });
+
+  test('rejects an out-of-range d20', () => {
+    assert.throws(() => resolvePostBattleCheck(0), RangeError);
+    assert.throws(() => resolvePostBattleCheck(21), RangeError);
+  });
+
+  test('recovery is 1 Health and 1 Mana, per the book', () => {
+    assert.equal(POST_BATTLE_RECOVERY_HEALTH, 1);
+    assert.equal(POST_BATTLE_RECOVERY_MANA, 1);
   });
 });

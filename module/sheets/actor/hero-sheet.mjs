@@ -28,6 +28,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     context.healthDepleted = isMaxDepleted(system.health.max);
     context.manaDepleted = isMaxDepleted(system.mana.max);
 
+    // §5.9: gates the GM-only post-battle-resolution buttons.
+    context.isIncapacitated = this.actor.statuses.has(config.statusEffects.incapacitated);
+
     const weapons = this.actor.items.filter((i) => i.type === 'weapon');
     const artifacts = this.actor.items.filter((i) => i.type === 'artifact');
 
