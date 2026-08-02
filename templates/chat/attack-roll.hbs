@@ -12,7 +12,14 @@
   {{/if}}
 
   <p class="heroes-glory-chat-card__line">
+    {{#if hit.previousDie}}
+      <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=hit.previousDie}}</s>
+    {{/if}}
     {{localize 'HEROES_GLORY.Roll.HitResult' die=hit.die result=(localize hit.labelKey) multiplier=hit.multiplier}}
+    <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+      data-actor-id="{{actorId}}" data-slot="hit" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+      <i class="fa-solid fa-arrows-rotate"></i>
+    </button>
   </p>
 
   {{#if defeat.known}}
@@ -20,9 +27,16 @@
       <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.DefeatAuto'}}</p>
     {{else}}
       <p class="heroes-glory-chat-card__line">
+        {{#if defeat.previousDie}}
+          <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=defeat.previousDie}}</s>
+        {{/if}}
         {{localize 'HEROES_GLORY.Roll.DefeatThreshold' die=defeat.die threshold=defeat.threshold}}
         —
         {{#if defeat.success}}{{localize 'HEROES_GLORY.Roll.DefeatSuccess'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefeatFail'}}{{/if}}
+        <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+          data-actor-id="{{actorId}}" data-slot="defeat" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
       </p>
     {{/if}}
   {{else}}

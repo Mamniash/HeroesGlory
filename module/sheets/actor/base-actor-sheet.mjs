@@ -1,4 +1,10 @@
-import { rollAttack, castSpell, rollAbilityCheck } from '../../helpers/roll-actions.mjs';
+import {
+  rollAttack,
+  castSpell,
+  rollAbilityCheck,
+  rollPositiveMoraleCheck,
+  rollNegativeMoraleCheck,
+} from '../../helpers/roll-actions.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -23,6 +29,7 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       rollAttack: this.#onRollAttack,
       castSpell: this.#onCastSpell,
       rollAbilityCheck: this.#onRollAbilityCheck,
+      rollMoraleCheck: this.#onRollMoraleCheck,
       unequipItem: this.#onUnequipItem,
       deleteItem: this.#onDeleteItem,
     },
@@ -101,6 +108,23 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
    */
   static #onRollAbilityCheck(event, target) {
     return rollAbilityCheck(this.actor, target.dataset.skill);
+  }
+
+  /**
+   * §5.8: roll a Боевой дух test — "positive" for the actor's own
+   * end-of-turn extra-turn attempt, "negative" for a skip-turn test an
+   * opponent or the Рассказчик declares against them. The template only
+   * renders the positive button for the sheet's owner and the negative
+   * one for the GM, but `data-variant` is trusted at face value here
+   * since both underlying functions re-check the per-battle attempt cap
+   * themselves regardless of who called them.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onRollMoraleCheck(event, target) {
+    if (target.dataset.variant === 'negative') return rollNegativeMoraleCheck(this.actor);
+    return rollPositiveMoraleCheck(this.actor);
   }
 
   /**

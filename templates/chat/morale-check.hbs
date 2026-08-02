@@ -1,0 +1,12 @@
+<div class="heroes-glory-chat-card heroes-glory-chat-card--morale">
+  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.MoraleTitle' actor=actorName}}</h3>
+  <p class="heroes-glory-chat-card__line">
+    {{localize 'HEROES_GLORY.Roll.MoraleResult' die=die}}
+    —
+    {{#if negative}}
+      {{#if skipsTurn}}{{localize 'HEROES_GLORY.Roll.MoraleSkip'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleResist'}}{{/if}}
+    {{else}}
+      {{#if extraTurn}}{{localize 'HEROES_GLORY.Roll.MoraleExtraTurn'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleNoExtraTurn'}}{{/if}}
+    {{/if}}
+  </p>
+</div>

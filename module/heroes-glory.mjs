@@ -11,6 +11,8 @@ import { HeroesGlorySkillSheet } from './sheets/item/skill-sheet.mjs';
 // Import helper/utility classes and constants.
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
+import { activateChatListeners } from './helpers/chat.mjs';
+import { resetMoraleAfterCombat } from './helpers/combat.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -119,6 +121,20 @@ Handlebars.registerHelper('toLowerCase', function (str) {
 Handlebars.registerHelper('inc', function (value) {
   return Number(value) + 1;
 });
+
+/* -------------------------------------------- */
+/*  Chat & Combat Hooks                         */
+/* -------------------------------------------- */
+
+// §2.2: wires up the "Reroll (Удача)" buttons on attack/check chat cards —
+// visibility is per-viewer (owner for positive Удача, GM for negative), so
+// it has to be decided at render time on each client, not baked into the
+// stored HTML.
+Hooks.on('renderChatMessageHTML', activateChatListeners);
+
+// §5.8: Боевой дух resets to 0, and its per-battle attempt counter clears,
+// once the encounter ends.
+Hooks.on('deleteCombat', resetMoraleAfterCombat);
 
 /* -------------------------------------------- */
 /*  Ready Hook                                  */

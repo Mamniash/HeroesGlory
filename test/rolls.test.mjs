@@ -12,6 +12,10 @@ import {
   resolveSpellVariant,
   canAffordSpell,
   resolveAbilityCheck,
+  nextLuck,
+  canRerollWithLuck,
+  moraleAttemptsRemaining,
+  resolveMoraleCheck,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit — §5.3 hit table', () => {
@@ -209,5 +213,77 @@ describe('resolveAbilityCheck — §7', () => {
   test('rejects an out-of-range d20', () => {
     assert.throws(() => resolveAbilityCheck(0, 1), RangeError);
     assert.throws(() => resolveAbilityCheck(21, 1), RangeError);
+  });
+});
+
+describe('nextLuck — §2.2 Удача stepping toward 0', () => {
+  test('positive luck steps down by 1', () => {
+    assert.equal(nextLuck(3), 2);
+    assert.equal(nextLuck(1), 0);
+  });
+
+  test('negative luck steps up by 1', () => {
+    assert.equal(nextLuck(-3), -2);
+    assert.equal(nextLuck(-1), 0);
+  });
+
+  test('zero stays zero', () => {
+    assert.equal(nextLuck(0), 0);
+  });
+});
+
+describe('canRerollWithLuck — §2.2 who may spend Удача', () => {
+  test('luck === 0: nobody, regardless of role', () => {
+    assert.equal(canRerollWithLuck({ luck: 0, isOwner: true, isGM: true }), false);
+    assert.equal(canRerollWithLuck({ luck: 0, isOwner: false, isGM: false }), false);
+  });
+
+  test('positive luck: the owner may, the GM may not unless also the owner', () => {
+    assert.equal(canRerollWithLuck({ luck: 2, isOwner: true, isGM: false }), true);
+    assert.equal(canRerollWithLuck({ luck: 2, isOwner: false, isGM: true }), false);
+    assert.equal(canRerollWithLuck({ luck: 2, isOwner: false, isGM: false }), false);
+  });
+
+  test('negative luck: only the GM (the rulebook\'s Рассказчик), never a non-GM owner', () => {
+    assert.equal(canRerollWithLuck({ luck: -2, isOwner: false, isGM: true }), true);
+    assert.equal(canRerollWithLuck({ luck: -2, isOwner: true, isGM: false }), false);
+  });
+});
+
+describe('moraleAttemptsRemaining — §5.8 attempts capped by |Боевой дух|', () => {
+  test('positive morale: cap equals the value', () => {
+    assert.equal(moraleAttemptsRemaining(3, 0), 3);
+    assert.equal(moraleAttemptsRemaining(3, 2), 1);
+    assert.equal(moraleAttemptsRemaining(3, 3), 0);
+  });
+
+  test('negative morale: cap equals the absolute value', () => {
+    assert.equal(moraleAttemptsRemaining(-2, 0), 2);
+    assert.equal(moraleAttemptsRemaining(-2, 1), 1);
+  });
+
+  test('never goes negative once attempts exceed the cap', () => {
+    assert.equal(moraleAttemptsRemaining(1, 5), 0);
+  });
+
+  test('morale 0 always leaves 0 attempts', () => {
+    assert.equal(moraleAttemptsRemaining(0, 0), 0);
+  });
+});
+
+describe('resolveMoraleCheck — §5.8 the shared d6 gate', () => {
+  test('4+ passes', () => {
+    assert.equal(resolveMoraleCheck(4).passed, true);
+    assert.equal(resolveMoraleCheck(6).passed, true);
+  });
+
+  test('1-3 fails', () => {
+    assert.equal(resolveMoraleCheck(1).passed, false);
+    assert.equal(resolveMoraleCheck(3).passed, false);
+  });
+
+  test('rejects an out-of-range d6', () => {
+    assert.throws(() => resolveMoraleCheck(0), RangeError);
+    assert.throws(() => resolveMoraleCheck(7), RangeError);
   });
 });

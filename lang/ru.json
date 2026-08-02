@@ -262,7 +262,20 @@
       "ManaRemaining": "Осталось Маны: {mana}",
       "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",
       "CheckTitle": "{actor}: проверка «{skill}»",
-      "CheckResult": "{die} + {value} = {total}"
+      "CheckResult": "{die} + {value} = {total}",
+      "RerollLuckHint": "Перебросить (Удача)",
+      "RerolledFrom": "было {die}",
+      "MoraleCheck": "Тест на Боевой дух",
+      "MoraleSkipCheck": "Тест на пропуск хода",
+      "MoraleHint": "Клик — тест на Боевой дух (d6, 4+ — ходит снова)",
+      "MoraleSkipHint": "Клик — тест на пропуск хода (d6, 1–3 — цель пропускает ход)",
+      "MoraleExhausted": "Попытки на этот бой исчерпаны",
+      "MoraleTitle": "{actor}: тест на Боевой дух",
+      "MoraleResult": "{die}",
+      "MoraleExtraTurn": "ходит снова",
+      "MoraleNoExtraTurn": "хода не будет",
+      "MoraleSkip": "пропускает ход",
+      "MoraleResist": "ход сохранён"
     }
   },
 
