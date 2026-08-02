@@ -42,6 +42,25 @@
         </label>
       </div>
 
+      {{#if (or (gt system.morale 0) (and isGM (lt system.morale 0)))}}
+        <div class="hero-sheet__morale-actions">
+          {{#if (gt system.morale 0)}}
+            <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="positive"
+              {{#unless moraleRemaining}}disabled{{/unless}}
+              title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
+              <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleCheck'}} ({{moraleRemaining}})
+            </button>
+          {{/if}}
+          {{#if (and isGM (lt system.morale 0))}}
+            <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="negative"
+              {{#unless moraleRemaining}}disabled{{/unless}}
+              title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleSkipHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
+              <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleSkipCheck'}} ({{moraleRemaining}})
+            </button>
+          {{/if}}
+        </div>
+      {{/if}}
+
       <div class="grid grid-3col">
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Experience'}}</span>

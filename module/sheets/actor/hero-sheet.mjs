@@ -1,4 +1,5 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
+import { moraleAttemptsRemaining } from '../../helpers/rolls.mjs';
 
 export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   static PARTS = {
@@ -15,6 +16,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     context.raceLabel = config.races[system.race] ?? '';
     context.factionLabel = config.factions[system.faction] ?? '';
     context.classLabel = config.classes[system.heroClass] ?? '';
+
+    // §5.8: how many Боевой дух tests are left this battle, for the
+    // sheet's morale-test buttons.
+    context.isGM = game.user.isGM;
+    const moraleUsed = this.actor.getFlag('heroes-glory', 'moraleUsed') ?? 0;
+    context.moraleRemaining = moraleAttemptsRemaining(system.morale, moraleUsed);
 
     const weapons = this.actor.items.filter((i) => i.type === 'weapon');
     const artifacts = this.actor.items.filter((i) => i.type === 'artifact');

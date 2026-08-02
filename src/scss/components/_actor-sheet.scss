@@ -274,3 +274,30 @@
   font-size: 12px;
   color: $c-tan;
 }
+
+.hero-sheet__morale-actions {
+  display: flex;
+  gap: $padding-sm;
+}
+
+.hero-sheet__action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px $padding-sm;
+  border: 1px solid $c-faint;
+  background: $c-white;
+  color: $c-tan;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.08);
+    color: $c-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

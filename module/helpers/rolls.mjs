@@ -190,3 +190,60 @@ export function resolveAbilityCheck(d20, skillValue) {
   }
   return { die: d20, skillValue, total: d20 + skillValue };
 }
+
+/**
+ * §2.2: Удача moves one step toward 0 each time it's spent on a reroll,
+ * whichever side of 0 it started on.
+ * @param {number} luck
+ * @returns {number}
+ */
+export function nextLuck(luck) {
+  if (luck > 0) return luck - 1;
+  if (luck < 0) return luck + 1;
+  return 0;
+}
+
+/**
+ * §2.2: who may spend an actor's Удача to reroll one of its dice.
+ * Positive Удача is the player's own resource, spent by whoever owns the
+ * actor. Negative Удача hands the *reroll* decision to the Рассказчик —
+ * the rulebook's "Отрицательное значение даёт Рассказчику право
+ * перебросить кубик игрока" — so only the GM may trigger it.
+ * @param {object} params
+ * @param {number} params.luck
+ * @param {boolean} params.isOwner
+ * @param {boolean} params.isGM
+ * @returns {boolean}
+ */
+export function canRerollWithLuck({ luck, isOwner, isGM }) {
+  if (luck === 0) return false;
+  return luck > 0 ? isOwner : isGM;
+}
+
+/**
+ * §5.8: attempts already spent against the cap set by |Боевой дух| — the
+ * same limit applies whether Боевой дух is positive (extra-turn tests,
+ * spent by the owner) or negative (skip-turn tests, spent by an opponent
+ * or the Рассказчик).
+ * @param {number} morale
+ * @param {number} used
+ * @returns {number}
+ */
+export function moraleAttemptsRemaining(morale, used) {
+  return Math.max(0, Math.abs(morale) - used);
+}
+
+/**
+ * §5.8: the d6 both morale tests share — 4+ is the outcome favourable to
+ * the acted-upon hero (an extra turn when Боевой дух is positive, or
+ * resisting a forced skipped turn when it's negative). Callers attach
+ * their own meaning to `passed` for the two directions.
+ * @param {number} d6
+ * @returns {{die: number, passed: boolean}}
+ */
+export function resolveMoraleCheck(d6) {
+  if (!Number.isInteger(d6) || d6 < 1 || d6 > 6) {
+    throw new RangeError(`resolveMoraleCheck: d6 must be an integer 1-6, got ${d6}`);
+  }
+  return { die: d6, passed: d6 >= 4 };
+}

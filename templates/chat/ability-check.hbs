@@ -3,6 +3,13 @@
     {{localize 'HEROES_GLORY.Roll.CheckTitle' actor=actorName skill=(localize skillLabelKey)}}
   </h3>
   <p class="heroes-glory-chat-card__line">
+    {{#if previousDie}}
+      <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=previousDie}}</s>
+    {{/if}}
     {{localize 'HEROES_GLORY.Roll.CheckResult' die=die value=skillValue total=total}}
+    <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+      data-actor-id="{{actorId}}" data-slot="check" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+      <i class="fa-solid fa-arrows-rotate"></i>
+    </button>
   </p>
 </div>
