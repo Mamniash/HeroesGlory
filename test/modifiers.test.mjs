@@ -9,12 +9,13 @@ import {
 } from '../module/helpers/modifiers.mjs';
 
 describe('phaseForStat — §8.2/§10 phase routing', () => {
-  test('mana.max needs the "final" phase (computed in prepareDerivedData)', () => {
+  test('mana.max and health.max need the "final" phase (both computed in prepareDerivedData, §5.9)', () => {
     assert.equal(phaseForStat('mana.max'), 'final');
+    assert.equal(phaseForStat('health.max'), 'final');
   });
 
   test('everything else defaults to "initial"', () => {
-    for (const stat of ['attack', 'defense', 'magicPower', 'knowledge', 'speed', 'luck', 'morale', 'health.max']) {
+    for (const stat of ['attack', 'defense', 'magicPower', 'knowledge', 'speed', 'luck', 'morale']) {
       assert.equal(phaseForStat(stat), 'initial');
     }
   });

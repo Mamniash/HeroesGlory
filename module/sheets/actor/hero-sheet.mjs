@@ -1,5 +1,6 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining } from '../../helpers/rolls.mjs';
+import { isMaxDepleted } from '../../helpers/wounds.mjs';
 
 export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   static PARTS = {
@@ -22,6 +23,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     context.isGM = game.user.isGM;
     const moraleUsed = this.actor.getFlag('heroes-glory', 'moraleUsed') ?? 0;
     context.moraleRemaining = moraleAttemptsRemaining(system.morale, moraleUsed);
+
+    // §5.9: warn on the sheet once Ранения have driven a max to 0.
+    context.healthDepleted = isMaxDepleted(system.health.max);
+    context.manaDepleted = isMaxDepleted(system.mana.max);
 
     const weapons = this.actor.items.filter((i) => i.type === 'weapon');
     const artifacts = this.actor.items.filter((i) => i.type === 'artifact');

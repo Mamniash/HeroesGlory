@@ -79,10 +79,34 @@
           <div class="actor-sheet__value-pair">
             <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
             <span class="actor-sheet__value-sep">/</span>
-            <input type="number" name="system.health.max" value="{{system.health.max}}" min="0">
+            <span class="actor-sheet__value-max">{{system.health.max}}</span>
           </div>
         </div>
       </div>
+
+      <div class="grid grid-2col">
+        <label class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HealthBase'}}</span>
+          <input type="number" name="system.health.base" value="{{system.health.base}}" min="0">
+        </label>
+        <div class="actor-sheet__field">
+          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Wounds'}}</span>
+          <div class="hero-sheet__wounds-counter">
+            <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="-1"
+              title="{{localize 'HEROES_GLORY.Hero.WoundsRemoveHint'}}"><i class="fa-solid fa-minus"></i></button>
+            <span class="hero-sheet__wounds-value">{{system.wounds}}</span>
+            <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="1"
+              title="{{localize 'HEROES_GLORY.Hero.WoundsAddHint'}}"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </div>
+      </div>
+
+      {{#if (or healthDepleted manaDepleted)}}
+        <p class="hero-sheet__warning">
+          {{#if healthDepleted}}{{localize 'HEROES_GLORY.Hero.HealthDepletedWarning'}}{{/if}}
+          {{#if manaDepleted}}{{localize 'HEROES_GLORY.Hero.ManaDepletedWarning'}}{{/if}}
+        </p>
+      {{/if}}
 
       <div class="grid grid-4col">
         <label class="actor-sheet__field">

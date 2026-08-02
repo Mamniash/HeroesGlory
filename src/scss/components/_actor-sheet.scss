@@ -280,6 +280,28 @@
   gap: $padding-sm;
 }
 
+.hero-sheet__wounds-counter {
+  display: flex;
+  align-items: center;
+  gap: $padding-sm;
+}
+
+.hero-sheet__wounds-value {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: bold;
+}
+
+.hero-sheet__warning {
+  margin: 0;
+  padding: $padding-sm $padding-md;
+  border: 1px solid #7a1f1f;
+  background: rgba(122, 31, 31, 0.1);
+  color: #7a1f1f;
+  font-weight: bold;
+  font-size: 12px;
+}
+
 .hero-sheet__action-button {
   display: inline-flex;
   align-items: center;

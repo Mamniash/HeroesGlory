@@ -1,4 +1,5 @@
 import HeroesGloryDataModel from "./base-model.mjs";
+import { applyWoundPenalty } from "../helpers/wounds.mjs";
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -26,9 +27,16 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       max: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
     });
 
-    // Здоровье / ОЗ (§2.2)
+    // Здоровье / ОЗ (§2.2). `value` is the current, hand-edited pool.
+    // `base` is the race+class starting max (also hand-edited — nothing
+    // in rules.md automates it). `max` is recomputed every
+    // prepareDerivedData() pass from `base` minus the §5.9 Ранения
+    // penalty — like `mana.max`, it exists as a schema field only so
+    // Foundry's token resource-bar picker can target it, not because it
+    // should ever be edited directly.
     schema.health = new fields.SchemaField({
       value: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
+      base: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
       max: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
     });
 
@@ -41,6 +49,12 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
 
     schema.luck = new fields.NumberField({ ...requiredInteger, initial: 0, min: -3, max: 3 });
     schema.morale = new fields.NumberField({ ...requiredInteger, initial: 0 });
+
+    // §5.9: Ранения. Each one permanently lowers max Health/Mana by 5
+    // (see prepareDerivedData below) until removed — a new level removes
+    // one, but level progression isn't automated yet (separate task), so
+    // for now this is purely a manual +/- counter on the sheet.
+    schema.wounds = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
     schema.level = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
     schema.experience = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
@@ -75,9 +89,17 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
   }
 
   prepareDerivedData() {
-    // Not clamped to `value` — artifacts can grant bonus Mana beyond this
-    // computed cap, so `max` is purely informational, not a hard ceiling.
-    this.mana.max = this.knowledge * this.#getManaMultiplier();
+    // §5.9: Ранения subtract from each base *before* artifact modifiers
+    // apply — those run as real Active Effects in the "final" phase,
+    // after this method, per modifiers.mjs's DERIVED_STAT_PHASES (checked
+    // against the local v14 source: Actor#prepareData runs
+    // system.prepareDerivedData() — this method — then applyActiveEffects
+    // ("final") only after that returns). Not clamped to `value` —
+    // artifacts can still grant bonus Health/Mana beyond this computed
+    // cap, so `max` is informational rather than a hard ceiling; only the
+    // Ранения floor at 0 is enforced here.
+    this.health.max = applyWoundPenalty(this.health.base, this.wounds);
+    this.mana.max = applyWoundPenalty(this.knowledge * this.#getManaMultiplier(), this.wounds);
   }
 
   /**

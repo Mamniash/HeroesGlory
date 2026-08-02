@@ -13,12 +13,15 @@
  * than stored directly, so a modifier on them must apply in the ActiveEffect
  * "final" phase (after prepareDerivedData) instead of the default "initial"
  * phase (before it) — otherwise our own computed assignment would
- * overwrite the bonus. See actor-hero.mjs: `mana.max` is the only such
- * field right now.
+ * overwrite the bonus. See actor-hero.mjs: `mana.max` is derived from
+ * Знания, and `health.max` (since rules.md §5.9's Ранения penalty) is
+ * derived from `health.base` — both get recomputed every
+ * prepareDerivedData() pass, so both need "final".
  * @type {Record<string, "initial"|"final">}
  */
 const DERIVED_STAT_PHASES = {
   'mana.max': 'final',
+  'health.max': 'final',
 };
 
 /**

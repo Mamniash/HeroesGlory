@@ -30,6 +30,7 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
       castSpell: this.#onCastSpell,
       rollAbilityCheck: this.#onRollAbilityCheck,
       rollMoraleCheck: this.#onRollMoraleCheck,
+      adjustWounds: this.#onAdjustWounds,
       unequipItem: this.#onUnequipItem,
       deleteItem: this.#onDeleteItem,
     },
@@ -125,6 +126,21 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   static #onRollMoraleCheck(event, target) {
     if (target.dataset.variant === 'negative') return rollNegativeMoraleCheck(this.actor);
     return rollPositiveMoraleCheck(this.actor);
+  }
+
+  /**
+   * §5.9: manually add or remove one Ранение — `data-delta` is "1" or
+   * "-1". Clamped at 0 explicitly rather than relying on the schema
+   * field's own `min: 0` to reject the update, since that would just
+   * silently fail the whole submit instead of clamping.
+   * @this {HeroesGloryActorSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onAdjustWounds(event, target) {
+    const delta = Number(target.dataset.delta);
+    const next = Math.max(0, this.actor.system.wounds + delta);
+    return this.actor.update({ 'system.wounds': next });
   }
 
   /**
