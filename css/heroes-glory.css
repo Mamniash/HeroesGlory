@@ -526,6 +526,15 @@
   font-weight: bold;
   color: #444;
 }
+.heroes-glory .actor-sheet__field-total,
+.heroes-glory .hero-sheet__primary-skill-total {
+  font-weight: normal;
+  font-style: italic;
+  color: #444;
+}
+.heroes-glory .hero-sheet__primary-skill-total {
+  font-size: 11px;
+}
 .heroes-glory .actor-sheet__value-pair {
   display: flex;
   align-items: center;
