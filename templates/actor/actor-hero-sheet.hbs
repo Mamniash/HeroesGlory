@@ -6,22 +6,22 @@
 
       <div class="hero-sheet__primary-skills">
         <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.attack" value="{{system.attack}}" min="0">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.attack" value="{{source.attack}}" min="0">
           <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="attack"
             role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.defense" value="{{system.defense}}" min="0">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.defense" value="{{source.defense}}" min="0">
           <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="defense"
             role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.magicPower" value="{{system.magicPower}}" min="0">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0">
           <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="magicPower"
             role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
         </label>
         <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.knowledge" value="{{system.knowledge}}" min="0">
+          <input class="hero-sheet__primary-skill-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0">
           <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="knowledge"
             role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
         </label>
@@ -34,11 +34,11 @@
         </label>
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Morale'}}</span>
-          <input type="number" name="system.morale" value="{{system.morale}}">
+          <input type="number" name="system.morale" value="{{source.morale}}">
         </label>
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Luck'}}</span>
-          <input type="number" name="system.luck" value="{{system.luck}}" min="-3" max="3">
+          <input type="number" name="system.luck" value="{{source.luck}}" min="-3" max="3">
         </label>
       </div>
 
@@ -124,7 +124,7 @@
       <div class="grid grid-4col">
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Speed'}}</span>
-          <input type="number" name="system.speed" value="{{system.speed}}" min="0">
+          <input type="number" name="system.speed" value="{{source.speed}}" min="0">
         </label>
         <label class="actor-sheet__field">
           <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Vision'}}</span>
