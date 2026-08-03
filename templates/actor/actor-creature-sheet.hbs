@@ -11,18 +11,27 @@
       <input type="number" name="system.level" value="{{system.level}}" min="0">
     </label>
     <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Speed'}}</span>
+      <span class="actor-sheet__label">
+        {{localize 'HEROES_GLORY.Creature.Speed'}}
+        {{#unless (eq source.speed system.speed)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.speed}}</span>{{/unless}}
+      </span>
       <input type="number" name="system.speed" value="{{source.speed}}" min="0">
     </label>
   </div>
 
   <div class="grid grid-4col">
     <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Attack'}}</span>
+      <span class="actor-sheet__label">
+        {{localize 'HEROES_GLORY.Creature.Attack'}}
+        {{#unless (eq source.attack system.attack)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</span>{{/unless}}
+      </span>
       <input type="number" name="system.attack" value="{{source.attack}}" min="0">
     </label>
     <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Defense'}}</span>
+      <span class="actor-sheet__label">
+        {{localize 'HEROES_GLORY.Creature.Defense'}}
+        {{#unless (eq source.defense system.defense)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</span>{{/unless}}
+      </span>
       <input type="number" name="system.defense" value="{{source.defense}}" min="0">
     </label>
     <label class="actor-sheet__field">
@@ -46,7 +55,10 @@
   </div>
 
   <div class="actor-sheet__field">
-    <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Health'}}</span>
+    <span class="actor-sheet__label">
+      {{localize 'HEROES_GLORY.Creature.Health'}}
+      {{#unless (eq source.health.max system.health.max)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.health.max}}</span>{{/unless}}
+    </span>
     <div class="actor-sheet__value-pair">
       <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
       <span class="actor-sheet__value-sep">/</span>

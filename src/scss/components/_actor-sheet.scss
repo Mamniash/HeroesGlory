@@ -60,6 +60,19 @@
   color: $c-tan;
 }
 
+// Shown next to a base-value input when an artifact modifier makes the
+// actual effective value differ from what's stored/editable (rules.md §8.2).
+.actor-sheet__field-total,
+.hero-sheet__primary-skill-total {
+  font-weight: normal;
+  font-style: italic;
+  color: $c-tan;
+}
+
+.hero-sheet__primary-skill-total {
+  font-size: 11px;
+}
+
 .actor-sheet__value-pair {
   display: flex;
   align-items: center;

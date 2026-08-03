@@ -115,7 +115,8 @@
     },
     "Actor": {
       "ChangeImage": "Сменить изображение",
-      "NamePlaceholder": "Имя"
+      "NamePlaceholder": "Имя",
+      "EffectiveValue": "с учётом артефактов: {value}"
     },
     "Hero": {
       "Level": "Уровень",
