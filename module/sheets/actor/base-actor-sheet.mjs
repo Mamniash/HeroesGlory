@@ -44,6 +44,15 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
     const context = await super._prepareContext(options);
     context.actor = this.actor;
     context.system = this.actor.system;
+    // Raw stored values, untouched by ActiveEffects (artifact modifiers,
+    // rules.md §8.2). `system.*` above is the *effective* value after
+    // effects apply, so any editable number input bound to a stat an
+    // artifact can target (see CONFIG.HEROES_GLORY.artifactModifierStats)
+    // must render from `source`, not `system` — otherwise submitOnChange
+    // (which resubmits the whole form on any field's change) writes the
+    // already-bonused value back as the new base, and the bonus stacks on
+    // every unrelated edit.
+    context.source = this.actor._source.system;
     context.config = CONFIG.HEROES_GLORY;
     return context;
   }

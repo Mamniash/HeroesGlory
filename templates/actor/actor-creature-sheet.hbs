@@ -12,18 +12,18 @@
     </label>
     <label class="actor-sheet__field">
       <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Speed'}}</span>
-      <input type="number" name="system.speed" value="{{system.speed}}" min="0">
+      <input type="number" name="system.speed" value="{{source.speed}}" min="0">
     </label>
   </div>
 
   <div class="grid grid-4col">
     <label class="actor-sheet__field">
       <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Attack'}}</span>
-      <input type="number" name="system.attack" value="{{system.attack}}" min="0">
+      <input type="number" name="system.attack" value="{{source.attack}}" min="0">
     </label>
     <label class="actor-sheet__field">
       <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Defense'}}</span>
-      <input type="number" name="system.defense" value="{{system.defense}}" min="0">
+      <input type="number" name="system.defense" value="{{source.defense}}" min="0">
     </label>
     <label class="actor-sheet__field">
       <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Damage'}}</span>
@@ -50,7 +50,7 @@
     <div class="actor-sheet__value-pair">
       <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
       <span class="actor-sheet__value-sep">/</span>
-      <input type="number" name="system.health.max" value="{{system.health.max}}" min="0">
+      <input type="number" name="system.health.max" value="{{source.health.max}}" min="0">
     </div>
   </div>
 
