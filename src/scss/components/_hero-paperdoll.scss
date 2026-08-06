@@ -13,8 +13,14 @@ $hg-parchment: #e8dcc0;
 // were inside .hero-paperdoll instead, opening <details> would grow the
 // box taller than its aspect-ratio, and `background-size: 100% 100%`
 // would then stretch/distort the leather art to cover the extra height.
+// The sheet's minimum width lives on `.hero-sheet` below (the app's own
+// root window element, via HeroesGloryHeroSheet.DEFAULT_OPTIONS.classes)
+// — NOT here. Foundry's own resize clamping (`ApplicationV2#_updatePosition`)
+// reads `getComputedStyle` off its root element only; a `min-width` on
+// this inner wrapper is invisible to it, so the window could still be
+// dragged narrower than the content while the content itself stayed put,
+// clipping instead of being prevented.
 .hero-paperdoll-wrapper {
-  min-width: 640px;
   width: 100%;
   // Container-query units on `.hero-paperdoll` (font-size: cqw below) are
   // resolved against the nearest ANCESTOR container, never against the
@@ -29,6 +35,22 @@ $hg-parchment: #e8dcc0;
   // zero height and every `cqw` below would resolve to 0. `inline-size`
   // only needs a definite width, which the explicit 100% above guarantees.
   container-type: inline-size;
+}
+
+// The actual window-resize floor. `.hero-sheet` is the app's own root
+// element (added via DEFAULT_OPTIONS.classes), which is what Foundry's
+// resize handling actually measures — see the comment above. Written as
+// `&.hero-sheet`, not `.hero-sheet`: this file is @imported INSIDE the
+// `.heroes-glory { }` wrapper in heroes-glory.scss, so a plain top-level
+// selector here compiles to the DESCENDANT combinator `.heroes-glory
+// .hero-sheet` — but `.heroes-glory` and `.hero-sheet` are both classes
+// on the very same root element, never in an ancestor/descendant
+// relationship, so that would never match anything. `&` resolves to the
+// enclosing `.heroes-glory` and compiles to the compound selector
+// `.heroes-glory.hero-sheet` instead, matching the one element that
+// actually carries both classes.
+&.hero-sheet {
+  min-width: 480px;
 }
 
 .hero-paperdoll {

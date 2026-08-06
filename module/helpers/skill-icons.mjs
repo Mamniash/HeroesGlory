@@ -8,9 +8,11 @@ const SYSTEM_ID = 'heroes-glory';
 
 /**
  * Per-skill frame numbers for each tier, cross-referencing rules.md §3's
- * 21 secondary skills against the sprite sheet. `skillKey`/`tier` are both
- * schema `choices` fields (module/data/item-skill.mjs), so every call site
- * passes a key/tier this table is guaranteed to have.
+ * 21 secondary skills against the sprite sheet. `skillKey` is a schema
+ * `choices` field (module/data/item-skill.mjs) but also `blank: true`
+ * (initial `""`) for a freshly created, not-yet-configured skill Item —
+ * so this table is NOT guaranteed to have every key a real skill Item can
+ * carry. See `secondarySkillIconPath`'s fallback below.
  * @type {Record<string, {base: number, advanced: number, expert: number}>}
  */
 const SECONDARY_SKILL_FRAMES = {
@@ -42,20 +44,38 @@ function frame(n) {
 }
 
 /**
+ * Frames 000-002 are the sprite sheet's blank-slot placeholder art (design
+ * doc). Used when `secondarySkillIconPath` is asked for a skillKey/tier
+ * combination the frame table doesn't have — most commonly a skill Item
+ * that's been created but not yet configured (`item-skill.mjs`'s
+ * `skillKey` field is `blank: true`, defaulting to `""`, precisely so a
+ * fresh skill can exist before the user picks what it is).
+ * @type {number}
+ */
+const EMPTY_SKILL_FRAME = 0;
+
+/**
  * Primary-skill/Experience/Mana icons (assets/pskil42) are one static
  * frame each, not value-driven. Health has no dedicated icon — the design
  * doc calls for reusing the Experience frame as a deliberate placeholder;
  * callers do that by passing 'experience' for a health icon rather than
  * this table gaining a redundant 'health' entry.
+ *
+ * Frame identification confirmed by opening the actual PNGs: f000 crossed
+ * swords (Attack), f001 shield (Defense), f002 glowing open book (Magic
+ * Power), f003 scroll (Mana), f004 star medal (Experience), f005 stack of
+ * books (Knowledge). An earlier pass had f003/f005 swapped — a plain
+ * "stack of books" reads as Knowledge (a library), not Mana; the scroll
+ * fits a single prepared spell/Mana better than a whole shelf of tomes.
  * @type {Record<string, number>}
  */
 const PRIMARY_SKILL_FRAMES = {
   attack: 0,
   defense: 1,
   magicPower: 2,
-  knowledge: 3,
+  mana: 3,
   experience: 4,
-  mana: 5,
+  knowledge: 5,
 };
 
 /**
@@ -70,6 +90,11 @@ export function primarySkillIconPath(key, { large = false } = {}) {
 }
 
 /**
+ * Falls back to the empty-slot placeholder (with a console warning, not a
+ * thrown error) for any skillKey/tier this table doesn't cover — an
+ * unconfigured skill Item (`skillKey: ""`) is a normal, reachable state,
+ * not a data error, and one bad skill on an actor must not blank the
+ * whole hero sheet for every other field on it.
  * @param {string} skillKey   A CONFIG.HEROES_GLORY.secondarySkills key.
  * @param {'base'|'advanced'|'expert'} tier
  * @param {object} [options]
@@ -78,7 +103,11 @@ export function primarySkillIconPath(key, { large = false } = {}) {
  */
 export function secondarySkillIconPath(skillKey, tier, { large = false } = {}) {
   const set = large ? 'secsk82' : 'secskill';
-  const n = SECONDARY_SKILL_FRAMES[skillKey][tier];
+  const n = SECONDARY_SKILL_FRAMES[skillKey]?.[tier];
+  if (n === undefined) {
+    console.warn(`Heroes & Glory | No secondary-skill icon frame for skillKey="${skillKey}" tier="${tier}" — using the empty-slot placeholder.`);
+    return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(EMPTY_SKILL_FRAME)}.png`;
+  }
   return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(n)}.png`;
 }
 

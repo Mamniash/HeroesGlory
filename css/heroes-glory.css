@@ -755,9 +755,11 @@
   cursor: not-allowed;
 }
 .heroes-glory .hero-paperdoll-wrapper {
-  min-width: 640px;
   width: 100%;
   container-type: inline-size;
+}
+.heroes-glory.hero-sheet {
+  min-width: 480px;
 }
 .heroes-glory .hero-paperdoll {
   position: relative;

@@ -20,6 +20,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   };
 
   static DEFAULT_OPTIONS = {
+    // `classes` concatenates across the class hierarchy (unlike `PARTS`),
+    // so the app's root window element ends up with both the base actor
+    // sheet's classes AND this one — giving CSS a hero-sheet-specific
+    // hook for the minimum-window-size rule (see _hero-paperdoll.scss).
+    // A min-width declared on an inner div like .hero-paperdoll-wrapper
+    // is invisible to Foundry's own resize clamping: ApplicationV2's
+    // `_updatePosition` reads `getComputedStyle(this.element)`, i.e. the
+    // app's actual root element, not an arbitrary descendant.
+    classes: ['hero-sheet'],
     actions: {
       // buttons:[0,2] opts into right-click (auxclick) alongside the
       // default left-click-only behavior a bare handler function gets.

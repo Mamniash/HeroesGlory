@@ -13,9 +13,9 @@ describe('primarySkillIconPath — static per-slot frames', () => {
     assert.equal(primarySkillIconPath('attack'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f000.png');
     assert.equal(primarySkillIconPath('defense'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f001.png');
     assert.equal(primarySkillIconPath('magicPower'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f002.png');
-    assert.equal(primarySkillIconPath('knowledge'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f003.png');
+    assert.equal(primarySkillIconPath('mana'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f003.png');
     assert.equal(primarySkillIconPath('experience'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f004.png');
-    assert.equal(primarySkillIconPath('mana'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f005.png');
+    assert.equal(primarySkillIconPath('knowledge'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f005.png');
   });
 
   test('the large (82x93) variant uses the pskill set', () => {
@@ -54,6 +54,41 @@ describe('secondarySkillIconPath — design doc frame table', () => {
     assert.equal(
       secondarySkillIconPath('luck', 'base', { large: true }),
       'systems/heroes-glory/assets/secsk82/secsk82_g00_f030.png'
+    );
+  });
+});
+
+describe('secondarySkillIconPath — unconfigured/unknown skill falls back instead of throwing', () => {
+  const originalWarn = console.warn;
+  let warnCalls;
+
+  test.beforeEach(() => {
+    warnCalls = [];
+    console.warn = (...args) => warnCalls.push(args);
+  });
+  test.afterEach(() => {
+    console.warn = originalWarn;
+  });
+
+  test('a blank skillKey (a freshly created, not-yet-configured skill Item)', () => {
+    assert.equal(secondarySkillIconPath('', 'base'), 'systems/heroes-glory/assets/secskill/secskill_g00_f000.png');
+    assert.equal(warnCalls.length, 1);
+  });
+
+  test('a skillKey not in the frame table at all', () => {
+    assert.equal(secondarySkillIconPath('notARealSkill', 'base'), 'systems/heroes-glory/assets/secskill/secskill_g00_f000.png');
+    assert.equal(warnCalls.length, 1);
+  });
+
+  test('a valid skillKey with a tier outside base/advanced/expert', () => {
+    assert.equal(secondarySkillIconPath('leadership', 'legendary'), 'systems/heroes-glory/assets/secskill/secskill_g00_f000.png');
+    assert.equal(warnCalls.length, 1);
+  });
+
+  test('the large (82x93) variant falls back within the secsk82 set too', () => {
+    assert.equal(
+      secondarySkillIconPath('', 'base', { large: true }),
+      'systems/heroes-glory/assets/secsk82/secsk82_g00_f000.png'
     );
   });
 });
