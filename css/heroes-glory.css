@@ -756,6 +756,8 @@
 }
 .heroes-glory .hero-paperdoll-wrapper {
   min-width: 640px;
+  width: 100%;
+  container-type: inline-size;
 }
 .heroes-glory .hero-paperdoll {
   position: relative;
@@ -766,7 +768,6 @@
   image-rendering: pixelated;
   color: #e8dcc0;
   font-family: "Roboto", sans-serif;
-  container-type: inline-size;
   font-size: 2.1cqw;
 }
 .heroes-glory .hero-paperdoll__slot {
@@ -1154,8 +1155,6 @@
 }
 .heroes-glory .hero-paperdoll__slot--portrait {
   cursor: pointer;
-  width: 9.667%;
-  height: 13.531%;
   object-fit: cover;
 }
 .heroes-glory .hero-paperdoll__slot--name {
@@ -1225,8 +1224,6 @@
 .heroes-glory .hero-paperdoll__slot--health_name,
 .heroes-glory .hero-paperdoll__slot--experience_name,
 .heroes-glory .hero-paperdoll__slot--mana_name {
-  width: 100%;
-  height: 100%;
   object-fit: contain;
   pointer-events: none;
 }
@@ -1258,8 +1255,6 @@
 }
 .heroes-glory .hero-paperdoll__slot--morale,
 .heroes-glory .hero-paperdoll__slot--luck {
-  width: 100%;
-  height: 100%;
   object-fit: contain;
 }
 .heroes-glory .hero-paperdoll__slot--skill_desc_1,

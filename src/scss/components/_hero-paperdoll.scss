@@ -15,6 +15,20 @@ $hg-parchment: #e8dcc0;
 // would then stretch/distort the leather art to cover the extra height.
 .hero-paperdoll-wrapper {
   min-width: 640px;
+  width: 100%;
+  // Container-query units on `.hero-paperdoll` (font-size: cqw below) are
+  // resolved against the nearest ANCESTOR container, never against the
+  // element that declares them — `cqw` written on the container itself
+  // has no container to query, falls back to the small-viewport default,
+  // and (since font-size inherits) blows up every text size on the sheet.
+  // The containment therefore has to live one level up, here, not on
+  // `.hero-paperdoll` itself.
+  // `inline-size` (not `size`) containment: `size` requires a definite
+  // extent on both axes, but `.hero-paperdoll` is `height: auto` sized
+  // off `aspect-ratio` — a `size`-contained ancestor would collapse to
+  // zero height and every `cqw` below would resolve to 0. `inline-size`
+  // only needs a definite width, which the explicit 100% above guarantees.
+  container-type: inline-size;
 }
 
 .hero-paperdoll {
@@ -26,12 +40,6 @@ $hg-parchment: #e8dcc0;
   image-rendering: pixelated;
   color: $hg-parchment;
   font-family: $font-primary;
-  // `inline-size` (not `size`) containment: `size` requires a definite
-  // extent on both axes, but this element is `height: auto` sized off
-  // `aspect-ratio` — a `size`-contained ancestor would collapse to zero
-  // height and every `cqw` below would resolve to 0. `inline-size` only
-  // needs a definite width, which `min-width: 640px` above guarantees.
-  container-type: inline-size;
   font-size: 2.1cqw;
 }
 
@@ -148,9 +156,11 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 // ---------------------------------------------------------------
 
 .hero-paperdoll__slot--portrait {
+  // Box size already comes from $hg-named-slots above — this element IS
+  // the slot (the <img> itself carries --portrait), not a child of it.
+  // Redeclaring width/height here would just duplicate that value with
+  // no benefit and a real risk of drifting out of sync with it later.
   cursor: pointer;
-  width: 9.667%;
-  height: 13.531%;
   object-fit: cover;
 }
 
@@ -224,8 +234,16 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 }
 
 // Attack/Defence/Knowledge/Witchcraft, Health/Experience/Mana icons — pure
-// decoration, sized to fill their slot exactly (no scaling needed at
-// native sheet width per the design doc).
+// decoration. Each of these <img> elements IS its own slot (carries both
+// `.hero-paperdoll__slot` and `.hero-paperdoll__slot--<name>`), so its box
+// size already comes from the $hg-named-slots percentages above — NOT
+// from a width/height declared here. Redeclaring `width: 100%; height:
+// 100%` on this same selector, as an earlier version of this file did,
+// doesn't mean "100% of the slot" (there's no separate slot to be 100%
+// of) — it means 100% of the containing block, i.e. the whole canvas,
+// silently overriding the correct box size and blowing the icon up to
+// fill the sheet. object-fit alone is enough to keep each sprite crisp
+// within whatever box $hg-named-slots already gave it.
 .hero-paperdoll__slot--attack,
 .hero-paperdoll__slot--defence,
 .hero-paperdoll__slot--knowledge,
@@ -233,8 +251,6 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 .hero-paperdoll__slot--health_name,
 .hero-paperdoll__slot--experience_name,
 .hero-paperdoll__slot--mana_name {
-  width: 100%;
-  height: 100%;
   object-fit: contain;
   pointer-events: none;
 }
@@ -267,10 +283,10 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   font-weight: bold;
 }
 
+// Same reasoning as the primary-skill icons above: morale/luck are also
+// slot-is-the-img elements, sized entirely by $hg-named-slots.
 .hero-paperdoll__slot--morale,
 .hero-paperdoll__slot--luck {
-  width: 100%;
-  height: 100%;
   object-fit: contain;
 }
 
@@ -296,6 +312,11 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   }
 }
 
+// Unlike the slot-is-the-img elements above, this class is only ever used
+// on an <img> nested INSIDE a positioned .hero-paperdoll__slot--* div
+// (paperdoll/backpack/skill items) — so `100%` here correctly means 100%
+// of that parent slot's own box, not of the canvas. Percentage units only;
+// no cqw/em/px sizing on any image in this file.
 .hero-paperdoll__icon-img {
   width: 100%;
   height: 100%;
