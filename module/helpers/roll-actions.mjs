@@ -587,3 +587,25 @@ export async function helpIncapacitatedActor(actor) {
 
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
 }
+
+/**
+ * Left-click on a hero sheet secondary-skill slot: post the current tier's
+ * effect text to chat (rules.md §3 — each skill's book effects table).
+ * Not a roll — a skill's tier is a static fact, not something tested here.
+ * @param {Actor} actor
+ * @param {Item} skill   The owned skill item (type "skill").
+ * @returns {Promise<ChatMessage>}
+ */
+export async function useSkill(actor, skill) {
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/skill-use.hbs',
+    {
+      actorName: actor.name,
+      skillLabelKey: CONFIG.HEROES_GLORY.secondarySkills[skill.system.skillKey],
+      tierLabelKey: CONFIG.HEROES_GLORY.skillTiers[skill.system.tier],
+      description: skill.system.effects[skill.system.tier],
+    },
+  );
+
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+}

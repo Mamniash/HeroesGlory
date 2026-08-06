@@ -1,0 +1,399 @@
+// HOMM3-style hero sheet: pixel-positioned over assets/ui/heroscr4_<color>.png
+// (600x473). Every left/top/width/height below is copied verbatim from
+// разметка.json's precomputed percentage fields (px / canvas-dimension * 100)
+// — that file is the single source of truth for coordinates, not this one.
+// Scoped under .heroes-glory by src/scss/heroes-glory.scss.
+
+$hg-parchment: #e8dcc0;
+
+// .hero-paperdoll (the absolutely-positioned canvas) and the <details>
+// fallback section are siblings inside this wrapper, not parent/child.
+// .hero-paperdoll's own children are all `position: absolute`, so they
+// don't affect its height — but if the fallback's normal-flow content
+// were inside .hero-paperdoll instead, opening <details> would grow the
+// box taller than its aspect-ratio, and `background-size: 100% 100%`
+// would then stretch/distort the leather art to cover the extra height.
+.hero-paperdoll-wrapper {
+  min-width: 640px;
+}
+
+.hero-paperdoll {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 600 / 473;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  color: $hg-parchment;
+  font-family: $font-primary;
+  // `inline-size` (not `size`) containment: `size` requires a definite
+  // extent on both axes, but this element is `height: auto` sized off
+  // `aspect-ratio` — a `size`-contained ancestor would collapse to zero
+  // height and every `cqw` below would resolve to 0. `inline-size` only
+  // needs a definite width, which `min-width: 640px` above guarantees.
+  container-type: inline-size;
+  font-size: 2.1cqw;
+}
+
+.hero-paperdoll__slot {
+  position: absolute;
+  box-sizing: border-box;
+  image-rendering: pixelated;
+}
+
+// ---------------------------------------------------------------
+// Named, uniquely-positioned slots (разметка.json's non-repeating boxes)
+// ---------------------------------------------------------------
+
+$hg-named-slots: (
+  portrait: (2.333, 2.96, 9.667, 13.531),
+  name: (12.667, 3.171, 36.333, 13.319),
+  text_1: (2.167, 17.97, 46.833, 3.594),
+  text_2: (2.167, 32.135, 46.833, 3.594),
+  morale: (29.5, 37.844, 7, 8.034),
+  luck: (39.167, 37.844, 7, 8.034),
+  attack: (4.5, 22.41, 7, 8.879),
+  defence: (16.167, 22.41, 7, 8.879),
+  knowledge: (27.833, 22.41, 7, 8.879),
+  witchcraft: (39.5, 22.41, 7, 8.879),
+  health_name: (2.333, 37.209, 7, 8.879),
+  health_desc: (9.833, 37.209, 15.333, 8.879),
+  experience_name: (2.333, 47.357, 7, 8.879),
+  experience_desc: (9.833, 47.357, 15.333, 8.879),
+  mana_name: (26.167, 47.357, 7, 8.879),
+  mana_desc: (33.667, 47.357, 15.333, 8.879),
+  arrow_left: (51.667, 74.207, 3.667, 9.725),
+  arrow_right: (93.667, 74.207, 3.667, 9.725),
+);
+
+@each $name, $box in $hg-named-slots {
+  .hero-paperdoll__slot--#{$name} {
+    left: nth($box, 1) * 1%;
+    top: nth($box, 2) * 1%;
+    width: nth($box, 3) * 1%;
+    height: nth($box, 4) * 1%;
+  }
+}
+
+// ---------------------------------------------------------------
+// Repeated-shape groups: only left/top vary per index, width/height fixed.
+// ---------------------------------------------------------------
+
+$hg-skill-name-positions: (2.167 57.294), (26 57.294), (2.167 67.442), (26 67.442),
+  (2.167 77.59), (26 77.59), (2.167 87.738), (26 87.738);
+$hg-skill-desc-positions: (9.833 57.505), (33.667 57.505), (9.833 67.653), (33.667 67.653),
+  (9.833 77.801), (33.667 77.801), (9.833 87.949), (33.667 87.949);
+
+@for $i from 1 through 8 {
+  $name-pos: nth($hg-skill-name-positions, $i);
+  .hero-paperdoll__slot--skill_name_#{$i} {
+    left: nth($name-pos, 1) * 1%;
+    top: nth($name-pos, 2) * 1%;
+    width: 7.333%;
+    height: 9.302%;
+  }
+  $desc-pos: nth($hg-skill-desc-positions, $i);
+  .hero-paperdoll__slot--skill_desc_#{$i} {
+    left: nth($desc-pos, 1) * 1%;
+    top: nth($desc-pos, 2) * 1%;
+    width: 15.333%;
+    height: 8.879%;
+  }
+}
+
+$hg-paperdoll-positions: (52.167 11.839), (60.167 11.839), (73.167 3.594), (73.167 14.165),
+  (73.167 24.947), (82 36.152), (90 36.152), (83 48.414), (74.167 59.619), (90 63.002),
+  (52.167 27.484), (54.833 38.055), (57.5 48.837), (51.833 59.619), (60.167 59.619),
+  (82.333 3.594), (90 3.594), (90 13.319), (90 23.044);
+
+@for $i from 1 through 19 {
+  $pos: nth($hg-paperdoll-positions, $i);
+  .hero-paperdoll__slot--paperdoll-#{$i} {
+    left: nth($pos, 1) * 1%;
+    top: nth($pos, 2) * 1%;
+    width: 7.333%;
+    height: 9.302%;
+  }
+}
+
+$hg-backpack-positions: (55.5 74.419), (63.167 74.419), (70.833 74.419), (78.5 74.419), (86.167 74.419);
+
+@for $i from 1 through 5 {
+  $pos: nth($hg-backpack-positions, $i);
+  .hero-paperdoll__slot--backpack-#{$i} {
+    left: nth($pos, 1) * 1%;
+    top: nth($pos, 2) * 1%;
+    width: 7.333%;
+    height: 9.302%;
+  }
+}
+
+// ---------------------------------------------------------------
+// Panel color: all 10 assets/ui/heroscr4_<color>.png files exist on disk,
+// so all 10 are fully functional — no placeholder/partial state.
+// ---------------------------------------------------------------
+
+$hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, white;
+
+@each $color in $hg-panel-colors {
+  .hero-paperdoll[data-panel-color='#{$color}'] {
+    // Sass doesn't rewrite url() on @import — this resolves relative to
+    // the compiled css/heroes-glory.css, not this partial's own path.
+    background-image: url('../assets/ui/heroscr4_#{$color}.png');
+  }
+}
+
+// ---------------------------------------------------------------
+// Content styling within slots
+// ---------------------------------------------------------------
+
+.hero-paperdoll__slot--portrait {
+  cursor: pointer;
+  width: 9.667%;
+  height: 13.531%;
+  object-fit: cover;
+}
+
+.hero-paperdoll__slot--name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2em;
+  padding: 0 0.4em;
+  overflow: hidden;
+}
+
+.hero-paperdoll__name-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 1.3em;
+}
+
+.hero-paperdoll__name-line {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-paperdoll__primary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.hero-paperdoll__primary-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  text-align: center;
+  font-size: 0.85em;
+}
+
+[data-action='rollAbilityCheck'].hero-paperdoll__primary-cell {
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.hero-paperdoll__primary-value {
+  width: 2.4em;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+.hero-paperdoll__primary-total {
+  font-size: 0.7em;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+// Attack/Defence/Knowledge/Witchcraft, Health/Experience/Mana icons — pure
+// decoration, sized to fill their slot exactly (no scaling needed at
+// native sheet width per the design doc).
+.hero-paperdoll__slot--attack,
+.hero-paperdoll__slot--defence,
+.hero-paperdoll__slot--knowledge,
+.hero-paperdoll__slot--witchcraft,
+.hero-paperdoll__slot--health_name,
+.hero-paperdoll__slot--experience_name,
+.hero-paperdoll__slot--mana_name {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.hero-paperdoll__slot--health_desc,
+.hero-paperdoll__slot--experience_desc,
+.hero-paperdoll__slot--mana_desc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  font-size: 0.85em;
+
+  input {
+    width: 3em;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-weight: bold;
+    text-align: center;
+  }
+}
+
+.hero-paperdoll__value-sep {
+  opacity: 0.7;
+}
+
+.hero-paperdoll__value-max {
+  font-weight: bold;
+}
+
+.hero-paperdoll__slot--morale,
+.hero-paperdoll__slot--luck {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hero-paperdoll__slot--skill_desc_1,
+.hero-paperdoll__slot--skill_desc_2,
+.hero-paperdoll__slot--skill_desc_3,
+.hero-paperdoll__slot--skill_desc_4,
+.hero-paperdoll__slot--skill_desc_5,
+.hero-paperdoll__slot--skill_desc_6,
+.hero-paperdoll__slot--skill_desc_7,
+.hero-paperdoll__slot--skill_desc_8 {
+  display: flex;
+  align-items: center;
+  font-size: 0.75em;
+  line-height: 1.1;
+  overflow: hidden;
+
+  span {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.hero-paperdoll__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.draggable.hero-paperdoll__icon-img {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// Small hover-reveal delete button, reusing the existing `deleteItem`
+// action untouched — shown on any slot carrying a draggable/clickable
+// item icon (paperdoll, backpack, secondary skills).
+.hero-paperdoll__slot-delete {
+  position: absolute;
+  top: -0.3em;
+  right: -0.3em;
+  width: 1.1em;
+  height: 1.1em;
+  line-height: 1;
+  padding: 0;
+  border: 1px solid $c-dark;
+  border-radius: 50%;
+  background: $c-white;
+  color: $c-dark;
+  font-size: 0.8em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+  image-rendering: auto;
+}
+
+.hero-paperdoll__slot:hover .hero-paperdoll__slot-delete,
+.hero-paperdoll__slot:focus-within .hero-paperdoll__slot-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+// No dedicated arrow sprite exists in assets/ui — drawn as plain CSS
+// triangles rather than inventing an asset path that isn't there.
+.hero-paperdoll__slot--arrow_left,
+.hero-paperdoll__slot--arrow_right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+
+  &::before {
+    content: '';
+    width: 0;
+    height: 0;
+    border-top: 0.6em solid transparent;
+    border-bottom: 0.6em solid transparent;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover::before {
+    filter: brightness(1.3);
+  }
+}
+
+.hero-paperdoll__slot--arrow_left::before {
+  border-right: 0.7em solid $hg-parchment;
+}
+
+.hero-paperdoll__slot--arrow_right::before {
+  border-left: 0.7em solid $hg-parchment;
+}
+
+// ---------------------------------------------------------------
+// The <details> fallback — normal document flow below the canvas.
+// Its content reuses .actor-sheet__*/.hero-sheet__* classes verbatim
+// (already styled by components/_actor-sheet.scss), so only the
+// <details>/<summary> chrome itself needs rules here.
+// ---------------------------------------------------------------
+
+.hero-paperdoll__more {
+  margin-top: $padding-md;
+  border-top: $border-groove;
+  padding-top: $padding-sm;
+
+  summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: $c-tan;
+    padding: $padding-sm 0;
+  }
+}

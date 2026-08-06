@@ -72,12 +72,18 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
-   * §8.1/§8.3: a hero can have at most one equipped melee weapon, one
-   * equipped ranged weapon, and one equipped artifact per artifact type.
-   * When this item transitions to `equipped: true`, unequip whatever else
-   * currently occupies its slot instead of silently letting two items
-   * share it (which made the previous occupant unreachable — not shown in
-   * the equipped slot, and not shown in inventory either).
+   * §8.1: a hero can have at most one equipped melee weapon and one
+   * equipped ranged weapon. When this item transitions to `equipped: true`,
+   * unequip whatever else currently occupies its weapon-type slot instead
+   * of silently letting two items share it.
+   *
+   * The old "one equipped artifact per artifactType" rule this method used
+   * to also enforce was never a book rule (rules.md §8.2 has no such text)
+   * — it was a stand-in for a paperdoll that didn't exist yet. Now that the
+   * hero sheet has a real 19-slot paperdoll (module/sheets/actor/
+   * hero-sheet.mjs's #placeItem), same-slot displacement for artifacts is
+   * handled there instead, keyed off `system.paperdollSlot`, and multiple
+   * artifacts of the same type are allowed in different slots.
    *
    * Also keeps an artifact's structured `system.modifiers` (§8.2) synced
    * onto a real embedded ActiveEffect, so the bonuses actually apply
@@ -97,28 +103,23 @@ export class HeroesGloryItem extends Item {
     }
 
     if (!this.actor) return;
+    if (this.type !== 'weapon') return;
     if (changed.system?.equipped !== true) return;
-    if (this.type !== 'weapon' && this.type !== 'artifact') return;
 
     const conflict = this.#findEquippedSlotConflict();
     conflict?.update({ 'system.equipped': false });
   }
 
   /**
-   * Find another owned item occupying the same equip slot as this one.
+   * Find another owned weapon of the same melee/ranged category currently
+   * equipped, per §8.1's one-melee/one-ranged rule.
    * @returns {Item|undefined}
    */
   #findEquippedSlotConflict() {
-    if (this.type === 'weapon') {
-      const ranged = this.system.weaponType === 'ranged';
-      return this.actor.items.find((i) =>
-        i.id !== this.id && i.type === 'weapon' && i.system.equipped
-        && (i.system.weaponType === 'ranged') === ranged
-      );
-    }
+    const ranged = this.system.weaponType === 'ranged';
     return this.actor.items.find((i) =>
-      i.id !== this.id && i.type === 'artifact' && i.system.equipped
-      && i.system.artifactType === this.system.artifactType
+      i.id !== this.id && i.type === 'weapon' && i.system.equipped
+      && (i.system.weaponType === 'ranged') === ranged
     );
   }
 

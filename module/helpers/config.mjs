@@ -189,6 +189,34 @@ HEROES_GLORY.artifactModifierModes = {
 };
 
 /**
+ * The 10 hero-sheet panel color variants (assets/ui/heroscr4_<color>.png).
+ * Purely cosmetic — selects a background image, no mechanical effect.
+ * @type {Object}
+ */
+HEROES_GLORY.panelColors = {
+  red: 'HEROES_GLORY.PanelColor.Red',
+  blue: 'HEROES_GLORY.PanelColor.Blue',
+  tan: 'HEROES_GLORY.PanelColor.Tan',
+  green: 'HEROES_GLORY.PanelColor.Green',
+  orange: 'HEROES_GLORY.PanelColor.Orange',
+  purple: 'HEROES_GLORY.PanelColor.Purple',
+  teal: 'HEROES_GLORY.PanelColor.Teal',
+  pink: 'HEROES_GLORY.PanelColor.Pink',
+  black: 'HEROES_GLORY.PanelColor.Black',
+  white: 'HEROES_GLORY.PanelColor.White',
+};
+
+/**
+ * How many of the hero sheet's secondary-skill slots are shown — the
+ * base 8-skill limit (rules.md §3). Not a schema `choices` map since it's
+ * a single number, not an enum; kept here (rather than inline in the
+ * sheet/template) so a future "expert Обучаемость -> 10 slots" change has
+ * one obvious place to become conditional instead of a hardcoded literal.
+ * @type {number}
+ */
+HEROES_GLORY.secondarySkillSlotCount = 8;
+
+/**
  * IDs for the 3 combat states (rules.md §5.6/§5.9) registered into
  * `CONFIG.statusEffects` in heroes-glory.mjs's init hook — namespaced
  * (`hg` prefix) so pushing them can't collide with/shadow any of core's

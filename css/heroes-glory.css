@@ -754,6 +754,621 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.heroes-glory .hero-paperdoll-wrapper {
+  min-width: 640px;
+}
+.heroes-glory .hero-paperdoll {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 600/473;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  color: #e8dcc0;
+  font-family: "Roboto", sans-serif;
+  container-type: inline-size;
+  font-size: 2.1cqw;
+}
+.heroes-glory .hero-paperdoll__slot {
+  position: absolute;
+  box-sizing: border-box;
+  image-rendering: pixelated;
+}
+.heroes-glory .hero-paperdoll__slot--portrait {
+  left: 2.333%;
+  top: 2.96%;
+  width: 9.667%;
+  height: 13.531%;
+}
+.heroes-glory .hero-paperdoll__slot--name {
+  left: 12.667%;
+  top: 3.171%;
+  width: 36.333%;
+  height: 13.319%;
+}
+.heroes-glory .hero-paperdoll__slot--text_1 {
+  left: 2.167%;
+  top: 17.97%;
+  width: 46.833%;
+  height: 3.594%;
+}
+.heroes-glory .hero-paperdoll__slot--text_2 {
+  left: 2.167%;
+  top: 32.135%;
+  width: 46.833%;
+  height: 3.594%;
+}
+.heroes-glory .hero-paperdoll__slot--morale {
+  left: 29.5%;
+  top: 37.844%;
+  width: 7%;
+  height: 8.034%;
+}
+.heroes-glory .hero-paperdoll__slot--luck {
+  left: 39.167%;
+  top: 37.844%;
+  width: 7%;
+  height: 8.034%;
+}
+.heroes-glory .hero-paperdoll__slot--attack {
+  left: 4.5%;
+  top: 22.41%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--defence {
+  left: 16.167%;
+  top: 22.41%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--knowledge {
+  left: 27.833%;
+  top: 22.41%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--witchcraft {
+  left: 39.5%;
+  top: 22.41%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--health_name {
+  left: 2.333%;
+  top: 37.209%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--health_desc {
+  left: 9.833%;
+  top: 37.209%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--experience_name {
+  left: 2.333%;
+  top: 47.357%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--experience_desc {
+  left: 9.833%;
+  top: 47.357%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--mana_name {
+  left: 26.167%;
+  top: 47.357%;
+  width: 7%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--mana_desc {
+  left: 33.667%;
+  top: 47.357%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left {
+  left: 51.667%;
+  top: 74.207%;
+  width: 3.667%;
+  height: 9.725%;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_right {
+  left: 93.667%;
+  top: 74.207%;
+  width: 3.667%;
+  height: 9.725%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_1 {
+  left: 2.167%;
+  top: 57.294%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_1 {
+  left: 9.833%;
+  top: 57.505%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_2 {
+  left: 26%;
+  top: 57.294%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_2 {
+  left: 33.667%;
+  top: 57.505%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_3 {
+  left: 2.167%;
+  top: 67.442%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_3 {
+  left: 9.833%;
+  top: 67.653%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_4 {
+  left: 26%;
+  top: 67.442%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_4 {
+  left: 33.667%;
+  top: 67.653%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_5 {
+  left: 2.167%;
+  top: 77.59%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_5 {
+  left: 9.833%;
+  top: 77.801%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_6 {
+  left: 26%;
+  top: 77.59%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_6 {
+  left: 33.667%;
+  top: 77.801%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_7 {
+  left: 2.167%;
+  top: 87.738%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_7 {
+  left: 9.833%;
+  top: 87.949%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_name_8 {
+  left: 26%;
+  top: 87.738%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_8 {
+  left: 33.667%;
+  top: 87.949%;
+  width: 15.333%;
+  height: 8.879%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-1 {
+  left: 52.167%;
+  top: 11.839%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-2 {
+  left: 60.167%;
+  top: 11.839%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-3 {
+  left: 73.167%;
+  top: 3.594%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-4 {
+  left: 73.167%;
+  top: 14.165%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-5 {
+  left: 73.167%;
+  top: 24.947%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-6 {
+  left: 82%;
+  top: 36.152%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-7 {
+  left: 90%;
+  top: 36.152%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-8 {
+  left: 83%;
+  top: 48.414%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-9 {
+  left: 74.167%;
+  top: 59.619%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-10 {
+  left: 90%;
+  top: 63.002%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-11 {
+  left: 52.167%;
+  top: 27.484%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-12 {
+  left: 54.833%;
+  top: 38.055%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-13 {
+  left: 57.5%;
+  top: 48.837%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-14 {
+  left: 51.833%;
+  top: 59.619%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-15 {
+  left: 60.167%;
+  top: 59.619%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-16 {
+  left: 82.333%;
+  top: 3.594%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-17 {
+  left: 90%;
+  top: 3.594%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-18 {
+  left: 90%;
+  top: 13.319%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--paperdoll-19 {
+  left: 90%;
+  top: 23.044%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--backpack-1 {
+  left: 55.5%;
+  top: 74.419%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--backpack-2 {
+  left: 63.167%;
+  top: 74.419%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--backpack-3 {
+  left: 70.833%;
+  top: 74.419%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--backpack-4 {
+  left: 78.5%;
+  top: 74.419%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll__slot--backpack-5 {
+  left: 86.167%;
+  top: 74.419%;
+  width: 7.333%;
+  height: 9.302%;
+}
+.heroes-glory .hero-paperdoll[data-panel-color=red] {
+  background-image: url("../assets/ui/heroscr4_red.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=blue] {
+  background-image: url("../assets/ui/heroscr4_blue.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=tan] {
+  background-image: url("../assets/ui/heroscr4_tan.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=green] {
+  background-image: url("../assets/ui/heroscr4_green.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=orange] {
+  background-image: url("../assets/ui/heroscr4_orange.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=purple] {
+  background-image: url("../assets/ui/heroscr4_purple.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=teal] {
+  background-image: url("../assets/ui/heroscr4_teal.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=pink] {
+  background-image: url("../assets/ui/heroscr4_pink.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=black] {
+  background-image: url("../assets/ui/heroscr4_black.png");
+}
+.heroes-glory .hero-paperdoll[data-panel-color=white] {
+  background-image: url("../assets/ui/heroscr4_white.png");
+}
+.heroes-glory .hero-paperdoll__slot--portrait {
+  cursor: pointer;
+  width: 9.667%;
+  height: 13.531%;
+  object-fit: cover;
+}
+.heroes-glory .hero-paperdoll__slot--name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2em;
+  padding: 0 0.4em;
+  overflow: hidden;
+}
+.heroes-glory .hero-paperdoll__name-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 1.3em;
+}
+.heroes-glory .hero-paperdoll__name-line {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.heroes-glory .hero-paperdoll__primary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.heroes-glory .hero-paperdoll__primary-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  text-align: center;
+  font-size: 0.85em;
+}
+.heroes-glory [data-action=rollAbilityCheck].hero-paperdoll__primary-cell {
+  cursor: pointer;
+}
+.heroes-glory [data-action=rollAbilityCheck].hero-paperdoll__primary-cell:hover {
+  text-decoration: underline;
+}
+.heroes-glory .hero-paperdoll__primary-value {
+  width: 2.4em;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: center;
+}
+.heroes-glory .hero-paperdoll__primary-total {
+  font-size: 0.7em;
+  font-style: italic;
+  opacity: 0.8;
+}
+.heroes-glory .hero-paperdoll__slot--attack,
+.heroes-glory .hero-paperdoll__slot--defence,
+.heroes-glory .hero-paperdoll__slot--knowledge,
+.heroes-glory .hero-paperdoll__slot--witchcraft,
+.heroes-glory .hero-paperdoll__slot--health_name,
+.heroes-glory .hero-paperdoll__slot--experience_name,
+.heroes-glory .hero-paperdoll__slot--mana_name {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.heroes-glory .hero-paperdoll__slot--health_desc,
+.heroes-glory .hero-paperdoll__slot--experience_desc,
+.heroes-glory .hero-paperdoll__slot--mana_desc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  font-size: 0.85em;
+}
+.heroes-glory .hero-paperdoll__slot--health_desc input,
+.heroes-glory .hero-paperdoll__slot--experience_desc input,
+.heroes-glory .hero-paperdoll__slot--mana_desc input {
+  width: 3em;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  text-align: center;
+}
+.heroes-glory .hero-paperdoll__value-sep {
+  opacity: 0.7;
+}
+.heroes-glory .hero-paperdoll__value-max {
+  font-weight: bold;
+}
+.heroes-glory .hero-paperdoll__slot--morale,
+.heroes-glory .hero-paperdoll__slot--luck {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_1,
+.heroes-glory .hero-paperdoll__slot--skill_desc_2,
+.heroes-glory .hero-paperdoll__slot--skill_desc_3,
+.heroes-glory .hero-paperdoll__slot--skill_desc_4,
+.heroes-glory .hero-paperdoll__slot--skill_desc_5,
+.heroes-glory .hero-paperdoll__slot--skill_desc_6,
+.heroes-glory .hero-paperdoll__slot--skill_desc_7,
+.heroes-glory .hero-paperdoll__slot--skill_desc_8 {
+  display: flex;
+  align-items: center;
+  font-size: 0.75em;
+  line-height: 1.1;
+  overflow: hidden;
+}
+.heroes-glory .hero-paperdoll__slot--skill_desc_1 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_2 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_3 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_4 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_5 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_6 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_7 span,
+.heroes-glory .hero-paperdoll__slot--skill_desc_8 span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.heroes-glory .hero-paperdoll__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+.heroes-glory .draggable.hero-paperdoll__icon-img {
+  cursor: grab;
+}
+.heroes-glory .draggable.hero-paperdoll__icon-img:active {
+  cursor: grabbing;
+}
+.heroes-glory .hero-paperdoll__slot-delete {
+  position: absolute;
+  top: -0.3em;
+  right: -0.3em;
+  width: 1.1em;
+  height: 1.1em;
+  line-height: 1;
+  padding: 0;
+  border: 1px solid #191813;
+  border-radius: 50%;
+  background: #fff;
+  color: #191813;
+  font-size: 0.8em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+  image-rendering: auto;
+}
+.heroes-glory .hero-paperdoll__slot:hover .hero-paperdoll__slot-delete,
+.heroes-glory .hero-paperdoll__slot:focus-within .hero-paperdoll__slot-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left,
+.heroes-glory .hero-paperdoll__slot--arrow_right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left::before,
+.heroes-glory .hero-paperdoll__slot--arrow_right::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 0.6em solid transparent;
+  border-bottom: 0.6em solid transparent;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left:disabled,
+.heroes-glory .hero-paperdoll__slot--arrow_right:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left:not(:disabled):hover::before,
+.heroes-glory .hero-paperdoll__slot--arrow_right:not(:disabled):hover::before {
+  filter: brightness(1.3);
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left::before {
+  border-right: 0.7em solid #e8dcc0;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_right::before {
+  border-left: 0.7em solid #e8dcc0;
+}
+.heroes-glory .hero-paperdoll__more {
+  margin-top: 10px;
+  border-top: 2px groove #eeede0;
+  padding-top: 5px;
+}
+.heroes-glory .hero-paperdoll__more summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #444;
+  padding: 5px 0;
+}
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,
 .heroes-glory .effects .item .effect-controls {
