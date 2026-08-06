@@ -76,6 +76,18 @@
       "Nightvision": "Ночное",
       "Blindsense": "Слеповидение"
     },
+    "PanelColor": {
+      "Red": "Красный",
+      "Blue": "Синий",
+      "Tan": "Бежевый",
+      "Green": "Зелёный",
+      "Orange": "Оранжевый",
+      "Purple": "Фиолетовый",
+      "Teal": "Бирюзовый",
+      "Pink": "Розовый",
+      "Black": "Чёрный",
+      "White": "Белый"
+    },
     "SecondarySkill": {
       "Assault": "Нападение",
       "Armor": "Доспехи",
@@ -143,6 +155,8 @@
       "Race": "Раса",
       "Faction": "Фракция",
       "Class": "Класс",
+      "PanelColor": "Цвет панели",
+      "MoreDetails": "Ещё параметры",
       "SecondarySkills": "Вторичные навыки",
       "Equipped": "Экипировка",
       "MeleeWeapon": "Оружие ближнего боя",
@@ -150,7 +164,9 @@
       "Inventory": "Инвентарь",
       "Spells": "Заклинания",
       "EmptySlot": "— пусто —",
-      "NoSpellbook": "Нет Книги Магии"
+      "NoSpellbook": "Нет Книги Магии",
+      "BackpackPrevHint": "Предыдущая страница рюкзака",
+      "BackpackNextHint": "Следующая страница рюкзака"
     },
     "Creature": {
       "Faction": "Фракция",
@@ -301,7 +317,9 @@
       "PostBattleResult": "{die}",
       "PostBattleSurvived": "Приходит в себя через час с 1 ОЗ и 1 Маны. +1 Ранение.",
       "PostBattleDied": "Погиб(ла) навсегда.",
-      "PostBattleHelped": "Получил(а) помощь — сразу приходит в себя с 1 ОЗ и 1 Маны. +1 Ранение."
+      "PostBattleHelped": "Получил(а) помощь — сразу приходит в себя с 1 ОЗ и 1 Маны. +1 Ранение.",
+      "SkillTitle": "{actor}: «{skill}» ({tier})",
+      "SkillUseHint": "Клик — описание в чат, ПКМ — открыть лист навыка"
     }
   },
 

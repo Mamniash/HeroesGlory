@@ -23,8 +23,16 @@ export default class HeroesGloryArtifact extends HeroesGloryDataModel {
     });
 
     // §8.3: worn/wielded status, relevant to the 5-item / 4-magic-item
-    // inventory limits.
+    // inventory limits (the limits themselves aren't enforced in code —
+    // see docs/rules.md §8.3).
     schema.equipped = new fields.BooleanField({ initial: false });
+
+    // Which of the hero sheet's 19 paperdoll positions this artifact is
+    // dragged onto (null = not placed there). Superseded the old "one
+    // equipped slot per artifactType" rule — see module/documents/item.mjs.
+    schema.paperdollSlot = new fields.NumberField({
+      required: false, nullable: true, integer: true, initial: null, min: 1, max: 19,
+    });
 
     // Structured bonuses (§8.2), separate from the free-text `bonus` above
     // — many book bonuses aren't a single number ("Восстанавливает 1 ОЗ за

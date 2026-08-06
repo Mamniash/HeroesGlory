@@ -1,299 +1,295 @@
-<section class="actor-sheet__body actor-sheet__body--hero">
-  <div class="hero-sheet__columns">
+<div class="hero-paperdoll-wrapper">
+<div class="hero-paperdoll" data-panel-color="{{system.panelColor}}">
 
-    {{!-- ==================== LEFT COLUMN ==================== --}}
-    <div class="hero-sheet__column hero-sheet__column--left">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--portrait" src="{{actor.img}}" alt="{{actor.name}}"
+    data-action="editImage" data-edit="img" role="button" tabindex="0"
+    aria-label="{{localize 'HEROES_GLORY.Actor.ChangeImage'}}">
 
-      <div class="hero-sheet__primary-skills">
-        <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.attack" value="{{source.attack}}" min="0">
-          {{#unless (eq source.attack system.attack)}}
-            <span class="hero-sheet__primary-skill-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</span>
-          {{/unless}}
-          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="attack"
-            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
-        </label>
-        <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.defense" value="{{source.defense}}" min="0">
-          {{#unless (eq source.defense system.defense)}}
-            <span class="hero-sheet__primary-skill-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</span>
-          {{/unless}}
-          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="defense"
-            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
-        </label>
-        <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0">
-          {{#unless (eq source.magicPower system.magicPower)}}
-            <span class="hero-sheet__primary-skill-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.magicPower}}</span>
-          {{/unless}}
-          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="magicPower"
-            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
-        </label>
-        <label class="hero-sheet__primary-skill">
-          <input class="hero-sheet__primary-skill-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0">
-          {{#unless (eq source.knowledge system.knowledge)}}
-            <span class="hero-sheet__primary-skill-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.knowledge}}</span>
-          {{/unless}}
-          <span class="hero-sheet__primary-skill-label" data-action="rollAbilityCheck" data-skill="knowledge"
-            role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
-        </label>
-      </div>
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--name">
+    <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
+      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">
+    <p class="hero-paperdoll__name-line">{{localize raceLabel}} — {{localize classLabel}}</p>
+    <p class="hero-paperdoll__name-line">{{localize factionLabel}}</p>
+  </div>
 
-      <div class="grid grid-3col">
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Specialization'}}</span>
-          <input type="text" name="system.specialization" value="{{system.specialization}}">
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">
-            {{localize 'HEROES_GLORY.Hero.Morale'}}
-            {{#unless (eq source.morale system.morale)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.morale}}</span>{{/unless}}
-          </span>
-          <input type="number" name="system.morale" value="{{source.morale}}">
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">
-            {{localize 'HEROES_GLORY.Hero.Luck'}}
-            {{#unless (eq source.luck system.luck)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.luck}}</span>{{/unless}}
-          </span>
-          <input type="number" name="system.luck" value="{{source.luck}}" min="-3" max="3">
-        </label>
-      </div>
+  {{!-- ==================== Primary skills: labels / icons / values ==================== --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--text_1 hero-paperdoll__primary-row">
+    <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="attack"
+      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
+    <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="defense"
+      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
+    <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="magicPower"
+      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
+    <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="knowledge"
+      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
+  </div>
 
-      {{#if (or (gt system.morale 0) (and isGM (lt system.morale 0)))}}
-        <div class="hero-sheet__morale-actions">
-          {{#if (gt system.morale 0)}}
-            <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="positive"
-              {{#unless moraleRemaining}}disabled{{/unless}}
-              title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
-              <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleCheck'}} ({{moraleRemaining}})
-            </button>
-          {{/if}}
-          {{#if (and isGM (lt system.morale 0))}}
-            <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="negative"
-              {{#unless moraleRemaining}}disabled{{/unless}}
-              title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleSkipHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
-              <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleSkipCheck'}} ({{moraleRemaining}})
-            </button>
-          {{/if}}
-        </div>
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--attack" src="{{icons.attack}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--defence" src="{{icons.defense}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--knowledge" src="{{icons.knowledge}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.magicPower}}" alt="">
+
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--text_2 hero-paperdoll__primary-row">
+    <span class="hero-paperdoll__primary-cell">
+      <input class="hero-paperdoll__primary-value" type="number" name="system.attack" value="{{source.attack}}" min="0">
+      {{#unless (eq source.attack system.attack)}}
+        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</span>
+      {{/unless}}
+    </span>
+    <span class="hero-paperdoll__primary-cell">
+      <input class="hero-paperdoll__primary-value" type="number" name="system.defense" value="{{source.defense}}" min="0">
+      {{#unless (eq source.defense system.defense)}}
+        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</span>
+      {{/unless}}
+    </span>
+    <span class="hero-paperdoll__primary-cell">
+      <input class="hero-paperdoll__primary-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0">
+      {{#unless (eq source.magicPower system.magicPower)}}
+        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.magicPower}}</span>
+      {{/unless}}
+    </span>
+    <span class="hero-paperdoll__primary-cell">
+      <input class="hero-paperdoll__primary-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0">
+      {{#unless (eq source.knowledge system.knowledge)}}
+        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.knowledge}}</span>
+      {{/unless}}
+    </span>
+  </div>
+
+  {{!-- ==================== Health / Experience / Mana ==================== --}}
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--health_name" src="{{icons.health}}" alt="">
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--health_desc">
+    <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
+    <span class="hero-paperdoll__value-sep">/</span>
+    <span class="hero-paperdoll__value-max">{{system.health.max}}</span>
+  </div>
+
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt="">
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc">
+    <input type="number" name="system.experience" value="{{system.experience}}" min="0">
+  </div>
+
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--mana_name" src="{{icons.mana}}" alt="">
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--mana_desc">
+    <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
+    <span class="hero-paperdoll__value-sep">/</span>
+    <span class="hero-paperdoll__value-max">{{system.mana.max}}</span>
+  </div>
+
+  {{!-- ==================== Morale / Luck (read display — editable in the details fallback) ==================== --}}
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}"
+    data-tooltip="{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}"
+    data-tooltip="{{localize 'HEROES_GLORY.Hero.Luck'}}: {{system.luck}}" alt="">
+
+  {{!-- ==================== Secondary skills (8 slots) ==================== --}}
+  {{#each secondarySkillSlots}}
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_name_{{inc @index}}">
+      {{#if this}}
+        <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
+          data-action="useSkill" title="{{localize 'HEROES_GLORY.Roll.SkillUseHint'}}"
+          data-tooltip-html="<img src='{{this.iconLarge}}' width='82' height='93' style='image-rendering:pixelated'><p>{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>">
+        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
       {{/if}}
+    </div>
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_desc_{{inc @index}}">
+      {{#if this}}<span>{{localize this.skillLabel}} — {{localize this.tierLabel}}</span>{{/if}}
+    </div>
+  {{/each}}
 
-      <div class="grid grid-3col">
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Experience'}}</span>
-          <input type="number" name="system.experience" value="{{system.experience}}" min="0">
-        </label>
-        <div class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Mana'}}</span>
-          <div class="actor-sheet__value-pair">
-            <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
-            <span class="actor-sheet__value-sep">/</span>
-            <span class="actor-sheet__value-max">{{system.mana.max}}</span>
-          </div>
-        </div>
-        <div class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Health'}}</span>
-          <div class="actor-sheet__value-pair">
-            <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
-            <span class="actor-sheet__value-sep">/</span>
-            <span class="actor-sheet__value-max">{{system.health.max}}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-2col">
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HealthBase'}}</span>
-          <input type="number" name="system.health.base" value="{{system.health.base}}" min="0">
-        </label>
-        <div class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Wounds'}}</span>
-          <div class="hero-sheet__wounds-counter">
-            <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="-1"
-              title="{{localize 'HEROES_GLORY.Hero.WoundsRemoveHint'}}"><i class="fa-solid fa-minus"></i></button>
-            <span class="hero-sheet__wounds-value">{{system.wounds}}</span>
-            <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="1"
-              title="{{localize 'HEROES_GLORY.Hero.WoundsAddHint'}}"><i class="fa-solid fa-plus"></i></button>
-          </div>
-        </div>
-      </div>
-
-      {{#if (or healthDepleted manaDepleted)}}
-        <p class="hero-sheet__warning">
-          {{#if healthDepleted}}{{localize 'HEROES_GLORY.Hero.HealthDepletedWarning'}}{{/if}}
-          {{#if manaDepleted}}{{localize 'HEROES_GLORY.Hero.ManaDepletedWarning'}}{{/if}}
-        </p>
+  {{!-- ==================== Paperdoll (19 slots) ==================== --}}
+  {{#each paperdollSlots}}
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}">
+      {{#if this.item}}
+        <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
+          data-action="openItem" data-tooltip="{{this.item.name}}">
+        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
       {{/if}}
+    </div>
+  {{/each}}
 
-      {{#if (and isGM isIncapacitated)}}
-        <div class="hero-sheet__morale-actions">
-          <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="roll"
-            title="{{localize 'HEROES_GLORY.Roll.PostBattleCheckHint'}}">
-            <i class="fa-solid fa-dice-d20"></i> {{localize 'HEROES_GLORY.Roll.PostBattleCheck'}}
-          </button>
-          <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="help"
-            title="{{localize 'HEROES_GLORY.Roll.PostBattleHelpHint'}}">
-            <i class="fa-solid fa-hand-holding-medical"></i> {{localize 'HEROES_GLORY.Roll.PostBattleHelp'}}
-          </button>
-        </div>
+  {{!-- ==================== Backpack (5 visible of a paged list) + arrows ==================== --}}
+  {{#each backpackPageItems}}
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--backpack-{{inc @index}}" data-slot="backpack">
+      {{#if this}}
+        <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
+          data-action="openItem" data-tooltip="{{this.name}}">
+        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
+          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
       {{/if}}
+    </div>
+  {{/each}}
 
-      <div class="grid grid-4col">
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">
-            {{localize 'HEROES_GLORY.Hero.Speed'}}
-            {{#unless (eq source.speed system.speed)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.speed}}</span>{{/unless}}
-          </span>
-          <input type="number" name="system.speed" value="{{source.speed}}" min="0">
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Vision'}}</span>
-          <select name="system.vision">
-            {{selectOptions config.visionTypes selected=system.vision localize=true}}
-          </select>
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Gold'}}</span>
-          <input type="number" name="system.gold" value="{{system.gold}}" min="0">
-        </label>
-        <label class="actor-sheet__field actor-sheet__field--checkbox">
-          <input type="checkbox" name="system.hasSpellbook" {{checked system.hasSpellbook}}>
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HasSpellbook'}}</span>
-        </label>
-      </div>
+  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_left" data-action="backpackPage" data-direction="prev"
+    {{#unless backpackPage}}disabled{{/unless}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackPrevHint'}}"></button>
+  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_right" data-action="backpackPage" data-direction="next"
+    {{#if (eq backpackPage backpackMaxPage)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
 
-      <div class="grid grid-3col">
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Race'}}</span>
-          <select name="system.race">
-            {{selectOptions config.races selected=system.race localize=true}}
-          </select>
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Faction'}}</span>
-          <select name="system.faction">
-            {{selectOptions config.factions selected=system.faction localize=true}}
-          </select>
-        </label>
-        <label class="actor-sheet__field">
-          <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Class'}}</span>
-          <select name="system.heroClass">
-            {{selectOptions config.classes selected=system.heroClass localize=true}}
-          </select>
-        </label>
-      </div>
+</div>
+{{!-- /.hero-paperdoll — everything below is a sibling, not a descendant,
+     so the leather background (background-size: 100% 100%) never
+     stretches to cover this section's height when <details> is open. --}}
 
-      <div class="hero-sheet__section">
-        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.SecondarySkills'}}</h3>
-        <ul class="hero-sheet__skill-list">
-          {{#each secondarySkills}}
-            <li class="hero-sheet__skill-entry">
-              <span class="hero-sheet__skill-entry-value" data-action="openItem" data-item-id="{{this.item.id}}">
-                {{localize this.tierLabel}} — {{localize this.skillLabel}}
-              </span>
-              <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.item.id}}"
-                title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
-            </li>
-          {{/each}}
-        </ul>
-      </div>
+  {{!-- ====================================================================
+       Everything below is NOT on the HOMM3 mockup. Per the approved plan,
+       it stays fully functional (same fields/actions as before this
+       rework) but collapsed out of the primary view. ==================== --}}
+  <details class="hero-paperdoll__more">
+    <summary>{{localize 'HEROES_GLORY.Hero.MoreDetails'}}</summary>
 
+    <div class="grid grid-3col">
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Specialization'}}</span>
+        <input type="text" name="system.specialization" value="{{system.specialization}}">
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">
+          {{localize 'HEROES_GLORY.Hero.Morale'}}
+          {{#unless (eq source.morale system.morale)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.morale}}</span>{{/unless}}
+        </span>
+        <input type="number" name="system.morale" value="{{source.morale}}">
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">
+          {{localize 'HEROES_GLORY.Hero.Luck'}}
+          {{#unless (eq source.luck system.luck)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.luck}}</span>{{/unless}}
+        </span>
+        <input type="number" name="system.luck" value="{{source.luck}}" min="-3" max="3">
+      </label>
     </div>
 
-    {{!-- ==================== RIGHT COLUMN ==================== --}}
-    <div class="hero-sheet__column hero-sheet__column--right">
-
-      <div class="hero-sheet__section">
-        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Equipped'}}</h3>
-        <ul class="hero-sheet__item-list">
-          <li class="hero-sheet__item-slot{{#if meleeWeapon}} hero-sheet__item-slot--filled{{/if}}">
-            <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.MeleeWeapon'}}</span>
-            {{#if meleeWeapon}}
-              <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{meleeWeapon.id}}">{{meleeWeapon.name}}</span>
-              <span class="hero-sheet__item-actions">
-                <button type="button" class="hero-sheet__icon-button" data-action="rollAttack" data-item-id="{{meleeWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
-                <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{meleeWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
-                <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{meleeWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
-              </span>
-            {{else}}
-              <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
-            {{/if}}
-          </li>
-          <li class="hero-sheet__item-slot{{#if rangedWeapon}} hero-sheet__item-slot--filled{{/if}}">
-            <span class="hero-sheet__item-slot-label">{{localize 'HEROES_GLORY.Hero.RangedWeapon'}}</span>
-            {{#if rangedWeapon}}
-              <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{rangedWeapon.id}}">{{rangedWeapon.name}}</span>
-              <span class="hero-sheet__item-actions">
-                <button type="button" class="hero-sheet__icon-button" data-action="rollAttack" data-item-id="{{rangedWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
-                <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{rangedWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
-                <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{rangedWeapon.id}}"
-                  title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
-              </span>
-            {{else}}
-              <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
-            {{/if}}
-          </li>
-          {{#each artifactSlots}}
-            <li class="hero-sheet__item-slot{{#if this.item}} hero-sheet__item-slot--filled{{/if}}">
-              <span class="hero-sheet__item-slot-label">{{localize this.labelKey}}</span>
-              {{#if this.item}}
-                <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.item.id}}">{{this.item.name}}</span>
-                <span class="hero-sheet__item-actions">
-                  <button type="button" class="hero-sheet__icon-button" data-action="unequipItem" data-item-id="{{this.item.id}}"
-                    title="{{localize 'HEROES_GLORY.Item.UnequipHint'}}"><i class="fa-solid fa-xmark"></i></button>
-                  <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.item.id}}"
-                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
-                </span>
-              {{else}}
-                <span class="hero-sheet__item-slot-value">{{localize 'HEROES_GLORY.Hero.EmptySlot'}}</span>
-              {{/if}}
-            </li>
-          {{/each}}
-        </ul>
+    {{#if (or (gt system.morale 0) (and isGM (lt system.morale 0)))}}
+      <div class="hero-sheet__morale-actions">
+        {{#if (gt system.morale 0)}}
+          <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="positive"
+            {{#unless moraleRemaining}}disabled{{/unless}}
+            title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
+            <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleCheck'}} ({{moraleRemaining}})
+          </button>
+        {{/if}}
+        {{#if (and isGM (lt system.morale 0))}}
+          <button type="button" class="hero-sheet__action-button" data-action="rollMoraleCheck" data-variant="negative"
+            {{#unless moraleRemaining}}disabled{{/unless}}
+            title="{{#if moraleRemaining}}{{localize 'HEROES_GLORY.Roll.MoraleSkipHint'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleExhausted'}}{{/if}}">
+            <i class="fa-solid fa-dice-d6"></i> {{localize 'HEROES_GLORY.Roll.MoraleSkipCheck'}} ({{moraleRemaining}})
+          </button>
+        {{/if}}
       </div>
+    {{/if}}
 
-      <div class="hero-sheet__section">
-        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Inventory'}}</h3>
+    <div class="grid grid-2col">
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HealthBase'}}</span>
+        <input type="number" name="system.health.base" value="{{system.health.base}}" min="0">
+      </label>
+      <div class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Wounds'}}</span>
+        <div class="hero-sheet__wounds-counter">
+          <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="-1"
+            title="{{localize 'HEROES_GLORY.Hero.WoundsRemoveHint'}}"><i class="fa-solid fa-minus"></i></button>
+          <span class="hero-sheet__wounds-value">{{system.wounds}}</span>
+          <button type="button" class="hero-sheet__icon-button" data-action="adjustWounds" data-delta="1"
+            title="{{localize 'HEROES_GLORY.Hero.WoundsAddHint'}}"><i class="fa-solid fa-plus"></i></button>
+        </div>
+      </div>
+    </div>
+
+    {{#if (or healthDepleted manaDepleted)}}
+      <p class="hero-sheet__warning">
+        {{#if healthDepleted}}{{localize 'HEROES_GLORY.Hero.HealthDepletedWarning'}}{{/if}}
+        {{#if manaDepleted}}{{localize 'HEROES_GLORY.Hero.ManaDepletedWarning'}}{{/if}}
+      </p>
+    {{/if}}
+
+    {{#if (and isGM isIncapacitated)}}
+      <div class="hero-sheet__morale-actions">
+        <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="roll"
+          title="{{localize 'HEROES_GLORY.Roll.PostBattleCheckHint'}}">
+          <i class="fa-solid fa-dice-d20"></i> {{localize 'HEROES_GLORY.Roll.PostBattleCheck'}}
+        </button>
+        <button type="button" class="hero-sheet__action-button" data-action="postBattleCheck" data-variant="help"
+          title="{{localize 'HEROES_GLORY.Roll.PostBattleHelpHint'}}">
+          <i class="fa-solid fa-hand-holding-medical"></i> {{localize 'HEROES_GLORY.Roll.PostBattleHelp'}}
+        </button>
+      </div>
+    {{/if}}
+
+    <div class="grid grid-4col">
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">
+          {{localize 'HEROES_GLORY.Hero.Speed'}}
+          {{#unless (eq source.speed system.speed)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.speed}}</span>{{/unless}}
+        </span>
+        <input type="number" name="system.speed" value="{{source.speed}}" min="0">
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Vision'}}</span>
+        <select name="system.vision">
+          {{selectOptions config.visionTypes selected=system.vision localize=true}}
+        </select>
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Gold'}}</span>
+        <input type="number" name="system.gold" value="{{system.gold}}" min="0">
+      </label>
+      <label class="actor-sheet__field actor-sheet__field--checkbox">
+        <input type="checkbox" name="system.hasSpellbook" {{checked system.hasSpellbook}}>
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HasSpellbook'}}</span>
+      </label>
+    </div>
+
+    <div class="grid grid-3col">
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Race'}}</span>
+        <select name="system.race">
+          {{selectOptions config.races selected=system.race localize=true}}
+        </select>
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Faction'}}</span>
+        <select name="system.faction">
+          {{selectOptions config.factions selected=system.faction localize=true}}
+        </select>
+      </label>
+      <label class="actor-sheet__field">
+        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Class'}}</span>
+        <select name="system.heroClass">
+          {{selectOptions config.classes selected=system.heroClass localize=true}}
+        </select>
+      </label>
+    </div>
+
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.PanelColor'}}</span>
+      <select name="system.panelColor">
+        {{selectOptions config.panelColors selected=system.panelColor localize=true}}
+      </select>
+    </label>
+
+    <div class="hero-sheet__section">
+      <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Spells'}}</h3>
+      {{#if system.hasSpellbook}}
         <ul class="hero-sheet__item-list">
-          {{#each inventory}}
+          {{#each spells}}
             <li class="hero-sheet__item-slot hero-sheet__item-slot--filled">
               <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.id}}">{{this.name}}</span>
               <span class="hero-sheet__item-actions">
+                <button type="button" class="hero-sheet__icon-button" data-action="castSpell" data-item-id="{{this.id}}"
+                  title="{{localize 'HEROES_GLORY.Roll.CastHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
                 <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.id}}"
                   title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
               </span>
             </li>
           {{/each}}
         </ul>
-      </div>
-
-      <div class="hero-sheet__section">
-        <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Spells'}}</h3>
-        {{#if system.hasSpellbook}}
-          <ul class="hero-sheet__item-list">
-            {{#each spells}}
-              <li class="hero-sheet__item-slot hero-sheet__item-slot--filled">
-                <span class="hero-sheet__item-slot-value" data-action="openItem" data-item-id="{{this.id}}">{{this.name}}</span>
-                <span class="hero-sheet__item-actions">
-                  <button type="button" class="hero-sheet__icon-button" data-action="castSpell" data-item-id="{{this.id}}"
-                    title="{{localize 'HEROES_GLORY.Roll.CastHint'}}"><i class="fa-solid fa-dice-d20"></i></button>
-                  <button type="button" class="hero-sheet__icon-button" data-action="deleteItem" data-item-id="{{this.id}}"
-                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
-                </span>
-              </li>
-            {{/each}}
-          </ul>
-        {{else}}
-          <p class="hero-sheet__empty-note">{{localize 'HEROES_GLORY.Hero.NoSpellbook'}}</p>
-        {{/if}}
-      </div>
-
+      {{else}}
+        <p class="hero-sheet__empty-note">{{localize 'HEROES_GLORY.Hero.NoSpellbook'}}</p>
+      {{/if}}
     </div>
-  </div>
-</section>
+  </details>
+
+</div>
+{{! /.hero-paperdoll-wrapper }}
+
