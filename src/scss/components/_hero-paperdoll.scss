@@ -252,7 +252,10 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 .hero-paperdoll__slot--experience_name,
 .hero-paperdoll__slot--mana_name {
   object-fit: contain;
-  pointer-events: none;
+  // `pointer-events: none` used to sit here since these were pure
+  // decoration with nothing to hover — now each one is a
+  // `[data-tooltip-trigger]` (module/helpers/tooltip.mjs), so they need
+  // to receive mouseenter/mouseleave like morale/luck already do below.
 }
 
 .hero-paperdoll__slot--health_desc,

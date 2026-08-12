@@ -1,5 +1,6 @@
 import HeroesGloryDataModel from "./base-model.mjs";
 import { applyWoundPenalty } from "../helpers/wounds.mjs";
+import { manaMultiplier } from "../helpers/mana.mjs";
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -110,20 +111,17 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
 
   /**
    * §2.1 / §3: Мана = Знания × 10, or × 12/14/15 if the hero owns a
-   * secondary-skill item "Интеллект" at base/advanced/expert tier.
+   * secondary-skill item "Интеллект" at base/advanced/expert tier. The
+   * tier→multiplier mapping itself lives in helpers/mana.mjs (pure,
+   * unit-tested) — this method only does the Foundry-dependent item
+   * lookup that can't be pure.
    * @returns {number}
    */
   #getManaMultiplier() {
     const intellectSkill = this.parent?.items?.find(
       (i) => i.type === "skill" && i.system.skillKey === "intellect"
     );
-    if (!intellectSkill) return 10;
-    switch (intellectSkill.system.tier) {
-      case "advanced": return 14;
-      case "expert": return 15;
-      case "base":
-      default: return 12;
-    }
+    return manaMultiplier(intellectSkill?.system.tier ?? null);
   }
 
   /**

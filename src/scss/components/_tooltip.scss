@@ -1,0 +1,72 @@
+// module/helpers/tooltip.mjs's floating layer — appended directly to
+// document.body, NOT nested under any .heroes-glory sheet root, so this
+// partial is imported OUTSIDE the `.heroes-glory { }` wrapper in
+// heroes-glory.scss (same reasoning as components/chat-card). The layer
+// element itself carries `class="heroes-glory hg-tooltip"` so it's both
+// the wrapper root AND the tooltip root at once.
+//
+// Old-style `@import` scopes a top-level `$var` to whatever selector
+// block the @import itself sits inside — `$hg-parchment` from
+// _hero-paperdoll.scss is therefore only visible inside `.heroes-glory {}`,
+// not here, so this partial keeps its own local copy of the same tone.
+$hg-tooltip-text: #e8dcc0;
+
+.hg-tooltip {
+  position: fixed;
+  z-index: 100000; // above Foundry ApplicationV2 windows
+  box-sizing: border-box;
+  // border-box: the 128px (64+64) frame minimum from the task brief is
+  // already fully consumed by `border` below — with the chosen padding
+  // on top, the real functional floor for any content at all is
+  // 128 + 2×24 horizontally, 128 + 2×20 vertically.
+  min-width: 176px;
+  min-height: 168px;
+  max-width: 440px; // long secondary-skill descriptions wrap here instead
+  // of stretching the frame into a bar
+  padding: 20px 24px;
+  border: 64px solid transparent;
+  border-image-slice: 64 fill;
+  border-image-repeat: repeat;
+  image-rendering: pixelated;
+  color: $hg-tooltip-text;
+  font-family: $font-primary;
+  font-size: 14px;
+  pointer-events: none; // tooltip mode never intercepts clicks
+
+  &[hidden] {
+    display: none;
+  }
+
+  &[data-mode='modal'] {
+    // Reserved for the future level-up modal (click interception: yes) —
+    // nothing sets `data-mode="modal"` yet, see tooltip.mjs.
+    pointer-events: auto;
+  }
+}
+
+.hg-tooltip__icon {
+  display: block;
+  margin-bottom: 8px;
+  image-rendering: pixelated;
+}
+
+.hg-tooltip__title {
+  margin: 0 0 4px;
+  font-weight: bold;
+}
+
+.hg-tooltip p {
+  margin: 0 0 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+$hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, white;
+
+@each $color in $hg-tooltip-colors {
+  .hg-tooltip[data-color='#{$color}'] {
+    border-image-source: url('../assets/ui/dialog_frame_#{$color}.png');
+  }
+}

@@ -25,3 +25,7 @@
 
 /* Chat cards render in the chat log, outside any .heroes-glory wrapper */
 @import 'components/chat-card';
+
+/* The hover-tooltip/modal layer (module/helpers/tooltip.mjs) is appended
+   directly to document.body — also outside any .heroes-glory wrapper. */
+@import 'components/tooltip';

@@ -24,52 +24,47 @@
       role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
   </div>
 
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--attack" src="{{icons.attack}}" alt="">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--defence" src="{{icons.defense}}" alt="">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--knowledge" src="{{icons.knowledge}}" alt="">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.magicPower}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--attack" src="{{icons.attack}}" alt=""
+    data-tooltip-trigger="skill-attack">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--defence" src="{{icons.defense}}" alt=""
+    data-tooltip-trigger="skill-defense">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--knowledge" src="{{icons.knowledge}}" alt=""
+    data-tooltip-trigger="skill-knowledge">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.magicPower}}" alt=""
+    data-tooltip-trigger="skill-magicPower">
 
   <div class="hero-paperdoll__slot hero-paperdoll__slot--text_2 hero-paperdoll__primary-row">
     <span class="hero-paperdoll__primary-cell">
       <input class="hero-paperdoll__primary-value" type="number" name="system.attack" value="{{source.attack}}" min="0">
-      {{#unless (eq source.attack system.attack)}}
-        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</span>
-      {{/unless}}
     </span>
     <span class="hero-paperdoll__primary-cell">
       <input class="hero-paperdoll__primary-value" type="number" name="system.defense" value="{{source.defense}}" min="0">
-      {{#unless (eq source.defense system.defense)}}
-        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</span>
-      {{/unless}}
     </span>
     <span class="hero-paperdoll__primary-cell">
       <input class="hero-paperdoll__primary-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0">
-      {{#unless (eq source.magicPower system.magicPower)}}
-        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.magicPower}}</span>
-      {{/unless}}
     </span>
     <span class="hero-paperdoll__primary-cell">
       <input class="hero-paperdoll__primary-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0">
-      {{#unless (eq source.knowledge system.knowledge)}}
-        <span class="hero-paperdoll__primary-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.knowledge}}</span>
-      {{/unless}}
     </span>
   </div>
 
   {{!-- ==================== Health / Experience / Mana ==================== --}}
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--health_name" src="{{icons.health}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--health_name" src="{{icons.health}}" alt=""
+    data-tooltip-trigger="health">
   <div class="hero-paperdoll__slot hero-paperdoll__slot--health_desc">
     <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
     <span class="hero-paperdoll__value-sep">/</span>
     <span class="hero-paperdoll__value-max">{{system.health.max}}</span>
   </div>
 
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt=""
+    data-tooltip-trigger="experience">
   <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc">
     <input type="number" name="system.experience" value="{{system.experience}}" min="0">
   </div>
 
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--mana_name" src="{{icons.mana}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--mana_name" src="{{icons.mana}}" alt=""
+    data-tooltip-trigger="mana">
   <div class="hero-paperdoll__slot hero-paperdoll__slot--mana_desc">
     <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
     <span class="hero-paperdoll__value-sep">/</span>
@@ -77,10 +72,10 @@
   </div>
 
   {{!-- ==================== Morale / Luck (read display — editable in the details fallback) ==================== --}}
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}"
-    data-tooltip="{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}" alt="">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}"
-    data-tooltip="{{localize 'HEROES_GLORY.Hero.Luck'}}: {{system.luck}}" alt="">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
+    data-tooltip-trigger="morale">
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
+    data-tooltip-trigger="luck">
 
   {{!-- ==================== Secondary skills (8 slots) ==================== --}}
   {{#each secondarySkillSlots}}
@@ -88,15 +83,81 @@
       {{#if this}}
         <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
           data-action="useSkill" title="{{localize 'HEROES_GLORY.Roll.SkillUseHint'}}"
-          data-tooltip-html="<img src='{{this.iconLarge}}' width='82' height='93' style='image-rendering:pixelated'><p>{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>">
+          data-tooltip-trigger="secskill-{{inc @index}}">
         <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
           title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
+          <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
+          <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
+          <p>{{this.effectText}}</p>
+        </template>
       {{/if}}
     </div>
     <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_desc_{{inc @index}}">
       {{#if this}}<span>{{localize this.skillLabel}} — {{localize this.tierLabel}}</span>{{/if}}
     </div>
   {{/each}}
+
+  {{!-- ==================== Left-half tooltip content (module/helpers/tooltip.mjs) ==================== --}}
+  <template class="hg-tooltip-tpl" data-tooltip-key="skill-attack">
+    <img class="hg-tooltip__icon" src="{{icons.attackLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Attack'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.attack}}</p>
+    <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="skill-defense">
+    <img class="hg-tooltip__icon" src="{{icons.defenseLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Defense'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.defense}}</p>
+    <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="skill-magicPower">
+    <img class="hg-tooltip__icon" src="{{icons.magicPowerLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.magicPower}}</p>
+    <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.magicPower}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="skill-knowledge">
+    <img class="hg-tooltip__icon" src="{{icons.knowledgeLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.knowledge}}</p>
+    <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.knowledge}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="health">
+    <img class="hg-tooltip__icon" src="{{icons.healthLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Health'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.CurrentOfMax' current=system.health.value max=system.health.max}}</p>
+    {{#if system.wounds}}
+      <p>{{localize 'HEROES_GLORY.Tooltip.HealthWoundBreakdown' base=system.health.base wounds=system.wounds afterWounds=healthAfterWounds}}</p>
+      {{#unless (eq healthAfterWounds system.health.max)}}
+        <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.health.max}}</p>
+      {{/unless}}
+    {{/if}}
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="experience">
+    <img class="hg-tooltip__icon" src="{{icons.experienceLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Experience'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.ExperienceCurrent' value=system.experience}}</p>
+    {{#if experienceToNext}}
+      <p>{{localize 'HEROES_GLORY.Tooltip.ExperienceToNext' value=experienceToNext}}</p>
+    {{/if}}
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="mana">
+    <img class="hg-tooltip__icon" src="{{icons.manaLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Mana'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.CurrentOfMax' current=system.mana.value max=system.mana.max}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.ManaFormula' knowledge=system.knowledge multiplier=manaMultiplier product=manaBeforeWounds}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="morale">
+    <img class="hg-tooltip__icon" src="{{icons.moraleLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.MoralePositiveHint'}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="luck">
+    <img class="hg-tooltip__icon" src="{{icons.luckLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Luck'}}: {{system.luck}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.LuckHint'}}</p>
+  </template>
 
   {{!-- ==================== Paperdoll (19 slots) ==================== --}}
   {{#each paperdollSlots}}

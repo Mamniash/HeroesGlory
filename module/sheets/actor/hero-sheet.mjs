@@ -1,8 +1,11 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining } from '../../helpers/rolls.mjs';
-import { isMaxDepleted } from '../../helpers/wounds.mjs';
+import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
 import { useSkill } from '../../helpers/roll-actions.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath } from '../../helpers/skill-icons.mjs';
+import { manaMultiplier } from '../../helpers/mana.mjs';
+import { experienceToNextLevel } from '../../helpers/experience.mjs';
+import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
@@ -59,7 +62,35 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       mana: primarySkillIconPath('mana'),
       morale: moraleIconPath(system.morale),
       luck: luckIconPath(system.luck),
+      // Large (82×93) variants for the new hover tooltips — same frame
+      // numbering as the small icons above, health keeps reusing the
+      // Experience frame as the same documented placeholder.
+      attackLarge: primarySkillIconPath('attack', { large: true }),
+      defenseLarge: primarySkillIconPath('defense', { large: true }),
+      magicPowerLarge: primarySkillIconPath('magicPower', { large: true }),
+      knowledgeLarge: primarySkillIconPath('knowledge', { large: true }),
+      healthLarge: primarySkillIconPath('experience', { large: true }),
+      experienceLarge: primarySkillIconPath('experience', { large: true }),
+      manaLarge: primarySkillIconPath('mana', { large: true }),
+      moraleLarge: moraleIconPath(system.morale, { large: true }),
+      luckLarge: luckIconPath(system.luck, { large: true }),
     };
+
+    // §2.1/§3: the Mана formula shown in the Mana tooltip — same tier
+    // lookup as the DataModel's own (private) mana multiplier, see
+    // helpers/mana.mjs for why the tier→number mapping itself isn't
+    // duplicated here.
+    const intellectSkill = this.actor.items.find(
+      (i) => i.type === 'skill' && i.system.skillKey === 'intellect',
+    );
+    context.manaMultiplier = manaMultiplier(intellectSkill?.system.tier ?? null);
+    context.manaBeforeWounds = system.knowledge * context.manaMultiplier;
+
+    // §5.9: the Health tooltip's wound-breakdown line.
+    context.healthAfterWounds = applyWoundPenalty(system.health.base, system.wounds);
+
+    // §4.1: the Experience tooltip's "XP to next level" line.
+    context.experienceToNext = experienceToNextLevel(system.level, system.experience);
 
     // §5.8: how many Боевой дух tests are left this battle, for the
     // sheet's morale-test buttons.
@@ -115,6 +146,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         skillLabel: config.secondarySkills[i.system.skillKey] ?? '',
         icon: secondarySkillIconPath(i.system.skillKey, i.system.tier),
         iconLarge: secondarySkillIconPath(i.system.skillKey, i.system.tier, { large: true }),
+        // Free text transcribed from the book (item-skill.mjs), only the
+        // hero's current tier — the tooltip shows just this, not all 3.
+        effectText: i.system.effects[i.system.tier],
       }));
     context.secondarySkillSlots = Array.from(
       { length: config.secondarySkillSlotCount },
@@ -135,6 +169,29 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     this.element.querySelectorAll('[data-action="useSkill"]').forEach((el) => {
       el.addEventListener('contextmenu', (event) => event.preventDefault());
     });
+
+    // A re-render can swap the hovered trigger element out from under a
+    // still-hovering cursor — its `mouseleave` would then never fire, so
+    // a tooltip from the previous render would otherwise keep floating
+    // over the new one. Unconditionally clear it before re-binding.
+    hideTooltip();
+    this.element.querySelectorAll('[data-tooltip-trigger]').forEach((triggerEl) => {
+      const key = triggerEl.dataset.tooltipTrigger;
+      const template = this.element.querySelector(`template[data-tooltip-key="${key}"]`);
+      if (template) attachTooltip(triggerEl, template);
+    });
+  }
+
+  /**
+   * The tooltip layer lives in `document.body`, outside this sheet's own
+   * DOM — closing the sheet with the cursor still over a trigger would
+   * otherwise leave it floating on screen forever, since its
+   * `mouseleave` target no longer exists.
+   * @override
+   */
+  async _preClose(options) {
+    await super._preClose(options);
+    hideTooltip();
   }
 
   /**
