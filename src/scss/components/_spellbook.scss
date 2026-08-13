@@ -1,5 +1,9 @@
 // The spellbook overlay — pixel-positioned over assets/ui/spelback_<color>.png
-// (610x564). Every left/top/width/height below matches docs/spellbook_grid.json's
+// (610x481 — the bottom decorative edge was trimmed off after this grid
+// was first authored at 610x564; pixel coordinates didn't change, only
+// the canvas height, so every top/height percentage below is recomputed
+// against 481, not 564). Every left/top/width/height below matches
+// docs/spellbook_grid.json's
 // precomputed percentage fields (px / canvas-dimension * 100) — that file is
 // the machine-readable source of truth for coordinates, not this one.
 // Toggled in/out of the DOM by module/sheets/actor/hero-sheet.mjs's
@@ -14,11 +18,20 @@
   // Width comes from the shared rule in _hero-paperdoll.scss (100% of
   // the wrapper, same as .hero-paperdoll) — deliberately matches the
   // sheet's own width so the book's top edge sits flush with where the
-  // sheet's own top edge would be, not centered/inscribed smaller. Height
-  // is derived from this ratio, ~17% taller than the paperdoll at the
-  // same width (610/564 ≈ 1.082 vs 600/473 ≈ 1.269) — the wrapper has no
-  // aspect-ratio of its own, so it just grows to match.
-  aspect-ratio: 610 / 564;
+  // sheet's own top edge would be, not centered/inscribed smaller.
+  // Height is derived from $hg-canvas-ratio (_hero-paperdoll.scss) —
+  // the book's own true ratio (610/481 ≈ 1.2682, its background art
+  // assets/ui/spelback_*.png confirmed 610×481 via PNG header) is close
+  // enough to that shared constant (≈1.2685) that using the exact same
+  // number here as .hero-paperdoll costs no visible stretch (well under
+  // a pixel at any real window width) and, unlike "close enough",
+  // guarantees the ApplicationV2 window is byte-for-byte the same size
+  // on both sides of the paperdoll/spellbook toggle — see
+  // _hero-paperdoll.scss's own comment on $hg-canvas-ratio and
+  // hero-sheet.mjs's `_prePosition` override, which depends on that.
+  // The wrapper still has no aspect-ratio of its own — height is left to
+  // whichever canvas is showing, same as .hero-paperdoll.
+  aspect-ratio: #{$hg-canvas-ratio};
 }
 
 .hero-spellbook__slot {
@@ -35,10 +48,10 @@
 // ---------------------------------------------------------------
 
 $hg-spellbook-named-slots: (
-  left: (15.082, 13.121, 1.803, 2.305),
-  right: (81.967, 12.234, 1.639, 1.95),
-  mana: (67.541, 70.922, 5.738, 5.496),
-  back: (77.213, 70.922, 6.393, 7.979),
+  left: (15.082, 15.385, 1.803, 2.703),
+  right: (81.967, 14.345, 1.639, 2.287),
+  mana: (67.541, 83.16, 5.738, 6.445),
+  back: (77.213, 83.16, 6.393, 9.356),
 );
 
 @each $name, $box in $hg-spellbook-named-slots {
@@ -55,13 +68,13 @@ $hg-spellbook-named-slots: (
 // page. Only left/top vary per index — width/height are fixed per the grid.
 // ---------------------------------------------------------------
 
-$hg-spellbook-icon-positions: (17.049 15.071), (32.623 15.071), (17.049 33.333), (32.623 33.333),
-  (17.049 51.596), (32.623 51.596), (53.443 15.071), (69.016 15.071), (53.443 33.333),
-  (69.016 33.333), (53.443 51.596), (69.016 51.596);
+$hg-spellbook-icon-positions: (17.049 17.672), (32.623 17.672), (17.049 39.085), (32.623 39.085),
+  (17.049 60.499), (32.623 60.499), (53.443 17.672), (69.016 17.672), (53.443 39.085),
+  (69.016 39.085), (53.443 60.499), (69.016 60.499);
 
-$hg-spellbook-text-positions: (16.393 27.128), (31.967 27.128), (16.393 45.39), (31.967 45.39),
-  (16.393 63.652), (31.967 63.652), (52.787 27.128), (68.361 27.128), (52.787 45.39),
-  (68.361 45.39), (52.787 63.652), (68.361 63.652);
+$hg-spellbook-text-positions: (16.393 31.809), (31.967 31.809), (16.393 53.222), (31.967 53.222),
+  (16.393 74.636), (31.967 74.636), (52.787 31.809), (68.361 31.809), (52.787 53.222),
+  (68.361 53.222), (52.787 74.636), (68.361 74.636);
 
 @for $i from 1 through 12 {
   $icon-pos: nth($hg-spellbook-icon-positions, $i);
@@ -69,14 +82,14 @@ $hg-spellbook-text-positions: (16.393 27.128), (31.967 27.128), (16.393 45.39), 
     left: nth($icon-pos, 1) * 1%;
     top: nth($icon-pos, 2) * 1%;
     width: 12.787%;
-    height: 11.525%;
+    height: 13.514%;
   }
   $text-pos: nth($hg-spellbook-text-positions, $i);
   .hero-spellbook__slot--text_#{$i} {
     left: nth($text-pos, 1) * 1%;
     top: nth($text-pos, 2) * 1%;
     width: 14.098%;
-    height: 4.61%;
+    height: 5.405%;
   }
 }
 

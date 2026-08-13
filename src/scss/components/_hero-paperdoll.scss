@@ -17,18 +17,47 @@
 // keep the wrapper's height constant across the paperdoll/spellbook
 // toggle — see git history if that trade-off is ever wanted again). Per
 // the current design, the currently-shown canvas is meant to dictate the
-// wrapper's height (book is ~17% taller than the paperdoll at equal
-// width, and the ApplicationV2 window is expected to grow/shrink on
-// toggle — accepted, not a bug). A normal-flow `width: 100%` +
-// `aspect-ratio` canvas gets there directly and, as a bonus, sidesteps
-// the old circular-height bug entirely: that bug came from the canvas's
-// HEIGHT depending on a percentage of the wrapper's height while the
-// wrapper's own (aspect-ratio-only) height simultaneously depended on
-// fitting the canvas's normal-flow content — here the canvas's height is
-// derived from its own width via `aspect-ratio`, never from the
-// wrapper's height, so there's no cycle to begin with.
+// wrapper's height — it's just that right now that's invisible: the
+// paperdoll's ratio (600/473 ≈ 1.2685) and the book's (610/481 ≈ 1.2682,
+// see _spellbook.scss) happen to match to three decimal places, so at
+// equal width the two canvases render at effectively the same height and
+// the ApplicationV2 window doesn't visibly resize on toggle. That's a
+// coincidence of the current background art, not something this rule
+// depends on — if either canvas's ratio changes later, the window is
+// expected to grow/shrink on toggle again, and that's fine. A
+// normal-flow `width: 100%` + `aspect-ratio` canvas gets there directly
+// and, as a bonus, sidesteps the old circular-height bug entirely: that
+// bug came from the canvas's HEIGHT depending on a percentage of the
+// wrapper's height while the wrapper's own (aspect-ratio-only) height
+// simultaneously depended on fitting the canvas's normal-flow content —
+// here the canvas's height is derived from its own width via
+// `aspect-ratio`, never from the wrapper's height, so there's no cycle
+// to begin with.
 
 $hg-parchment: #e8dcc0;
+
+// Both canvases render at effectively the same aspect ratio — the
+// paperdoll's native 600/473 (≈1.2685) and the book's native 610/481
+// (≈1.2682, see _spellbook.scss) already coincide to three decimal
+// places, so both `aspect-ratio` declarations share this ONE value
+// instead of two separate literals that could drift apart. Using the
+// exact same value for both (rather than each canvas's own true ratio)
+// is deliberate, not just tidiness: module/sheets/actor/hero-sheet.mjs's
+// `_prePosition` override locks the ApplicationV2 window itself to
+// whichever canvas is showing by always re-deriving its height from
+// this ratio, and that only produces a window that's *exactly*
+// unchanged across the paperdoll/spellbook toggle if both canvases
+// resolve to the exact same ratio — "close to three decimals" would
+// still leave a sub-pixel wobble. At any real window width the 0.0003
+// difference between the two canvases' true ratios is itself far under
+// a pixel, so no visible stretch either way.
+// A plain string, not a Sass number division (`600 / 473` outside a
+// clearly-CSS-only context risks Dart Sass actually computing it, which
+// would collapse the two-number "W / H" syntax `aspect-ratio` expects
+// down to a single decimal) — interpolated with `#{}` wherever used, so
+// it reaches the compiled CSS as the exact same literal text either
+// declaration already had.
+$hg-canvas-ratio: '600 / 473';
 
 // Standard ApplicationV2 `.window-content` padding (not set anywhere in
 // this project's own SCSS — it's Foundry core's default) leaves a gap
@@ -72,7 +101,7 @@ $hg-parchment: #e8dcc0;
 }
 
 .hero-paperdoll {
-  aspect-ratio: 600 / 473;
+  aspect-ratio: #{$hg-canvas-ratio};
 }
 
 .hero-paperdoll__slot {

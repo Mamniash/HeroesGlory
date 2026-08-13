@@ -286,6 +286,39 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
+   * Locks the ApplicationV2 window itself to the canvas's own aspect
+   * ratio (whichever of `.hero-paperdoll`/`.hero-spellbook` is currently
+   * showing — both share `$hg-canvas-ratio`, see _hero-paperdoll.scss)
+   * by always discarding whatever height a position update requested and
+   * letting it re-derive from width instead. Mirrors Foundry core's own
+   * `CameraPopout#_prePosition` (foundry.mjs) verbatim — same
+   * `HandlebarsApplicationMixin(ApplicationV2)` base, same trick, same
+   * reason: `ApplicationV2#_updatePosition`'s "Implicit height" branch
+   * (foundry.mjs) responds to `height === 'auto'` by clearing the
+   * element's inline height and re-measuring its natural rendered
+   * height via `getBoundingClientRect()` — which, for this element, is
+   * the window header's own height plus the canvas's own height (CSS
+   * `aspect-ratio` off the width that was just set), summed by the
+   * browser's normal layout with no arithmetic needed here. `setPosition`
+   * always routes through `_prePosition` before `_updatePosition`
+   * (foundry.mjs), and every position-changing interaction — the resize
+   * handle (Foundry v14 only renders one, bottom-right, but this doesn't
+   * care which corner it's dragged from), plain window moves,
+   * minimize/maximize's restore step, and the initial render — all call
+   * `setPosition`, so this one override reaches all of them. Width is
+   * left untouched: it's the one dimension actually being requested (via
+   * the drag handle, or DEFAULT_OPTIONS.position.width at first render),
+   * and `_updatePosition`'s own existing min/max-width clamping (from
+   * CSS, e.g. the core `.application` min-width floor — unrelated to
+   * this override) still runs on it before this ever executes.
+   * @override
+   */
+  _prePosition(position) {
+    super._prePosition(position);
+    position.height = 'auto';
+  }
+
+  /**
    * §8.1/§8.2/§6.1: drop handling for the 19-slot paperdoll and the
    * backpack. Dropping a weapon/artifact/spellbook (EQUIPABLE_TYPES) this
    * actor already owns onto a `[data-slot]` element repositions it;

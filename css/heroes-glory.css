@@ -773,7 +773,7 @@
   container-type: inline-size;
 }
 .heroes-glory .hero-paperdoll {
-  aspect-ratio: 600/473;
+  aspect-ratio: 600 / 473;
 }
 .heroes-glory .hero-paperdoll__slot {
   position: absolute;
@@ -1370,7 +1370,7 @@
   padding: 5px 0;
 }
 .heroes-glory .hero-spellbook {
-  aspect-ratio: 610/564;
+  aspect-ratio: 600 / 473;
 }
 .heroes-glory .hero-spellbook__slot {
   position: absolute;
@@ -1380,171 +1380,171 @@
 }
 .heroes-glory .hero-spellbook__slot--left {
   left: 15.082%;
-  top: 13.121%;
+  top: 15.385%;
   width: 1.803%;
-  height: 2.305%;
+  height: 2.703%;
 }
 .heroes-glory .hero-spellbook__slot--right {
   left: 81.967%;
-  top: 12.234%;
+  top: 14.345%;
   width: 1.639%;
-  height: 1.95%;
+  height: 2.287%;
 }
 .heroes-glory .hero-spellbook__slot--mana {
   left: 67.541%;
-  top: 70.922%;
+  top: 83.16%;
   width: 5.738%;
-  height: 5.496%;
+  height: 6.445%;
 }
 .heroes-glory .hero-spellbook__slot--back {
   left: 77.213%;
-  top: 70.922%;
+  top: 83.16%;
   width: 6.393%;
-  height: 7.979%;
+  height: 9.356%;
 }
 .heroes-glory .hero-spellbook__slot--icon_1 {
   left: 17.049%;
-  top: 15.071%;
+  top: 17.672%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_1 {
   left: 16.393%;
-  top: 27.128%;
+  top: 31.809%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_2 {
   left: 32.623%;
-  top: 15.071%;
+  top: 17.672%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_2 {
   left: 31.967%;
-  top: 27.128%;
+  top: 31.809%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_3 {
   left: 17.049%;
-  top: 33.333%;
+  top: 39.085%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_3 {
   left: 16.393%;
-  top: 45.39%;
+  top: 53.222%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_4 {
   left: 32.623%;
-  top: 33.333%;
+  top: 39.085%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_4 {
   left: 31.967%;
-  top: 45.39%;
+  top: 53.222%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_5 {
   left: 17.049%;
-  top: 51.596%;
+  top: 60.499%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_5 {
   left: 16.393%;
-  top: 63.652%;
+  top: 74.636%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_6 {
   left: 32.623%;
-  top: 51.596%;
+  top: 60.499%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_6 {
   left: 31.967%;
-  top: 63.652%;
+  top: 74.636%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_7 {
   left: 53.443%;
-  top: 15.071%;
+  top: 17.672%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_7 {
   left: 52.787%;
-  top: 27.128%;
+  top: 31.809%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_8 {
   left: 69.016%;
-  top: 15.071%;
+  top: 17.672%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_8 {
   left: 68.361%;
-  top: 27.128%;
+  top: 31.809%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_9 {
   left: 53.443%;
-  top: 33.333%;
+  top: 39.085%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_9 {
   left: 52.787%;
-  top: 45.39%;
+  top: 53.222%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_10 {
   left: 69.016%;
-  top: 33.333%;
+  top: 39.085%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_10 {
   left: 68.361%;
-  top: 45.39%;
+  top: 53.222%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_11 {
   left: 53.443%;
-  top: 51.596%;
+  top: 60.499%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_11 {
   left: 52.787%;
-  top: 63.652%;
+  top: 74.636%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook__slot--icon_12 {
   left: 69.016%;
-  top: 51.596%;
+  top: 60.499%;
   width: 12.787%;
-  height: 11.525%;
+  height: 13.514%;
 }
 .heroes-glory .hero-spellbook__slot--text_12 {
   left: 68.361%;
-  top: 63.652%;
+  top: 74.636%;
   width: 14.098%;
-  height: 4.61%;
+  height: 5.405%;
 }
 .heroes-glory .hero-spellbook[data-panel-color=red] {
   background-image: url("../assets/ui/spelback_red.png");
