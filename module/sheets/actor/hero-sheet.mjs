@@ -119,15 +119,23 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
     // §5.8: how many Боевой дух tests are left this battle, for the
     // sheet's morale-test buttons.
+    // `isGM`/`moraleRemaining` only ever drove the now-removed <details
+    // class="hero-paperdoll__more"> markup (templates/actor/actor-hero-sheet.hbs)
+    // — kept computed and working, just unread by the template until an
+    // edit-mode UI brings this back. Do not delete.
     context.isGM = game.user.isGM;
     const moraleUsed = this.actor.getFlag('heroes-glory', 'moraleUsed') ?? 0;
     context.moraleRemaining = moraleAttemptsRemaining(system.morale, moraleUsed);
 
     // §5.9: warn on the sheet once Ранения have driven a max to 0.
+    // Same as isGM/moraleRemaining above — only the removed <details>
+    // markup read these; still computed, not deleted.
     context.healthDepleted = isMaxDepleted(system.health.max);
     context.manaDepleted = isMaxDepleted(system.mana.max);
 
-    // §5.9: gates the GM-only post-battle-resolution buttons.
+    // §5.9: gates the GM-only post-battle-resolution buttons. Same as
+    // isGM/moraleRemaining above — only the removed <details> markup
+    // read this; still computed, not deleted.
     context.isIncapacitated = this.actor.statuses.has(config.statusEffects.incapacitated);
 
     const equipable = this.actor.items.filter((i) => EQUIPABLE_TYPES.includes(i.type));
@@ -180,13 +188,17 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       (_, i) => secondarySkills[i] ?? null,
     );
 
-    // Kept for the <details> fallback Spells list (raw, unsorted) — the
-    // spellbook overlay below builds its own sorted/paged/tooltip-ready
-    // shape instead of reusing this array.
+    // Was read by the now-removed <details> fallback's Spells list (raw,
+    // unsorted, with its own cast/delete/open buttons) — the spellbook
+    // overlay below builds its own sorted/paged/tooltip-ready shape
+    // instead of reusing this array. Still computed, not deleted, for
+    // when that fallback list's markup comes back in an edit-mode UI.
     context.spells = this.actor.items.filter((i) => i.type === 'spell');
 
-    // §6.1: possession is now item-based — see the removed `hasSpellbook`
-    // field's replacement note in docs/rules.md §8.2.
+    // §6.1: possession is item-based — see the removed `hasSpellbook`
+    // field's replacement note in docs/rules.md §8.2. Only the removed
+    // <details> markup's Spells-list gate read this directly; still
+    // computed, not deleted.
     context.hasSpellbook = this.actor.items.some((i) => i.type === 'spellbook');
 
     // §6.3: sorted once (level, then school order, then name — see

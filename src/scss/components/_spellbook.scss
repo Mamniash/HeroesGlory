@@ -11,18 +11,14 @@
 // (declared there) is reused here as-is, no local copy needed.
 
 .hero-spellbook {
+  // Width comes from the shared rule in _hero-paperdoll.scss (100% of
+  // the wrapper, same as .hero-paperdoll) — deliberately matches the
+  // sheet's own width so the book's top edge sits flush with where the
+  // sheet's own top edge would be, not centered/inscribed smaller. Height
+  // is derived from this ratio, ~17% taller than the paperdoll at the
+  // same width (610/564 ≈ 1.082 vs 600/473 ≈ 1.269) — the wrapper has no
+  // aspect-ratio of its own, so it just grows to match.
   aspect-ratio: 610 / 564;
-  // Inscribed at less than the wrapper's full height (not 100%, unlike
-  // .hero-paperdoll) so the book reads as an object floating inside the
-  // window rather than a second edge-to-edge background — width is
-  // `auto` (from _hero-paperdoll.scss's shared rule) and derives from
-  // this height via the aspect-ratio above, so it shrinks proportionally
-  // too; combined with the shared rule's `inset: 0; margin: auto;`, the
-  // leftover space centers it with margins on every side, top/bottom
-  // from this percentage directly and left/right as a side effect of
-  // 610/564 being narrower than 600/473.
-  height: 87%;
-  width: auto;
 }
 
 .hero-spellbook__slot {

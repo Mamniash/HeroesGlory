@@ -755,16 +755,16 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.heroes-glory .window-content:has(.hero-paperdoll-wrapper) {
+  padding: 0;
+}
 .heroes-glory .hero-paperdoll-wrapper {
   width: 100%;
-  aspect-ratio: 600/473;
-  position: relative;
 }
 .heroes-glory .hero-paperdoll,
 .heroes-glory .hero-spellbook {
-  position: absolute;
-  inset: 0;
-  margin: auto;
+  position: relative;
+  width: 100%;
   background-repeat: no-repeat;
   background-size: 100% 100%;
   image-rendering: pixelated;
@@ -774,8 +774,6 @@
 }
 .heroes-glory .hero-paperdoll {
   aspect-ratio: 600/473;
-  width: 100%;
-  height: 100%;
 }
 .heroes-glory .hero-paperdoll__slot {
   position: absolute;
@@ -1373,8 +1371,6 @@
 }
 .heroes-glory .hero-spellbook {
   aspect-ratio: 610/564;
-  height: 87%;
-  width: auto;
 }
 .heroes-glory .hero-spellbook__slot {
   position: absolute;
