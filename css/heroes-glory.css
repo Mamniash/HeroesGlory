@@ -756,25 +756,32 @@
   cursor: not-allowed;
 }
 .heroes-glory .hero-paperdoll-wrapper {
-  min-width: 640px;
-  width: 100%;
-  container-type: inline-size;
-}
-.heroes-glory .hero-paperdoll {
-  position: relative;
   width: 100%;
   aspect-ratio: 600/473;
+  position: relative;
+}
+.heroes-glory .hero-paperdoll,
+.heroes-glory .hero-spellbook {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   background-repeat: no-repeat;
   background-size: 100% 100%;
   image-rendering: pixelated;
   color: #e8dcc0;
   font-family: "Roboto", sans-serif;
-  font-size: 2.1cqw;
+  container-type: inline-size;
+}
+.heroes-glory .hero-paperdoll {
+  aspect-ratio: 600/473;
+  width: 100%;
+  height: 100%;
 }
 .heroes-glory .hero-paperdoll__slot {
   position: absolute;
   box-sizing: border-box;
   image-rendering: pixelated;
+  font-size: 2.1cqw;
 }
 .heroes-glory .hero-paperdoll__slot--portrait {
   left: 2.333%;
@@ -1363,6 +1370,287 @@
   font-weight: bold;
   color: #444;
   padding: 5px 0;
+}
+.heroes-glory .hero-spellbook {
+  aspect-ratio: 610/564;
+  height: 87%;
+  width: auto;
+}
+.heroes-glory .hero-spellbook__slot {
+  position: absolute;
+  box-sizing: border-box;
+  image-rendering: pixelated;
+  font-size: 2.1cqw;
+}
+.heroes-glory .hero-spellbook__slot--left {
+  left: 15.082%;
+  top: 13.121%;
+  width: 1.803%;
+  height: 2.305%;
+}
+.heroes-glory .hero-spellbook__slot--right {
+  left: 81.967%;
+  top: 12.234%;
+  width: 1.639%;
+  height: 1.95%;
+}
+.heroes-glory .hero-spellbook__slot--mana {
+  left: 67.541%;
+  top: 70.922%;
+  width: 5.738%;
+  height: 5.496%;
+}
+.heroes-glory .hero-spellbook__slot--back {
+  left: 77.213%;
+  top: 70.922%;
+  width: 6.393%;
+  height: 7.979%;
+}
+.heroes-glory .hero-spellbook__slot--icon_1 {
+  left: 17.049%;
+  top: 15.071%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_1 {
+  left: 16.393%;
+  top: 27.128%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_2 {
+  left: 32.623%;
+  top: 15.071%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_2 {
+  left: 31.967%;
+  top: 27.128%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_3 {
+  left: 17.049%;
+  top: 33.333%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_3 {
+  left: 16.393%;
+  top: 45.39%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_4 {
+  left: 32.623%;
+  top: 33.333%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_4 {
+  left: 31.967%;
+  top: 45.39%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_5 {
+  left: 17.049%;
+  top: 51.596%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_5 {
+  left: 16.393%;
+  top: 63.652%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_6 {
+  left: 32.623%;
+  top: 51.596%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_6 {
+  left: 31.967%;
+  top: 63.652%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_7 {
+  left: 53.443%;
+  top: 15.071%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_7 {
+  left: 52.787%;
+  top: 27.128%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_8 {
+  left: 69.016%;
+  top: 15.071%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_8 {
+  left: 68.361%;
+  top: 27.128%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_9 {
+  left: 53.443%;
+  top: 33.333%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_9 {
+  left: 52.787%;
+  top: 45.39%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_10 {
+  left: 69.016%;
+  top: 33.333%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_10 {
+  left: 68.361%;
+  top: 45.39%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_11 {
+  left: 53.443%;
+  top: 51.596%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_11 {
+  left: 52.787%;
+  top: 63.652%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook__slot--icon_12 {
+  left: 69.016%;
+  top: 51.596%;
+  width: 12.787%;
+  height: 11.525%;
+}
+.heroes-glory .hero-spellbook__slot--text_12 {
+  left: 68.361%;
+  top: 63.652%;
+  width: 14.098%;
+  height: 4.61%;
+}
+.heroes-glory .hero-spellbook[data-panel-color=red] {
+  background-image: url("../assets/ui/spelback_red.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=blue] {
+  background-image: url("../assets/ui/spelback_blue.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=tan] {
+  background-image: url("../assets/ui/spelback_tan.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=green] {
+  background-image: url("../assets/ui/spelback_green.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=orange] {
+  background-image: url("../assets/ui/spelback_orange.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=purple] {
+  background-image: url("../assets/ui/spelback_purple.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=teal] {
+  background-image: url("../assets/ui/spelback_teal.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=pink] {
+  background-image: url("../assets/ui/spelback_pink.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=black] {
+  background-image: url("../assets/ui/spelback_black.png");
+}
+.heroes-glory .hero-spellbook[data-panel-color=white] {
+  background-image: url("../assets/ui/spelback_white.png");
+}
+.heroes-glory .hero-spellbook__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+.heroes-glory .hero-spellbook__frame-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.heroes-glory .hero-spellbook__slot--text_1, .heroes-glory .hero-spellbook__slot--text_2, .heroes-glory .hero-spellbook__slot--text_3,
+.heroes-glory .hero-spellbook__slot--text_4, .heroes-glory .hero-spellbook__slot--text_5, .heroes-glory .hero-spellbook__slot--text_6,
+.heroes-glory .hero-spellbook__slot--text_7, .heroes-glory .hero-spellbook__slot--text_8, .heroes-glory .hero-spellbook__slot--text_9,
+.heroes-glory .hero-spellbook__slot--text_10, .heroes-glory .hero-spellbook__slot--text_11, .heroes-glory .hero-spellbook__slot--text_12 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.75em;
+  line-height: 1.1;
+  overflow: hidden;
+}
+.heroes-glory .hero-spellbook__slot--text_1 span, .heroes-glory .hero-spellbook__slot--text_2 span, .heroes-glory .hero-spellbook__slot--text_3 span,
+.heroes-glory .hero-spellbook__slot--text_4 span, .heroes-glory .hero-spellbook__slot--text_5 span, .heroes-glory .hero-spellbook__slot--text_6 span,
+.heroes-glory .hero-spellbook__slot--text_7 span, .heroes-glory .hero-spellbook__slot--text_8 span, .heroes-glory .hero-spellbook__slot--text_9 span,
+.heroes-glory .hero-spellbook__slot--text_10 span, .heroes-glory .hero-spellbook__slot--text_11 span, .heroes-glory .hero-spellbook__slot--text_12 span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.heroes-glory .hero-spellbook__slot--mana {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: default;
+}
+.heroes-glory .hero-spellbook__slot--left,
+.heroes-glory .hero-spellbook__slot--right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.heroes-glory .hero-spellbook__slot--left img,
+.heroes-glory .hero-spellbook__slot--right img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.heroes-glory .hero-spellbook__slot--left:disabled,
+.heroes-glory .hero-spellbook__slot--right:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.heroes-glory .hero-spellbook__slot--back {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,

@@ -115,3 +115,31 @@ export function luckIconPath(value, { large = false } = {}) {
   const set = large ? 'ilck82' : 'ilck42';
   return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(valueFrame(value))}.png`;
 }
+
+/**
+ * §6.3: the spellbook overlay's corner-ornament frame overlaid on a
+ * spell's icon, one 4-frame set per school (assets/spellbook/<set>/) —
+ * confirmed by direct visual inspection: f000 is a single corner
+ * ornament, f001 two, f002 three, f003 all four (a complete frame),
+ * matching the caster's mastery variant in that school 1:1 (the same 4
+ * keys as item-spell.mjs's own `variants` schema: none/basic/advanced/
+ * expert). Universal-school spells have no governing secondary skill
+ * (rolls.mjs's SCHOOL_SKILL_KEYS has no `universal` entry either) and no
+ * frame set exists for them — returns null, caller renders no overlay.
+ * @type {Record<string, string>}
+ */
+const SCHOOL_FRAME_SETS = { earth: 'spleve', air: 'spleva', water: 'splevw', fire: 'splevf' };
+
+/** @type {Record<string, number>} */
+const VARIANT_FRAME_INDEX = { none: 0, basic: 1, advanced: 2, expert: 3 };
+
+/**
+ * @param {string} school   A CONFIG.HEROES_GLORY.schools key.
+ * @param {'none'|'basic'|'advanced'|'expert'} variant
+ * @returns {string|null}   `null` for `school: 'universal'` (no frame set).
+ */
+export function schoolFramePath(school, variant) {
+  const set = SCHOOL_FRAME_SETS[school];
+  if (!set) return null;
+  return `systems/${SYSTEM_ID}/assets/spellbook/${set}/${set}_g00_f${frame(VARIANT_FRAME_INDEX[variant])}.png`;
+}

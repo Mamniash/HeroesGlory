@@ -1,4 +1,53 @@
 <div class="hero-paperdoll-wrapper">
+{{#if spellbookOpen}}
+<div class="hero-spellbook" data-panel-color="{{system.panelColor}}">
+
+  {{!-- ==================== 12 spell slots (1-6 left page, 7-12 right page) ==================== --}}
+  {{#each spellbookSlots}}
+    <div class="hero-spellbook__slot hero-spellbook__slot--icon_{{inc @index}}">
+      {{#if this}}
+        <img class="hero-spellbook__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
+          data-action="castSpell" data-tooltip-trigger="spell-{{this.item.id}}" title="{{localize 'HEROES_GLORY.Roll.CastHint'}}">
+        {{#if this.frame}}
+          <img class="hero-spellbook__frame-img" src="{{this.frame}}" alt="">
+        {{/if}}
+        <template class="hg-tooltip-tpl" data-tooltip-key="spell-{{this.item.id}}">
+          <img class="hg-tooltip__icon" src="{{this.item.img}}" width="78" height="65" alt="">
+          <p class="hg-tooltip__title">{{this.item.name}}</p>
+          <p>{{localize 'HEROES_GLORY.Spell.Level'}}: {{this.item.system.level}}</p>
+          <p>{{localize 'HEROES_GLORY.Spell.School'}}: {{localize this.schoolLabelKey}}</p>
+          <p>{{localize this.variantLabelKey}}</p>
+          <p>{{localize 'HEROES_GLORY.Roll.ManaCost' cost=this.variantData.manaCost}}</p>
+          <p>{{this.variantData.description}}</p>
+        </template>
+      {{/if}}
+    </div>
+    <div class="hero-spellbook__slot hero-spellbook__slot--text_{{inc @index}}">
+      {{#if this}}<span>{{this.item.name}}</span>{{/if}}
+    </div>
+  {{/each}}
+
+  {{!-- ==================== Page-turn corners (assets/ui/speltrnl.png / speltrnr.png, native aspect ratio) ==================== --}}
+  <button type="button" class="hero-spellbook__slot hero-spellbook__slot--left" data-action="spellbookPage" data-direction="prev"
+    {{#unless spellbookPage}}disabled{{/unless}} aria-label="{{localize 'HEROES_GLORY.Spellbook.PrevPageHint'}}">
+    <img src="systems/heroes-glory/assets/ui/speltrnl.png" alt="">
+  </button>
+  <button type="button" class="hero-spellbook__slot hero-spellbook__slot--right" data-action="spellbookPage" data-direction="next"
+    {{#if (eq spellbookPage spellbookMaxPage)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Spellbook.NextPageHint'}}">
+    <img src="systems/heroes-glory/assets/ui/speltrnr.png" alt="">
+  </button>
+
+  {{!-- ==================== Mana (read-only duplicate of the paperdoll's own slot) ==================== --}}
+  <div class="hero-spellbook__slot hero-spellbook__slot--mana" data-tooltip-trigger="mana">
+    <span>{{system.mana.value}}</span><span class="hero-paperdoll__value-sep">/</span><span>{{system.mana.max}}</span>
+  </div>
+
+  {{!-- ==================== Close (no extra chrome — the button art is already on the background) ==================== --}}
+  <button type="button" class="hero-spellbook__slot hero-spellbook__slot--back" data-action="closeSpellbook"
+    aria-label="{{localize 'HEROES_GLORY.Spellbook.CloseHint'}}"></button>
+
+</div>
+{{else}}
 <div class="hero-paperdoll" data-panel-color="{{system.panelColor}}">
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--portrait" src="{{actor.img}}" alt="{{actor.name}}"
@@ -142,12 +191,6 @@
       <p>{{localize 'HEROES_GLORY.Tooltip.ExperienceToNext' value=experienceToNext}}</p>
     {{/if}}
   </template>
-  <template class="hg-tooltip-tpl" data-tooltip-key="mana">
-    <img class="hg-tooltip__icon" src="{{icons.manaLarge}}" width="82" height="93" alt="">
-    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Mana'}}</p>
-    <p>{{localize 'HEROES_GLORY.Tooltip.CurrentOfMax' current=system.mana.value max=system.mana.max}}</p>
-    <p>{{localize 'HEROES_GLORY.Tooltip.ManaFormula' knowledge=system.knowledge multiplier=manaMultiplier product=manaBeforeWounds}}</p>
-  </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="morale">
     <img class="hg-tooltip__icon" src="{{icons.moraleLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}</p>
@@ -164,7 +207,7 @@
     <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}">
       {{#if this.item}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
-          data-action="openItem" data-tooltip="{{this.item.name}}">
+          data-action="{{#if (eq this.item.type 'spellbook')}}openSpellbook{{else}}openItem{{/if}}" data-tooltip="{{this.item.name}}">
         <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
           title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
       {{/if}}
@@ -176,7 +219,7 @@
     <div class="hero-paperdoll__slot hero-paperdoll__slot--backpack-{{inc @index}}" data-slot="backpack">
       {{#if this}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
-          data-action="openItem" data-tooltip="{{this.name}}">
+          data-action="{{#if (eq this.type 'spellbook')}}openSpellbook{{else}}openItem{{/if}}" data-tooltip="{{this.name}}">
         <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
           title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
       {{/if}}
@@ -189,9 +232,21 @@
     {{#if (eq backpackPage backpackMaxPage)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
 
 </div>
-{{!-- /.hero-paperdoll — everything below is a sibling, not a descendant,
-     so the leather background (background-size: 100% 100%) never
-     stretches to cover this section's height when <details> is open. --}}
+{{/if}}
+{{!-- /.hero-paperdoll or .hero-spellbook — everything below is a sibling,
+     not a descendant, so the leather/parchment background
+     (background-size: 100% 100%) never stretches to cover this section's
+     height when <details> is open. --}}
+
+  {{!-- Shared by both canvases (mutually exclusive above, never both in
+       the DOM at once) — the Mana tooltip content is identical either
+       way, so one copy covers both `data-tooltip-trigger="mana"` triggers. --}}
+  <template class="hg-tooltip-tpl" data-tooltip-key="mana">
+    <img class="hg-tooltip__icon" src="{{icons.manaLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Mana'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.CurrentOfMax' current=system.mana.value max=system.mana.max}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.ManaFormula' knowledge=system.knowledge multiplier=manaMultiplier product=manaBeforeWounds}}</p>
+  </template>
 
   {{!-- ====================================================================
        Everything below is NOT on the HOMM3 mockup. Per the approved plan,
@@ -277,7 +332,7 @@
       </div>
     {{/if}}
 
-    <div class="grid grid-4col">
+    <div class="grid grid-3col">
       <label class="actor-sheet__field">
         <span class="actor-sheet__label">
           {{localize 'HEROES_GLORY.Hero.Speed'}}
@@ -294,10 +349,6 @@
       <label class="actor-sheet__field">
         <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.Gold'}}</span>
         <input type="number" name="system.gold" value="{{system.gold}}" min="0">
-      </label>
-      <label class="actor-sheet__field actor-sheet__field--checkbox">
-        <input type="checkbox" name="system.hasSpellbook" {{checked system.hasSpellbook}}>
-        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Hero.HasSpellbook'}}</span>
       </label>
     </div>
 
@@ -331,7 +382,7 @@
 
     <div class="hero-sheet__section">
       <h3 class="hero-sheet__section-title">{{localize 'HEROES_GLORY.Hero.Spells'}}</h3>
-      {{#if system.hasSpellbook}}
+      {{#if hasSpellbook}}
         <ul class="hero-sheet__item-list">
           {{#each spells}}
             <li class="hero-sheet__item-slot hero-sheet__item-slot--filled">

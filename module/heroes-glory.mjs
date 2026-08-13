@@ -8,6 +8,7 @@ import { HeroesGloryWeaponSheet } from './sheets/item/weapon-sheet.mjs';
 import { HeroesGlorySpellSheet } from './sheets/item/spell-sheet.mjs';
 import { HeroesGloryArtifactSheet } from './sheets/item/artifact-sheet.mjs';
 import { HeroesGlorySkillSheet } from './sheets/item/skill-sheet.mjs';
+import { HeroesGlorySpellbookSheet } from './sheets/item/spellbook-sheet.mjs';
 // Import helper/utility classes and constants.
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
@@ -53,7 +54,8 @@ Hooks.once('init', function () {
     weapon: models.HeroesGloryWeapon,
     spell: models.HeroesGlorySpell,
     artifact: models.HeroesGloryArtifact,
-    skill: models.HeroesGlorySkill
+    skill: models.HeroesGlorySkill,
+    spellbook: models.HeroesGlorySpellbook
   }
 
   // Active Effects are never copied to the Actor,
@@ -113,6 +115,11 @@ Hooks.once('init', function () {
     types: ['skill'],
     makeDefault: true,
     label: 'HEROES_GLORY.SheetLabels.Skill',
+  });
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGlorySpellbookSheet, {
+    types: ['spellbook'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Spellbook',
   });
 
   // Preload Handlebars templates.

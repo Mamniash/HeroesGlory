@@ -30,7 +30,10 @@ import { buildEffectChanges } from './modifiers.mjs';
 /** The flag namespace every roll-related ChatMessage flag lives under. */
 const FLAG_SCOPE = 'heroes-glory';
 
-const SPELL_VARIANT_LABELS = {
+// Exported so the spellbook overlay's tooltip (hero-sheet.mjs) can label
+// a spell's resolved variant the same way the cast chat card already
+// does, without a second copy of this mapping.
+export const SPELL_VARIANT_LABELS = {
   none: 'HEROES_GLORY.Spell.VariantNone',
   basic: 'HEROES_GLORY.Spell.VariantBasic',
   advanced: 'HEROES_GLORY.Spell.VariantAdvanced',
@@ -355,6 +358,25 @@ export async function rerollAttackDie(message, slot) {
 }
 
 /**
+ * §6.2/§6.3: resolve which of a spell's four variants applies for a given
+ * caster — finds the owned skill item governing the spell's school (none
+ * for Universal-school spells, since SCHOOL_SKILL_KEYS has no `universal`
+ * entry), reads its tier, and looks up the matching variant data. Shared
+ * by castSpell (the cast/charge flow below) and the hero sheet's
+ * spellbook overlay (tooltip content, module/sheets/actor/hero-sheet.mjs)
+ * so the school→skill→tier→variant chain lives in exactly one place.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @returns {{variant: string, variantData: {description: string, manaCost: number}}}
+ */
+export function findSpellVariant(actor, spell) {
+  const skillKey = SCHOOL_SKILL_KEYS[spell.system.school];
+  const skillItem = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === skillKey);
+  const variant = resolveSpellVariant(skillItem?.system.tier);
+  return { variant, variantData: spell.system.variants[variant] };
+}
+
+/**
  * §6.3: cast a spell — pick the variant matching the hero's school
  * mastery, and spend its Mana cost if affordable.
  * @param {Actor} actor   The casting hero.
@@ -362,10 +384,7 @@ export async function rerollAttackDie(message, slot) {
  * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana (nothing is cast).
  */
 export async function castSpell(actor, spell) {
-  const skillKey = SCHOOL_SKILL_KEYS[spell.system.school];
-  const skillItem = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === skillKey);
-  const variant = resolveSpellVariant(skillItem?.system.tier);
-  const variantData = spell.system.variants[variant];
+  const { variant, variantData } = findSpellVariant(actor, spell);
 
   if (!canAffordSpell(actor.system.mana.value, variantData.manaCost)) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.NotEnoughMana', {

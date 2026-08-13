@@ -1,17 +1,26 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { useSkill } from '../../helpers/roll-actions.mjs';
-import { primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath } from '../../helpers/skill-icons.mjs';
+import { useSkill, findSpellVariant, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
+import {
+  primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
+} from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
 import { experienceToNextLevel } from '../../helpers/experience.mjs';
 import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
+import { compareSpellsForBook } from '../../helpers/spellbook.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
 
 /** How many backpack items are shown per page (arrow_left/arrow_right). */
 const BACKPACK_PAGE_SIZE = 5;
+
+/** §6: spells shown per spellbook spread (6 left page + 6 right page). */
+const SPELLBOOK_PAGE_SIZE = 12;
+
+/** Item types that can be dragged into a paperdoll slot or the backpack. */
+const EQUIPABLE_TYPES = ['weapon', 'artifact', 'spellbook'];
 
 export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   static PARTS = {
@@ -28,6 +37,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // default left-click-only behavior a bare handler function gets.
       useSkill: { handler: this.#onUseSkill, buttons: [0, 2] },
       backpackPage: this.#onBackpackPage,
+      openSpellbook: this.#onOpenSpellbook,
+      closeSpellbook: this.#onCloseSpellbook,
+      spellbookPage: this.#onSpellbookPage,
     },
   };
 
@@ -38,6 +50,19 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @type {number}
    */
   #backpackPage = 0;
+
+  /**
+   * Whether the spellbook overlay is currently showing instead of the
+   * paperdoll. Same transient-UI-state pattern as #backpackPage.
+   * @type {boolean}
+   */
+  #spellbookOpen = false;
+
+  /**
+   * Which spread of the spellbook is currently shown (0-indexed).
+   * @type {number}
+   */
+  #spellbookPage = 0;
 
   /** @override */
   async _prepareContext(options) {
@@ -105,7 +130,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // §5.9: gates the GM-only post-battle-resolution buttons.
     context.isIncapacitated = this.actor.statuses.has(config.statusEffects.incapacitated);
 
-    const equipable = this.actor.items.filter((i) => i.type === 'weapon' || i.type === 'artifact');
+    const equipable = this.actor.items.filter((i) => EQUIPABLE_TYPES.includes(i.type));
 
     // The 19-slot paperdoll: a slot is filled only when an item is both
     // equipped AND has that exact slot assigned. Body-part meaning per
@@ -155,7 +180,55 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       (_, i) => secondarySkills[i] ?? null,
     );
 
+    // Kept for the <details> fallback Spells list (raw, unsorted) — the
+    // spellbook overlay below builds its own sorted/paged/tooltip-ready
+    // shape instead of reusing this array.
     context.spells = this.actor.items.filter((i) => i.type === 'spell');
+
+    // §6.1: possession is now item-based — see the removed `hasSpellbook`
+    // field's replacement note in docs/rules.md §8.2.
+    context.hasSpellbook = this.actor.items.some((i) => i.type === 'spellbook');
+
+    // §6.3: sorted once (level, then school order, then name — see
+    // spellbook.mjs), then paged 12-per-spread like the backpack's own
+    // 5-per-page pattern above.
+    const sortedSpells = this.actor.items
+      .filter((i) => i.type === 'spell')
+      .sort((a, b) => compareSpellsForBook(
+        { level: a.system.level, school: a.system.school, name: a.name },
+        { level: b.system.level, school: b.system.school, name: b.name },
+      ));
+    context.spellbookMaxPage = Math.max(0, Math.ceil(sortedSpells.length / SPELLBOOK_PAGE_SIZE) - 1);
+    this.#spellbookPage = Math.min(this.#spellbookPage, context.spellbookMaxPage);
+    context.spellbookPage = this.#spellbookPage;
+    context.spellbookOpen = this.#spellbookOpen;
+
+    const spellbookPageSpells = sortedSpells.slice(
+      this.#spellbookPage * SPELLBOOK_PAGE_SIZE, (this.#spellbookPage + 1) * SPELLBOOK_PAGE_SIZE,
+    );
+    const spellbookSlotsFilled = spellbookPageSpells.map((spell) => {
+      // §6.3: the variant (and its description/cost) matching the hero's
+      // current tier in the spell's school — same resolution castSpell
+      // uses to actually cast it, see roll-actions.mjs.
+      const { variant, variantData } = findSpellVariant(this.actor, spell);
+      const school = spell.system.school;
+      return {
+        item: spell,
+        variantLabelKey: SPELL_VARIANT_LABELS[variant],
+        variantData,
+        schoolLabelKey: `HEROES_GLORY.School.${school.charAt(0).toUpperCase()}${school.slice(1)}`,
+        // null for Universal-school spells — no corner-ornament set exists
+        // for them, see skill-icons.mjs's schoolFramePath.
+        frame: schoolFramePath(school, variant),
+      };
+    });
+    // Padded to a fixed length, like paperdollSlots/backpackPageItems/
+    // secondarySkillSlots above — empty grid cells render nothing (no
+    // placeholder icon), just the page background showing through.
+    context.spellbookSlots = Array.from(
+      { length: SPELLBOOK_PAGE_SIZE },
+      (_, i) => spellbookSlotsFilled[i] ?? null,
+    );
 
     return context;
   }
@@ -178,7 +251,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     this.element.querySelectorAll('[data-tooltip-trigger]').forEach((triggerEl) => {
       const key = triggerEl.dataset.tooltipTrigger;
       const template = this.element.querySelector(`template[data-tooltip-key="${key}"]`);
-      if (template) attachTooltip(triggerEl, template);
+      if (!template) return;
+      // Explicit boundsEl rather than attachTooltip's own default (which
+      // only knows about `.hero-paperdoll`) — the spellbook overlay's
+      // triggers live under `.hero-spellbook` instead, a sibling canvas,
+      // never both at once.
+      const boundsEl = triggerEl.closest('.hero-paperdoll, .hero-spellbook');
+      attachTooltip(triggerEl, template, { boundsEl });
     });
   }
 
@@ -195,16 +274,19 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * §8.1/§8.2: drop handling for the 19-slot paperdoll and the backpack.
-   * Dropping a weapon/artifact this actor already owns onto a
-   * `[data-slot]` element repositions it; dropping one from elsewhere
-   * (compendium, another actor) creates it first, then places it if the
-   * drop also landed on a slot.
+   * §8.1/§8.2/§6.1: drop handling for the 19-slot paperdoll and the
+   * backpack. Dropping a weapon/artifact/spellbook (EQUIPABLE_TYPES) this
+   * actor already owns onto a `[data-slot]` element repositions it;
+   * dropping one from elsewhere (compendium, another actor) creates it
+   * first, then places it if the drop also landed on a slot. A dropped
+   * spell falls through to plain item creation below — it's never in
+   * EQUIPABLE_TYPES, so it never reaches #placeItem — and the spellbook
+   * overlay picks it up straight from the actor's owned items.
    * @override
    */
   async _onDropItem(event, item) {
     if (!this.actor.isOwner) return null;
-    const isPlaceable = item.type === 'weapon' || item.type === 'artifact';
+    const isPlaceable = EQUIPABLE_TYPES.includes(item.type);
     const slotEl = event.target.closest('[data-slot]');
     const targetSlot = !slotEl ? undefined : slotEl.dataset.slot === 'backpack' ? null : Number(slotEl.dataset.slot);
 
@@ -221,12 +303,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * Move a weapon/artifact onto paperdoll slot `slot`, or back to the
-   * backpack if `slot` is `null` — displacing whatever already occupies
-   * the target slot back to the backpack first. The §8.1 melee/ranged
-   * weapon conflict is still auto-resolved separately by
-   * module/documents/item.mjs's #findEquippedSlotConflict on this same
-   * `equipped: true` update.
+   * Move an equipable item (weapon/artifact/spellbook) onto paperdoll
+   * slot `slot`, or back to the backpack if `slot` is `null` —
+   * displacing whatever already occupies the target slot back to the
+   * backpack first. The §8.1 melee/ranged weapon conflict is still
+   * auto-resolved separately by module/documents/item.mjs's
+   * #findEquippedSlotConflict on this same `equipped: true` update
+   * (gated to `type === 'weapon'` there, so a spellbook is unaffected).
    * @param {Item} item
    * @param {number|null} slot
    * @returns {Promise<Item>}
@@ -235,7 +318,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     if (slot === null) return item.update({ 'system.equipped': false });
 
     const occupant = this.actor.items.find((i) =>
-      i.id !== item.id && (i.type === 'weapon' || i.type === 'artifact')
+      i.id !== item.id && EQUIPABLE_TYPES.includes(i.type)
       && i.system.equipped && i.system.paperdollSlot === slot
     );
     if (occupant) await occupant.update({ 'system.equipped': false, 'system.paperdollSlot': null });
@@ -267,6 +350,38 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   static #onBackpackPage(event, target) {
     const delta = target.dataset.direction === 'prev' ? -1 : 1;
     this.#backpackPage = Math.max(0, this.#backpackPage + delta);
+    return this.render();
+  }
+
+  /**
+   * Click a spellbook item (paperdoll or backpack slot) — swap the
+   * paperdoll canvas for the spellbook overlay in this same window.
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onOpenSpellbook() {
+    this.#spellbookOpen = true;
+    return this.render();
+  }
+
+  /**
+   * Click the book's `back` zone — return to the paperdoll canvas.
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onCloseSpellbook() {
+    this.#spellbookOpen = false;
+    return this.render();
+  }
+
+  /**
+   * Page the spellbook spread left/right (`data-direction="prev"|"next"`),
+   * clamped in `_prepareContext` on every render — mirrors #onBackpackPage.
+   * @this {HeroesGloryHeroSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static #onSpellbookPage(event, target) {
+    const delta = target.dataset.direction === 'prev' ? -1 : 1;
+    this.#spellbookPage = Math.max(0, this.#spellbookPage + delta);
     return this.render();
   }
 }

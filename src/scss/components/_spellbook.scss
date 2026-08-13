@@ -1,0 +1,185 @@
+// The spellbook overlay — pixel-positioned over assets/ui/spelback_<color>.png
+// (610x564). Every left/top/width/height below matches docs/spellbook_grid.json's
+// precomputed percentage fields (px / canvas-dimension * 100) — that file is
+// the machine-readable source of truth for coordinates, not this one.
+// Toggled in/out of the DOM by module/sheets/actor/hero-sheet.mjs's
+// #spellbookOpen — see _hero-paperdoll.scss's header comment for how it
+// shares its wrapper/canvas layout rules (.hero-paperdoll-wrapper, the
+// shared `.hero-paperdoll, .hero-spellbook` selector) with the paperdoll.
+// Scoped under .heroes-glory by src/scss/heroes-glory.scss, imported right
+// after components/hero-paperdoll — same block scope, so $hg-panel-colors
+// (declared there) is reused here as-is, no local copy needed.
+
+.hero-spellbook {
+  aspect-ratio: 610 / 564;
+  // Inscribed at less than the wrapper's full height (not 100%, unlike
+  // .hero-paperdoll) so the book reads as an object floating inside the
+  // window rather than a second edge-to-edge background — width is
+  // `auto` (from _hero-paperdoll.scss's shared rule) and derives from
+  // this height via the aspect-ratio above, so it shrinks proportionally
+  // too; combined with the shared rule's `inset: 0; margin: auto;`, the
+  // leftover space centers it with margins on every side, top/bottom
+  // from this percentage directly and left/right as a side effect of
+  // 610/564 being narrower than 600/473.
+  height: 87%;
+  width: auto;
+}
+
+.hero-spellbook__slot {
+  position: absolute;
+  box-sizing: border-box;
+  image-rendering: pixelated;
+  // Resolves against the nearest ancestor container — `.hero-spellbook`
+  // itself (see _hero-paperdoll.scss's shared canvas rule).
+  font-size: 2.1cqw;
+}
+
+// ---------------------------------------------------------------
+// Named, uniquely-positioned slots
+// ---------------------------------------------------------------
+
+$hg-spellbook-named-slots: (
+  left: (15.082, 13.121, 1.803, 2.305),
+  right: (81.967, 12.234, 1.639, 1.95),
+  mana: (67.541, 70.922, 5.738, 5.496),
+  back: (77.213, 70.922, 6.393, 7.979),
+);
+
+@each $name, $box in $hg-spellbook-named-slots {
+  .hero-spellbook__slot--#{$name} {
+    left: nth($box, 1) * 1%;
+    top: nth($box, 2) * 1%;
+    width: nth($box, 3) * 1%;
+    height: nth($box, 4) * 1%;
+  }
+}
+
+// ---------------------------------------------------------------
+// 12 spell slots: 1-6 left page, 7-12 right page, row-major within each
+// page. Only left/top vary per index — width/height are fixed per the grid.
+// ---------------------------------------------------------------
+
+$hg-spellbook-icon-positions: (17.049 15.071), (32.623 15.071), (17.049 33.333), (32.623 33.333),
+  (17.049 51.596), (32.623 51.596), (53.443 15.071), (69.016 15.071), (53.443 33.333),
+  (69.016 33.333), (53.443 51.596), (69.016 51.596);
+
+$hg-spellbook-text-positions: (16.393 27.128), (31.967 27.128), (16.393 45.39), (31.967 45.39),
+  (16.393 63.652), (31.967 63.652), (52.787 27.128), (68.361 27.128), (52.787 45.39),
+  (68.361 45.39), (52.787 63.652), (68.361 63.652);
+
+@for $i from 1 through 12 {
+  $icon-pos: nth($hg-spellbook-icon-positions, $i);
+  .hero-spellbook__slot--icon_#{$i} {
+    left: nth($icon-pos, 1) * 1%;
+    top: nth($icon-pos, 2) * 1%;
+    width: 12.787%;
+    height: 11.525%;
+  }
+  $text-pos: nth($hg-spellbook-text-positions, $i);
+  .hero-spellbook__slot--text_#{$i} {
+    left: nth($text-pos, 1) * 1%;
+    top: nth($text-pos, 2) * 1%;
+    width: 14.098%;
+    height: 4.61%;
+  }
+}
+
+// ---------------------------------------------------------------
+// Panel color: all 10 assets/ui/spelback_<color>.png files exist on disk.
+// ---------------------------------------------------------------
+
+@each $color in $hg-panel-colors {
+  .hero-spellbook[data-panel-color='#{$color}'] {
+    background-image: url('../assets/ui/spelback_#{$color}.png');
+  }
+}
+
+// ---------------------------------------------------------------
+// Content styling
+// ---------------------------------------------------------------
+
+.hero-spellbook__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+// The school-mastery corner-ornament overlay (module/helpers/skill-icons.mjs's
+// schoolFramePath) sits on top of the icon within the same slot, not a
+// slot of its own — absolutely filling the same box.
+.hero-spellbook__frame-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none; // never blocks hover/click on the icon beneath
+}
+
+.hero-spellbook__slot--text_1, .hero-spellbook__slot--text_2, .hero-spellbook__slot--text_3,
+.hero-spellbook__slot--text_4, .hero-spellbook__slot--text_5, .hero-spellbook__slot--text_6,
+.hero-spellbook__slot--text_7, .hero-spellbook__slot--text_8, .hero-spellbook__slot--text_9,
+.hero-spellbook__slot--text_10, .hero-spellbook__slot--text_11, .hero-spellbook__slot--text_12 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.75em;
+  line-height: 1.1;
+  overflow: hidden;
+
+  span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.hero-spellbook__slot--mana {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: default;
+}
+
+// speltrnl.png/speltrnr.png ARE the corner-turn art — real <img>s at
+// their own native aspect ratio (slot boxes above are that same ratio,
+// scaled down exactly ⅓ — see docs/spellbook_grid.json), not CSS
+// triangles like the paperdoll's own arrow_left/arrow_right (which have
+// no dedicated asset). Same disabled = inert + faded convention as those.
+.hero-spellbook__slot--left,
+.hero-spellbook__slot--right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+// No visible chrome — the close affordance is already drawn into the
+// background art.
+.hero-spellbook__slot--back {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}

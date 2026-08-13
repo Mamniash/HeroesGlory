@@ -6,6 +6,7 @@ import {
   secondarySkillIconPath,
   moraleIconPath,
   luckIconPath,
+  schoolFramePath,
 } from '../module/helpers/skill-icons.mjs';
 
 describe('primarySkillIconPath — static per-slot frames', () => {
@@ -75,5 +76,25 @@ describe('moraleIconPath / luckIconPath — frame = value + 3', () => {
   test('the large (82x93) variant uses the imrl82/ilck82 sets', () => {
     assert.equal(moraleIconPath(0, { large: true }), 'systems/heroes-glory/assets/imrl82/imrl82_g00_f003.png');
     assert.equal(luckIconPath(0, { large: true }), 'systems/heroes-glory/assets/ilck82/ilck82_g00_f003.png');
+  });
+});
+
+describe('schoolFramePath — §6.3 spellbook corner-ornament frame, one set per school', () => {
+  test('each of the 4 schools with a governing secondary skill maps to its own set', () => {
+    assert.equal(schoolFramePath('earth', 'none'), 'systems/heroes-glory/assets/spellbook/spleve/spleve_g00_f000.png');
+    assert.equal(schoolFramePath('air', 'none'), 'systems/heroes-glory/assets/spellbook/spleva/spleva_g00_f000.png');
+    assert.equal(schoolFramePath('water', 'none'), 'systems/heroes-glory/assets/spellbook/splevw/splevw_g00_f000.png');
+    assert.equal(schoolFramePath('fire', 'none'), 'systems/heroes-glory/assets/spellbook/splevf/splevf_g00_f000.png');
+  });
+
+  test('frame index tracks the mastery variant: none/basic/advanced/expert -> f000..f003', () => {
+    assert.equal(schoolFramePath('fire', 'none'), 'systems/heroes-glory/assets/spellbook/splevf/splevf_g00_f000.png');
+    assert.equal(schoolFramePath('fire', 'basic'), 'systems/heroes-glory/assets/spellbook/splevf/splevf_g00_f001.png');
+    assert.equal(schoolFramePath('fire', 'advanced'), 'systems/heroes-glory/assets/spellbook/splevf/splevf_g00_f002.png');
+    assert.equal(schoolFramePath('fire', 'expert'), 'systems/heroes-glory/assets/spellbook/splevf/splevf_g00_f003.png');
+  });
+
+  test('universal school has no frame set — returns null', () => {
+    assert.equal(schoolFramePath('universal', 'none'), null);
   });
 });

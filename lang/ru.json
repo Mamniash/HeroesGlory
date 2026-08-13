@@ -122,6 +122,7 @@
       "Spell": "Лист заклинания Heroes & Glory",
       "Artifact": "Лист артефакта Heroes & Glory",
       "Skill": "Лист навыка Heroes & Glory",
+      "Spellbook": "Лист книги магии Heroes & Glory",
       "Hero": "Лист героя Heroes & Glory",
       "Creature": "Лист существа Heroes & Glory"
     },
@@ -151,7 +152,6 @@
       "Speed": "Скорость",
       "Vision": "Зрение",
       "Gold": "Золото",
-      "HasSpellbook": "Книга Магии",
       "Race": "Раса",
       "Faction": "Фракция",
       "Class": "Класс",
@@ -235,6 +235,11 @@
       "VariantExpert": "Экспертный Навык",
       "Description": "Описание эффекта",
       "ManaCost": "Стоимость Маны"
+    },
+    "Spellbook": {
+      "PrevPageHint": "Предыдущий разворот книги",
+      "NextPageHint": "Следующий разворот книги",
+      "CloseHint": "Закрыть книгу магии"
     },
     "Effect": {
       "Source": "Источник",
@@ -342,7 +347,8 @@
       "weapon": "Оружие",
       "spell": "Заклинание",
       "artifact": "Артефакт",
-      "skill": "Навык"
+      "skill": "Навык",
+      "spellbook": "Книга Магии"
     }
   }
 }

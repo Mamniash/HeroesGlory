@@ -1,52 +1,102 @@
 // HOMM3-style hero sheet: pixel-positioned over assets/ui/heroscr4_<color>.png
-// (600x473). Every left/top/width/height below is copied verbatim from
-// разметка.json's precomputed percentage fields (px / canvas-dimension * 100)
-// — that file is the single source of truth for coordinates, not this one.
+// (600x473). Every left/top/width/height below matches docs/paperdoll_grid.json's
+// precomputed percentage fields (px / canvas-dimension * 100) — that file is
+// the machine-readable source of truth for coordinates, not this one (it was
+// itself reconstructed from these percentages, since the original разметка.json
+// used to design this layout was never checked in — see its own "_note").
 // Scoped under .heroes-glory by src/scss/heroes-glory.scss.
+//
+// .hero-paperdoll and .hero-spellbook (components/_spellbook.scss) are
+// mutually-exclusive canvases toggled by module/sheets/actor/hero-sheet.mjs's
+// #spellbookOpen — only one is ever in the DOM at a time. Both share the
+// wrapper/layout rules just below (kept here since .hero-paperdoll came
+// first); component-specific slot positions stay in each partial.
+//
+// The canvas is `position: absolute` inside the wrapper (not a normal-flow
+// child) — this is load-bearing, not decorative. `.hero-paperdoll-wrapper`
+// only gets a definite height from `aspect-ratio` when NOTHING in normal
+// flow inside it needs more room than that ratio provides; a `height: auto`
+// box with `aspect-ratio` still grows to fit non-absolutely-positioned
+// content that doesn't fit, and previously did — the canvas's own
+// `height: 100%` created a circular dependency (its height depended on
+// the wrapper's height, and the wrapper's auto-height calculation, in
+// turn, factored in the canvas's normal-flow content height), which
+// measured live in DevTools: the wrapper rendered ~617px tall instead of
+// the pure ratio's ~573px, and the canvas then computed an even wider
+// box from that inflated height via its own aspect-ratio, overflowing
+// `.window-content`'s right edge (clipped there since it's `overflow:
+// hidden`, not scrolled). Taking the canvas out of normal flow via
+// `position: absolute` removes it from that height calculation entirely,
+// so the wrapper's height is purely `aspect-ratio`-driven, with no
+// content-size feedback loop — confirmed empirically in a live session
+// (hiding the circular dependency restored the wrapper to the exact
+// ratio-predicted height). `<details class="hero-paperdoll__more">` stays
+// a normal-flow child of the wrapper (closed by default, short enough on
+// its own not to exceed the ratio height) — if that ever changes, it
+// needs the same treatment as the canvas.
 
 $hg-parchment: #e8dcc0;
 
-// .hero-paperdoll (the absolutely-positioned canvas) and the <details>
-// fallback section are siblings inside this wrapper, not parent/child.
-// .hero-paperdoll's own children are all `position: absolute`, so they
-// don't affect its height — but if the fallback's normal-flow content
-// were inside .hero-paperdoll instead, opening <details> would grow the
-// box taller than its aspect-ratio, and `background-size: 100% 100%`
-// would then stretch/distort the leather art to cover the extra height.
 .hero-paperdoll-wrapper {
-  min-width: 640px;
   width: 100%;
-  // Container-query units on `.hero-paperdoll` (font-size: cqw below) are
-  // resolved against the nearest ANCESTOR container, never against the
-  // element that declares them — `cqw` written on the container itself
-  // has no container to query, falls back to the small-viewport default,
-  // and (since font-size inherits) blows up every text size on the sheet.
-  // The containment therefore has to live one level up, here, not on
-  // `.hero-paperdoll` itself.
-  // `inline-size` (not `size`) containment: `size` requires a definite
-  // extent on both axes, but `.hero-paperdoll` is `height: auto` sized
-  // off `aspect-ratio` — a `size`-contained ancestor would collapse to
-  // zero height and every `cqw` below would resolve to 0. `inline-size`
-  // only needs a definite width, which the explicit 100% above guarantees.
-  container-type: inline-size;
+  // No min-width: a floor here would force the wrapper wider than its
+  // own container once the ApplicationV2 window (resizable: true, see
+  // base-actor-sheet.mjs) is dragged narrower than that floor — measured
+  // live, that's exactly what a previous 640px floor did, overflowing
+  // `.window-content`'s right edge (clipped, not scrolled — see below)
+  // at any window width under ~656px. The canvas must fit at any size.
+  // Fixed at the PAPERDOLL's own ratio regardless of which canvas is
+  // currently inside — without this, opening the spellbook overlay
+  // (610/564 ≈ 1.08, a different ratio than 600/473 ≈ 1.27) would
+  // grow/shrink the ApplicationV2 window by ~17% on every toggle (window
+  // position uses height: 'auto', driven by rendered content height —
+  // base-actor-sheet.mjs).
+  aspect-ratio: 600 / 473;
+  // Containing block for the absolutely-positioned canvas below.
+  position: relative;
 }
 
-.hero-paperdoll {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 600 / 473;
+// Shared by both canvases.
+.hero-paperdoll,
+.hero-spellbook {
+  position: absolute;
+  inset: 0;
+  // Combined with an explicit width/height below (not both 100%, for
+  // .hero-spellbook — see _spellbook.scss), `margin: auto` on all sides
+  // absorbs the leftover space symmetrically, centering the box within
+  // the wrapper — the standard abs-pos + inset:0 + auto-margin centering
+  // technique. For .hero-paperdoll (100%/100%, no leftover space) this
+  // is a no-op.
+  margin: auto;
   background-repeat: no-repeat;
   background-size: 100% 100%;
   image-rendering: pixelated;
   color: $hg-parchment;
   font-family: $font-primary;
-  font-size: 2.1cqw;
+  // Establishes containment for THIS canvas's own descendants (the
+  // `__slot` font-size below) — never for the canvas's own box, a
+  // container-query container never sizes against itself. Needed
+  // because .hero-spellbook renders smaller than the wrapper (see
+  // _spellbook.scss) — without its own containment, its `cqw` sizes
+  // would resolve against the wider wrapper instead of the book's own
+  // true rendered width.
+  container-type: inline-size;
+}
+
+.hero-paperdoll {
+  aspect-ratio: 600 / 473;
+  width: 100%;
+  height: 100%;
 }
 
 .hero-paperdoll__slot {
   position: absolute;
   box-sizing: border-box;
   image-rendering: pixelated;
+  // Resolves against the nearest ancestor container — `.hero-paperdoll`
+  // just above, not the (differently-sized once the book is open)
+  // wrapper.
+  font-size: 2.1cqw;
 }
 
 // ---------------------------------------------------------------

@@ -38,7 +38,8 @@
       "weapon": {},
       "spell": {},
       "artifact": {},
-      "skill": {}
+      "skill": {},
+      "spellbook": {}
     }
   },
   "esmodules": ["module/heroes-glory.mjs"],
