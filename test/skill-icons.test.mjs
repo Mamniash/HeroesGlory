@@ -14,13 +14,15 @@ describe('primarySkillIconPath — static per-slot frames', () => {
     assert.equal(primarySkillIconPath('attack'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f000.png');
     assert.equal(primarySkillIconPath('defense'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f001.png');
     assert.equal(primarySkillIconPath('magicPower'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f002.png');
-    assert.equal(primarySkillIconPath('knowledge'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f003.png');
+    assert.equal(primarySkillIconPath('knowledge'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f005.png');
     assert.equal(primarySkillIconPath('experience'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f004.png');
-    assert.equal(primarySkillIconPath('mana'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f005.png');
+    assert.equal(primarySkillIconPath('mana'), 'systems/heroes-glory/assets/pskil42/pskil42_g00_f003.png');
   });
 
-  test('the large (82x93) variant uses the pskill set', () => {
+  test('the large (82x93) variant uses the pskill set, unaffected by the small-set frame override', () => {
     assert.equal(primarySkillIconPath('attack', { large: true }), 'systems/heroes-glory/assets/pskill/pskill_g00_f000.png');
+    assert.equal(primarySkillIconPath('knowledge', { large: true }), 'systems/heroes-glory/assets/pskill/pskill_g00_f003.png');
+    assert.equal(primarySkillIconPath('mana', { large: true }), 'systems/heroes-glory/assets/pskill/pskill_g00_f005.png');
   });
 });
 

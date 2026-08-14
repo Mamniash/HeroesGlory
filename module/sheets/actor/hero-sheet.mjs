@@ -40,6 +40,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       openSpellbook: this.#onOpenSpellbook,
       closeSpellbook: this.#onCloseSpellbook,
       spellbookPage: this.#onSpellbookPage,
+      editPrimaryStat: this.#onEditPrimaryStat,
     },
   };
 
@@ -271,13 +272,33 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       const boundsEl = triggerEl.closest('.hero-paperdoll, .hero-spellbook');
       attachTooltip(triggerEl, template, { boundsEl });
     });
+
+    // Primary-skill cells show the effective (post-artifact) value by
+    // default (#onEditPrimaryStat reveals the base-value input on click);
+    // blur reverts to that display regardless of whether anything changed.
+    // If the value DID change, submitOnChange's own `change` handler has
+    // already run by this point (it fires before `blur` for number inputs)
+    // and a full re-render is already in flight, making this toggle-back
+    // redundant but harmless; if nothing changed, this is the only thing
+    // that puts the display back.
+    this.element.querySelectorAll('.hero-paperdoll__primary-value').forEach((input) => {
+      input.addEventListener('blur', () => {
+        input.hidden = true;
+        const display = input.previousElementSibling;
+        if (display?.classList.contains('hero-paperdoll__primary-value-display')) display.hidden = false;
+      });
+    });
   }
 
   /**
-   * The tooltip layer lives in `document.body`, outside this sheet's own
-   * DOM — closing the sheet with the cursor still over a trigger would
-   * otherwise leave it floating on screen forever, since its
-   * `mouseleave` target no longer exists.
+   * The tooltip layer lives inside whichever canvas
+   * (`.hero-paperdoll`/`.hero-spellbook`) is currently showing, not
+   * `document.body` (see tooltip.mjs's own header comment) — so it's
+   * normally torn down along with that canvas on every re-render already.
+   * Still called defensively here: closing the sheet with the cursor over
+   * a trigger leaves nothing to fire that trigger's own `mouseleave`, and
+   * without this the (now-detached) layer would stay `hidden = false` in
+   * memory, showing stale content if `ensureLayer` ever reused it.
    * @override
    */
   async _preClose(options) {
@@ -428,5 +449,24 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const delta = target.dataset.direction === 'prev' ? -1 : 1;
     this.#spellbookPage = Math.max(0, this.#spellbookPage + delta);
     return this.render();
+  }
+
+  /**
+   * Click a primary-skill cell's effective-value display — swap in the
+   * base-value input beneath it for editing. Pure DOM toggle, no
+   * `this.render()`: the blur handler in `_onRender` (or a submitOnChange
+   * re-render, if the value actually changes) is what puts the display
+   * back.
+   * @this {HeroesGloryHeroSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target   The `.hero-paperdoll__primary-value-display` clicked.
+   */
+  static #onEditPrimaryStat(event, target) {
+    const input = target.nextElementSibling;
+    if (!input?.classList.contains('hero-paperdoll__primary-value')) return;
+    target.hidden = true;
+    input.hidden = false;
+    input.focus();
+    input.select();
   }
 }

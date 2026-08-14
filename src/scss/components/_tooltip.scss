@@ -1,36 +1,85 @@
-// module/helpers/tooltip.mjs's floating layer — appended directly to
-// document.body, NOT nested under any .heroes-glory sheet root, so this
-// partial is imported OUTSIDE the `.heroes-glory { }` wrapper in
-// heroes-glory.scss (same reasoning as components/chat-card). The layer
-// element itself carries `class="heroes-glory hg-tooltip"` so it's both
-// the wrapper root AND the tooltip root at once.
+// module/helpers/tooltip.mjs's floating layer — now a child of whichever
+// canvas (.hero-paperdoll/.hero-spellbook) is currently showing, not a
+// document.body-level overlay (see tooltip.mjs's own header comment for
+// why). That means this partial is imported INSIDE the .heroes-glory {}
+// wrapper in heroes-glory.scss, alongside hero-paperdoll/spellbook, not
+// outside it like chat-card (which really does render elsewhere) — and,
+// since it's imported after hero-paperdoll in that same block scope, it
+// reuses $hg-parchment from there directly (old-style `@import` shares
+// top-level `$var`s within one wrapping selector block — confirmed
+// working for $hg-panel-colors between hero-paperdoll and spellbook) —
+// no local copy of the parchment color needed here anymore.
 //
-// Old-style `@import` scopes a top-level `$var` to whatever selector
-// block the @import itself sits inside — `$hg-parchment` from
-// _hero-paperdoll.scss is therefore only visible inside `.heroes-glory {}`,
-// not here, so this partial keeps its own local copy of the same tone.
-$hg-tooltip-text: #e8dcc0;
+// Every size below is in `cqw`, resolved against the CANVAS's own width
+// (`container-type: inline-size`, set on .hero-paperdoll/.hero-spellbook
+// in _hero-paperdoll.scss) — the same convention .hero-paperdoll__slot's
+// own font-size already uses. This is what makes the tooltip shrink and
+// grow proportionally with the sheet instead of staying a fixed pixel
+// size that can dominate a small window.
 
 .hg-tooltip {
-  position: fixed;
-  z-index: 100000; // above Foundry ApplicationV2 windows
+  position: absolute;
+  // Centered on the canvas, not anchored to the cursor — replaces the
+  // old cursor-follow-plus-edge-flip positioning entirely (removed from
+  // tooltip.mjs, not just visually superseded by this).
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10; // above the canvas's own slot content; doesn't need to
+  // out-rank Foundry's ApplicationV2 windows anymore now that this lives
+  // inside one instead of document.body.
   box-sizing: border-box;
-  // border-box: the 128px (64+64) frame minimum from the task brief is
-  // already fully consumed by `border` below — with the chosen padding
-  // on top, the real functional floor for any content at all is
-  // 128 + 2×24 horizontally, 128 + 2×20 vertically.
-  min-width: 176px;
-  min-height: 168px;
-  max-width: 440px; // long secondary-skill descriptions wrap here instead
-  // of stretching the frame into a bar
-  padding: 20px 24px;
-  border: 64px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  text-align: center;
+  // No explicit min-width/min-height: the old fixed-px design needed one
+  // (128px of border alone could exceed a short tooltip's own content
+  // width), but at these much smaller cqw sizes the icon alone (7cqw)
+  // plus padding already exceeds the border's own structural minimum
+  // (2 × 2.5cqw border + 2 × 1.5cqw padding = 8cqw) in every real
+  // tooltip, so a stated floor would never actually bind — see §3 of the
+  // task this came from for the actual numbers measured.
+  max-width: 42cqw; // long secondary-skill descriptions wrap here
+  // instead of stretching the frame into a bar
+  padding: 1cqw 1.5cqw;
+  // border-image doesn't distort the frame's proportions as border-width
+  // shrinks — verified against the spec: border-width is uniform on every
+  // side here, so corner slices scale by the same factor on both axes
+  // (square in, square out) and edge tiles keep their own aspect ratio
+  // under `border-image-repeat: repeat` (below) rather than stretching.
+  // What actually degrades at small sizes is plain downscale detail loss:
+  // the 64px source slice rendering into as little as ~7px at a small
+  // canvas. Checked for real (cropped the actual corner out of
+  // dialog_frame_red.png at several target sizes, nearest-neighbor
+  // upscaled for inspection — not just computed-style math): the gold
+  // filigree only reads as a scroll pattern from ~32px; 19-24px keeps a
+  // gold accent but no scrollwork; 14px is a flat stripe with no frame
+  // impression at all. 32px isn't a usable floor either — 2.5cqw only
+  // reaches 32px past a ~1280px-wide canvas, wider than most real sheet
+  // windows get, so that floor would dominate almost every session,
+  // defeating the point of scaling with the window at all. 20px is the
+  // chosen middle ground: the gold corner accent stays readable even
+  // though the scrollwork itself doesn't. `max()` gives an unbounded
+  // upper end (unlike the floor, growth with the window is wanted); 2.5cqw
+  // only overtakes 20px once the canvas is >=800px wide, so typical
+  // windows still scale proportionally and only small windows pin at 20px
+  // instead of continuing to shrink into unrecognizable territory.
+  border-width: max(20px, 2.5cqw);
+  border-style: solid;
+  border-color: transparent;
+  // Pixel coordinate INTO the 192×192 source PNG (where to slice the
+  // corners/edges from) — unrelated to border-width above, which only
+  // controls how big the sliced pieces render on screen. Stays 64
+  // regardless of how small border-width gets.
   border-image-slice: 64 fill;
   border-image-repeat: repeat;
   image-rendering: pixelated;
-  color: $hg-tooltip-text;
+  color: $hg-parchment;
   font-family: $font-primary;
-  font-size: 14px;
+  font-size: 1.8cqw;
   pointer-events: none; // tooltip mode never intercepts clicks
 
   &[hidden] {
@@ -44,23 +93,34 @@ $hg-tooltip-text: #e8dcc0;
   }
 }
 
+// Flex items default to `min-width: auto` (their own unwrapped content
+// width), which can silently defeat `max-width` on the flex container
+// above — long text would overflow sideways instead of wrapping. This
+// isn't a redundant reset; it's the standard fix for that flexbox
+// default.
+.hg-tooltip > * {
+  min-width: 0;
+}
+
 .hg-tooltip__icon {
   display: block;
-  margin-bottom: 8px;
+  width: 7cqw;
+  // Preserves each icon's own aspect ratio (82×93 for most, 78×65 for
+  // spells) from the `width`/`height` HTML attributes already on every
+  // `<img class="hg-tooltip__icon">` in actor-hero-sheet.hbs — modern
+  // browsers derive a default `aspect-ratio` from those, so `height:
+  // auto` alone is enough; no change needed to any of those <img> tags.
+  height: auto;
   image-rendering: pixelated;
 }
 
 .hg-tooltip__title {
-  margin: 0 0 4px;
+  margin: 0;
   font-weight: bold;
 }
 
 .hg-tooltip p {
-  margin: 0 0 4px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
+  margin: 0;
 }
 
 $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, white;

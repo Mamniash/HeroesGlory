@@ -21,12 +21,14 @@
   @import 'components/actor-sheet';
   @import 'components/hero-paperdoll';
   @import 'components/spellbook';
+  // The hover-tooltip layer (module/helpers/tooltip.mjs) now lives as a
+  // child of whichever canvas is showing — a real descendant here, not a
+  // document.body-level overlay — so it's imported in this block (after
+  // hero-paperdoll, whose $hg-parchment it reuses), not alongside
+  // chat-card below.
+  @import 'components/tooltip';
   @import 'components/effects';
 }
 
 /* Chat cards render in the chat log, outside any .heroes-glory wrapper */
 @import 'components/chat-card';
-
-/* The hover-tooltip/modal layer (module/helpers/tooltip.mjs) is appended
-   directly to document.body — also outside any .heroes-glory wrapper. */
-@import 'components/tooltip';

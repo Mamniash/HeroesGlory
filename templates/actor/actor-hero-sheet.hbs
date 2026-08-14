@@ -82,18 +82,26 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.magicPower}}" alt=""
     data-tooltip-trigger="skill-magicPower">
 
+  {{!-- Each cell shows the effective (post-artifact) value by default;
+    clicking it (editPrimaryStat, hero-sheet.mjs) reveals the input below,
+    whose value/name are the pristine base — see the SCSS comment on
+    .hero-paperdoll__primary-value-display for why. --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--text_2 hero-paperdoll__primary-row">
     <span class="hero-paperdoll__primary-cell">
-      <input class="hero-paperdoll__primary-value" type="number" name="system.attack" value="{{source.attack}}" min="0">
+      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.attack}}</span>
+      <input class="hero-paperdoll__primary-value" type="number" name="system.attack" value="{{source.attack}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <input class="hero-paperdoll__primary-value" type="number" name="system.defense" value="{{source.defense}}" min="0">
+      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.defense}}</span>
+      <input class="hero-paperdoll__primary-value" type="number" name="system.defense" value="{{source.defense}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <input class="hero-paperdoll__primary-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0">
+      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.magicPower}}</span>
+      <input class="hero-paperdoll__primary-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <input class="hero-paperdoll__primary-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0">
+      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.knowledge}}</span>
+      <input class="hero-paperdoll__primary-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0" hidden>
     </span>
   </div>
 

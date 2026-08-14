@@ -58,6 +58,21 @@ const PRIMARY_SKILL_FRAMES = {
   mana: 5,
 };
 
+// Both sets (pskil42 — small slot icons, pskill — large tooltip icons) were
+// unpacked by the same external script (def2png.py, outside this repo) from
+// PSKILL.def and PSKIL42.def respectively. Frame order differs between
+// those two .def containers: in the small set, frames 3 and 5 hold each
+// other's picture relative to the large set (confirmed by opening the PNGs
+// directly — pskil42_g00_f003.png is a scroll, pskil42_g00_f005.png is a
+// book stack; pskill has it the other way and correctly so: f003 = books =
+// Knowledge, f005 = scroll = Mana). Fixed here, not by swapping the files
+// on disk, so re-running the unpack script on the same .def sources doesn't
+// silently revert this.
+const PRIMARY_SKILL_FRAMES_SMALL_OVERRIDE = {
+  knowledge: 5,
+  mana: 3,
+};
+
 /**
  * @param {'attack'|'defense'|'magicPower'|'knowledge'|'experience'|'mana'} key
  * @param {object} [options]
@@ -66,7 +81,8 @@ const PRIMARY_SKILL_FRAMES = {
  */
 export function primarySkillIconPath(key, { large = false } = {}) {
   const set = large ? 'pskill' : 'pskil42';
-  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(PRIMARY_SKILL_FRAMES[key])}.png`;
+  const frames = large ? PRIMARY_SKILL_FRAMES : { ...PRIMARY_SKILL_FRAMES, ...PRIMARY_SKILL_FRAMES_SMALL_OVERRIDE };
+  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(frames[key])}.png`;
 }
 
 /**

@@ -1,4 +1,3 @@
-@charset "UTF-8";
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap");
 /* Global styles */
 .window-app {
@@ -1218,6 +1217,14 @@
   font-size: 1.1em;
   text-align: center;
 }
+.heroes-glory .hero-paperdoll__primary-value-display {
+  font-weight: bold;
+  font-size: 1.1em;
+  cursor: pointer;
+}
+.heroes-glory .hero-paperdoll__primary-value-display:hover {
+  text-decoration: underline;
+}
 .heroes-glory .hero-paperdoll__primary-total {
   font-size: 0.7em;
   font-style: italic;
@@ -1648,6 +1655,84 @@
   padding: 0;
   cursor: pointer;
 }
+.heroes-glory .hg-tooltip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  text-align: center;
+  max-width: 42cqw;
+  padding: 1cqw 1.5cqw;
+  border-width: max(20px, 2.5cqw);
+  border-style: solid;
+  border-color: transparent;
+  border-image-slice: 64 fill;
+  border-image-repeat: repeat;
+  image-rendering: pixelated;
+  color: #e8dcc0;
+  font-family: "Roboto", sans-serif;
+  font-size: 1.8cqw;
+  pointer-events: none;
+}
+.heroes-glory .hg-tooltip[hidden] {
+  display: none;
+}
+.heroes-glory .hg-tooltip[data-mode=modal] {
+  pointer-events: auto;
+}
+.heroes-glory .hg-tooltip > * {
+  min-width: 0;
+}
+.heroes-glory .hg-tooltip__icon {
+  display: block;
+  width: 7cqw;
+  height: auto;
+  image-rendering: pixelated;
+}
+.heroes-glory .hg-tooltip__title {
+  margin: 0;
+  font-weight: bold;
+}
+.heroes-glory .hg-tooltip p {
+  margin: 0;
+}
+.heroes-glory .hg-tooltip[data-color=red] {
+  border-image-source: url("../assets/ui/dialog_frame_red.png");
+}
+.heroes-glory .hg-tooltip[data-color=blue] {
+  border-image-source: url("../assets/ui/dialog_frame_blue.png");
+}
+.heroes-glory .hg-tooltip[data-color=tan] {
+  border-image-source: url("../assets/ui/dialog_frame_tan.png");
+}
+.heroes-glory .hg-tooltip[data-color=green] {
+  border-image-source: url("../assets/ui/dialog_frame_green.png");
+}
+.heroes-glory .hg-tooltip[data-color=orange] {
+  border-image-source: url("../assets/ui/dialog_frame_orange.png");
+}
+.heroes-glory .hg-tooltip[data-color=purple] {
+  border-image-source: url("../assets/ui/dialog_frame_purple.png");
+}
+.heroes-glory .hg-tooltip[data-color=teal] {
+  border-image-source: url("../assets/ui/dialog_frame_teal.png");
+}
+.heroes-glory .hg-tooltip[data-color=pink] {
+  border-image-source: url("../assets/ui/dialog_frame_pink.png");
+}
+.heroes-glory .hg-tooltip[data-color=black] {
+  border-image-source: url("../assets/ui/dialog_frame_black.png");
+}
+.heroes-glory .hg-tooltip[data-color=white] {
+  border-image-source: url("../assets/ui/dialog_frame_white.png");
+}
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,
 .heroes-glory .effects .item .effect-controls {
@@ -1720,88 +1805,4 @@
 }
 .heroes-glory-chat-card__reroll-btn[hidden] {
   display: none;
-}
-
-/* The hover-tooltip/modal layer (module/helpers/tooltip.mjs) is appended
-   directly to document.body — also outside any .heroes-glory wrapper. */
-.hg-tooltip {
-  position: fixed;
-  z-index: 100000;
-  box-sizing: border-box;
-  min-width: 176px;
-  min-height: 168px;
-  max-width: 440px;
-  padding: 20px 24px;
-  border: 64px solid transparent;
-  border-image-slice: 64 fill;
-  border-image-repeat: repeat;
-  image-rendering: pixelated;
-  color: #e8dcc0;
-  font-family: "Roboto", sans-serif;
-  font-size: 14px;
-  pointer-events: none;
-}
-.hg-tooltip[hidden] {
-  display: none;
-}
-.hg-tooltip[data-mode=modal] {
-  pointer-events: auto;
-}
-
-.hg-tooltip__icon {
-  display: block;
-  margin-bottom: 8px;
-  image-rendering: pixelated;
-}
-
-.hg-tooltip__title {
-  margin: 0 0 4px;
-  font-weight: bold;
-}
-
-.hg-tooltip p {
-  margin: 0 0 4px;
-}
-.hg-tooltip p:last-child {
-  margin-bottom: 0;
-}
-
-.hg-tooltip[data-color=red] {
-  border-image-source: url("../assets/ui/dialog_frame_red.png");
-}
-
-.hg-tooltip[data-color=blue] {
-  border-image-source: url("../assets/ui/dialog_frame_blue.png");
-}
-
-.hg-tooltip[data-color=tan] {
-  border-image-source: url("../assets/ui/dialog_frame_tan.png");
-}
-
-.hg-tooltip[data-color=green] {
-  border-image-source: url("../assets/ui/dialog_frame_green.png");
-}
-
-.hg-tooltip[data-color=orange] {
-  border-image-source: url("../assets/ui/dialog_frame_orange.png");
-}
-
-.hg-tooltip[data-color=purple] {
-  border-image-source: url("../assets/ui/dialog_frame_purple.png");
-}
-
-.hg-tooltip[data-color=teal] {
-  border-image-source: url("../assets/ui/dialog_frame_teal.png");
-}
-
-.hg-tooltip[data-color=pink] {
-  border-image-source: url("../assets/ui/dialog_frame_pink.png");
-}
-
-.hg-tooltip[data-color=black] {
-  border-image-source: url("../assets/ui/dialog_frame_black.png");
-}
-
-.hg-tooltip[data-color=white] {
-  border-image-source: url("../assets/ui/dialog_frame_white.png");
 }

@@ -1,43 +1,54 @@
 /**
- * Custom floating tooltip/modal layer for the hero sheet's left-half
- * stats (primary skills, Health/Mana/Experience, morale/luck, secondary
- * skills). Deliberately NOT Foundry's core `data-tooltip`/`data-tooltip-html`
- * machinery and NOT a separate ApplicationV2 window — this same
- * component is meant to be reused later for a level-up modal
- * (`mode: 'modal'`, reserved below but not implemented here).
+ * Custom hover-tooltip layer for the hero sheet's left-half stats
+ * (primary skills, Health/Mana/Experience, morale/luck, secondary
+ * skills) and the spellbook's per-spell tooltips. Deliberately NOT
+ * Foundry's core `data-tooltip`/`data-tooltip-html` machinery and NOT a
+ * separate ApplicationV2 window — this same component is meant to be
+ * reused later for a level-up modal (`mode: 'modal'`, reserved below but
+ * not implemented here).
+ *
+ * Lives as a child of whichever canvas (.hero-paperdoll/.hero-spellbook)
+ * is currently showing — NOT appended to document.body — so it falls
+ * inside that canvas's own `container-type: inline-size` (all of
+ * _tooltip.scss's sizing is in `cqw`, resolved against the canvas, same
+ * convention as .hero-paperdoll__slot's own font-size) and CSS
+ * `position: absolute; top/left: 50%; transform: translate(-50%,-50%);`
+ * centers it on that same canvas, not the viewport — no cursor-position
+ * math needed here at all anymore. Since it's a normal descendant of
+ * whatever the current canvas element is, it's torn down along with that
+ * canvas on every re-render (hero-sheet.mjs's `{{#if spellbookOpen}}`
+ * swap replaces the whole canvas element) — hideTooltip() is still
+ * called defensively in the same two places as before (start of
+ * `_onRender`'s tooltip-binding loop, and `_preClose`), since a
+ * still-hovering cursor's `mouseleave` can still race a re-render either
+ * way, even though the DOM cleanup itself is now automatic.
  */
-
-/** px gap kept between the cursor and the tooltip's edge. */
-const GAP = 12;
 
 /** @type {HTMLElement|null} */
 let layerEl = null;
 
-function ensureLayer() {
-  if (!layerEl) {
+/**
+ * @param {HTMLElement} boundsEl   The canvas (.hero-paperdoll or
+ *   .hero-spellbook) the layer should live inside.
+ */
+function ensureLayer(boundsEl) {
+  // Re-create whenever there's no layer yet, or the one we have is
+  // detached (its canvas got replaced by a re-render) or belongs to a
+  // different canvas than the one currently asking (paperdoll <-> book
+  // toggle) — the stale element is just garbage-collected along with its
+  // now-detached former parent, nothing to explicitly tear down.
+  if (!layerEl || !layerEl.isConnected || layerEl.parentElement !== boundsEl) {
     layerEl = document.createElement('div');
-    // `heroes-glory` here is load-bearing, not decorative: this element
-    // is a *sibling* of the sheet DOM (appended to document.body), so
-    // the SCSS wrapper `.heroes-glory { @import ... }` in
-    // heroes-glory.scss only matches descendants of an element carrying
-    // this class — src/scss/components/_tooltip.scss relies on the
-    // layer itself carrying both classes at once, not on nesting.
-    layerEl.className = 'heroes-glory hg-tooltip';
+    layerEl.className = 'hg-tooltip';
     layerEl.hidden = true;
-    document.body.appendChild(layerEl);
+    boundsEl.appendChild(layerEl);
   }
   return layerEl;
 }
 
 /**
  * Hide/remove whatever the layer is currently showing. No-op if nothing
- * is shown. Safe to call unconditionally — the hero sheet calls this at
- * the start of every `_onRender` (a re-render can swap the hovered
- * trigger element out from under a still-hovering cursor, and the old
- * element's `mouseleave` will never fire) and from `_preClose` (closing
- * the sheet with the cursor still over a trigger has the same problem —
- * the layer lives in `document.body`, so it would otherwise survive the
- * sheet closing).
+ * is shown.
  */
 export function hideTooltip() {
   if (!layerEl) return;
@@ -48,60 +59,28 @@ export function hideTooltip() {
 /**
  * @param {Node} content   Content to show (typically a cloned `<template>`).
  * @param {object} options
- * @param {number} options.x   clientX of the triggering pointer event.
- * @param {number} options.y   clientY of the triggering pointer event.
- * @param {HTMLElement} options.boundsEl   The tooltip must not overflow
- *   this element's `getBoundingClientRect()` — the hero sheet passes its
- *   `.hero-paperdoll` canvas, not the whole application window.
+ * @param {HTMLElement} options.boundsEl   The canvas this tooltip belongs
+ *   to and centers on — the hero sheet passes whichever of
+ *   `.hero-paperdoll`/`.hero-spellbook` is currently showing.
  * @param {'tooltip'|'modal'} [options.mode]   Only `'tooltip'` is
  *   implemented. `'modal'` is a reserved value for the future level-up
- *   window (centered position, backdrop, click interception, closes via
- *   a confirm button) — see the TODO below.
+ *   window (backdrop, click interception, closes via a confirm button)
+ *   — see the TODO below.
  * @param {string} [options.color]   A `CONFIG.HEROES_GLORY.panelColors` key.
  */
-export function showTooltip(content, { x, y, boundsEl, mode = 'tooltip', color = 'red' }) {
-  const layer = ensureLayer();
+export function showTooltip(content, { boundsEl, mode = 'tooltip', color = 'red' }) {
+  const layer = ensureLayer(boundsEl);
   layer.dataset.mode = mode;
   layer.dataset.color = color;
   layer.replaceChildren(content);
-
-  // Measure before revealing at the final position — width/height
-  // depend on how the text wraps, which only exists after a real
-  // layout pass, so there's no way to compute the position first.
-  layer.style.visibility = 'hidden';
   layer.hidden = false;
-
   if (mode === 'modal') {
-    // TODO(level-up modal): centered positioning + backdrop + click
-    // interception + confirm-button close. Not implemented — nothing
-    // passes `mode: 'modal'` yet, this branch only reserves the shape.
-    positionAsTooltip(layer, { x, y, boundsEl });
-  } else {
-    positionAsTooltip(layer, { x, y, boundsEl });
+    // TODO(level-up modal): backdrop + click interception + confirm-
+    // button close. Not implemented — nothing passes `mode: 'modal'`
+    // yet, this branch only reserves the shape. Centering itself is
+    // already shared with `'tooltip'` mode via plain CSS (`_tooltip.scss`),
+    // so there's nothing extra to do for that part.
   }
-
-  layer.style.visibility = 'visible';
-}
-
-/**
- * Anchor at the cursor, flipped left/up when it would overflow `boundsEl`,
- * clamped into `boundsEl` if it still doesn't fit even after flipping.
- * @param {HTMLElement} layer
- * @param {{x: number, y: number, boundsEl: HTMLElement}} anchor
- */
-function positionAsTooltip(layer, { x, y, boundsEl }) {
-  const bounds = boundsEl.getBoundingClientRect();
-  const { width, height } = layer.getBoundingClientRect();
-
-  let left = x + GAP;
-  let top = y + GAP;
-  if (left + width > bounds.right) left = x - width - GAP;
-  if (top + height > bounds.bottom) top = y - height - GAP;
-  left = Math.min(Math.max(left, bounds.left), Math.max(bounds.left, bounds.right - width));
-  top = Math.min(Math.max(top, bounds.top), Math.max(bounds.top, bounds.bottom - height));
-
-  layer.style.left = `${left}px`;
-  layer.style.top = `${top}px`;
 }
 
 /**
@@ -111,17 +90,17 @@ function positionAsTooltip(layer, { x, y, boundsEl }) {
  * @param {HTMLTemplateElement} templateEl
  * @param {object} [options]
  * @param {HTMLElement} [options.boundsEl]   Defaults to
- *   `triggerEl.closest('.hero-paperdoll')`.
+ *   `triggerEl.closest('.hero-paperdoll, .hero-spellbook')`.
  * @param {'tooltip'|'modal'} [options.mode]
  * @returns {() => void} detach   Removes the listeners this call added.
  */
 export function attachTooltip(triggerEl, templateEl, options = {}) {
-  const boundsEl = options.boundsEl ?? triggerEl.closest('.hero-paperdoll');
+  const boundsEl = options.boundsEl ?? triggerEl.closest('.hero-paperdoll, .hero-spellbook');
   const mode = options.mode ?? 'tooltip';
   const color = boundsEl?.dataset.panelColor ?? 'red';
 
-  const onEnter = (event) => {
-    showTooltip(templateEl.content.cloneNode(true), { x: event.clientX, y: event.clientY, boundsEl, mode, color });
+  const onEnter = () => {
+    showTooltip(templateEl.content.cloneNode(true), { boundsEl, mode, color });
   };
   const onLeave = () => hideTooltip();
 

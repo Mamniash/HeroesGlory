@@ -292,6 +292,22 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   text-align: center;
 }
 
+// Shown instead of .hero-paperdoll__primary-value while not editing —
+// displays the effective (post-artifact-bonus) stat, matching this same
+// input's own tooltip breakdown. Click swaps to the editable input, whose
+// `value` is the pristine base (rules.md §8.2 artifact modifiers; see
+// base-actor-sheet.mjs's `context.source` comment for why the base, not
+// this displayed number, is what the input must submit).
+.hero-paperdoll__primary-value-display {
+  font-weight: bold;
+  font-size: 1.1em;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .hero-paperdoll__primary-total {
   font-size: 0.7em;
   font-style: italic;
