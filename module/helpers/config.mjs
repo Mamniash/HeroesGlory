@@ -103,6 +103,34 @@ HEROES_GLORY.artifactTypes = {
 };
 
 /**
+ * Human-readable names for the hero sheet's 19 paperdoll positions
+ * (rules.md §8.2) — used by the artifact sheet's `targetSlots` picker, so
+ * a GM curating an artifact sees "Торс" rather than a bare "5".
+ * @type {Object}
+ */
+HEROES_GLORY.paperdollSlotLabels = {
+  1: 'HEROES_GLORY.PaperdollSlot.1',
+  2: 'HEROES_GLORY.PaperdollSlot.2',
+  3: 'HEROES_GLORY.PaperdollSlot.3',
+  4: 'HEROES_GLORY.PaperdollSlot.4',
+  5: 'HEROES_GLORY.PaperdollSlot.5',
+  6: 'HEROES_GLORY.PaperdollSlot.6',
+  7: 'HEROES_GLORY.PaperdollSlot.7',
+  8: 'HEROES_GLORY.PaperdollSlot.8',
+  9: 'HEROES_GLORY.PaperdollSlot.9',
+  10: 'HEROES_GLORY.PaperdollSlot.10',
+  11: 'HEROES_GLORY.PaperdollSlot.11',
+  12: 'HEROES_GLORY.PaperdollSlot.12',
+  13: 'HEROES_GLORY.PaperdollSlot.13',
+  14: 'HEROES_GLORY.PaperdollSlot.14',
+  15: 'HEROES_GLORY.PaperdollSlot.15',
+  16: 'HEROES_GLORY.PaperdollSlot.16',
+  17: 'HEROES_GLORY.PaperdollSlot.17',
+  18: 'HEROES_GLORY.PaperdollSlot.18',
+  19: 'HEROES_GLORY.PaperdollSlot.19',
+};
+
+/**
  * The 4 vision types (rules.md §2.2).
  * @type {Object}
  */

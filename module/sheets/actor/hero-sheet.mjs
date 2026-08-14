@@ -9,12 +9,22 @@ import { manaMultiplier } from '../../helpers/mana.mjs';
 import { experienceToNextLevel } from '../../helpers/experience.mjs';
 import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
 import { compareSpellsForBook } from '../../helpers/spellbook.mjs';
+import { paperdollSlotAccepts, paperdollValidSlots } from '../../helpers/paperdoll-slots.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
 
-/** How many backpack items are shown per page (arrow_left/arrow_right). */
-const BACKPACK_PAGE_SIZE = 5;
+/** How many backpack slots are visible at once (arrow_left/arrow_right scroll the strip by one item). */
+const BACKPACK_VISIBLE_COUNT = 5;
+
+/**
+ * How long (ms) the backpack arrow's pressed frame (hsbtns3/hsbtns5 f001)
+ * stays visible after a click before the button's real state (enabled or
+ * disabled) takes over — long enough to read as a press, short enough not
+ * to feel laggy. About the length of a couple of animation frames at a
+ * human-perceptible pace, not tied to any actual frame rate.
+ */
+const BACKPACK_PRESS_HOLD_MS = 150;
 
 /** §6: spells shown per spellbook spread (6 left page + 6 right page). */
 const SPELLBOOK_PAGE_SIZE = 12;
@@ -36,7 +46,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // buttons:[0,2] opts into right-click (auxclick) alongside the
       // default left-click-only behavior a bare handler function gets.
       useSkill: { handler: this.#onUseSkill, buttons: [0, 2] },
-      backpackPage: this.#onBackpackPage,
+      backpackScroll: this.#onBackpackScroll,
       openSpellbook: this.#onOpenSpellbook,
       closeSpellbook: this.#onCloseSpellbook,
       spellbookPage: this.#onSpellbookPage,
@@ -45,16 +55,37 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   };
 
   /**
-   * Which page of the backpack is currently shown (0-indexed). Transient
-   * UI state, not persisted — survives across this sheet instance's own
-   * re-renders while the window stays open, reset when the window closes.
+   * Index into the (non-paperdoll) equipable items of the first one shown
+   * in the backpack strip — the strip scrolls by one slot at a time, not
+   * by a full page, and is clamped in `_prepareContext` so the strip stays
+   * full (last item flush against the right edge) rather than ever
+   * showing trailing empty slots while items remain off to the left.
+   * Transient UI state, not persisted — survives across this sheet
+   * instance's own re-renders while the window stays open, reset when the
+   * window closes.
    * @type {number}
    */
-  #backpackPage = 0;
+  #backpackOffset = 0;
+
+  /**
+   * `'prev'`/`'next'` while that arrow's pressed frame is being held after
+   * a click, else `null` — see `BACKPACK_PRESS_HOLD_MS`. Same transient
+   * lifetime as #backpackOffset.
+   * @type {'prev'|'next'|null}
+   */
+  #backpackPressedDirection = null;
+
+  /**
+   * Handle for the pending #backpackPressedDirection reset, so a second
+   * click before the first hold expires restarts the timer instead of
+   * stacking two, and #_preClose can cancel it if the sheet closes first.
+   * @type {number|null}
+   */
+  #backpackPressTimeout = null;
 
   /**
    * Whether the spellbook overlay is currently showing instead of the
-   * paperdoll. Same transient-UI-state pattern as #backpackPage.
+   * paperdoll. Same transient-UI-state pattern as #backpackOffset.
    * @type {boolean}
    */
   #spellbookOpen = false;
@@ -157,18 +188,20 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // this check it would render nowhere despite an active bonus. See the
     // approved plan's "Orphan-equipped item handling."
     const backpackItems = equipable.filter((it) => !(it.system.equipped && it.system.paperdollSlot !== null));
-    context.backpackMaxPage = Math.max(0, Math.ceil(backpackItems.length / BACKPACK_PAGE_SIZE) - 1);
-    this.#backpackPage = Math.min(this.#backpackPage, context.backpackMaxPage);
-    context.backpackPage = this.#backpackPage;
+    // Conveyor-scroll by one slot, not by a full page: the strip stays
+    // full (offset capped so the last item lands in the rightmost slot)
+    // rather than ever scrolling past into trailing empty slots.
+    context.backpackMaxOffset = Math.max(0, backpackItems.length - BACKPACK_VISIBLE_COUNT);
+    this.#backpackOffset = Math.min(this.#backpackOffset, context.backpackMaxOffset);
+    context.backpackOffset = this.#backpackOffset;
     // Padded to a fixed length rather than a raw slice, like paperdollSlots/
     // secondarySkillSlots below — an empty backpack still needs 5 rendered
     // `[data-slot="backpack"]` drop targets, not zero, or dragging a
     // paperdoll item back to an otherwise-empty backpack would have
     // nowhere in the DOM to land on.
-    const pageSlice = backpackItems.slice(
-      this.#backpackPage * BACKPACK_PAGE_SIZE, (this.#backpackPage + 1) * BACKPACK_PAGE_SIZE,
-    );
-    context.backpackPageItems = Array.from({ length: BACKPACK_PAGE_SIZE }, (_, i) => pageSlice[i] ?? null);
+    const visibleSlice = backpackItems.slice(this.#backpackOffset, this.#backpackOffset + BACKPACK_VISIBLE_COUNT);
+    context.backpackVisibleItems = Array.from({ length: BACKPACK_VISIBLE_COUNT }, (_, i) => visibleSlice[i] ?? null);
+    context.backpackPressedDirection = this.#backpackPressedDirection;
 
     // §3: owned secondary-skill items, padded/sliced to the sheet's slot
     // count (never hardcoded in the template — see config.secondarySkillSlotCount).
@@ -235,7 +268,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         frame: schoolFramePath(school, variant),
       };
     });
-    // Padded to a fixed length, like paperdollSlots/backpackPageItems/
+    // Padded to a fixed length, like paperdollSlots/backpackVisibleItems/
     // secondarySkillSlots above — empty grid cells render nothing (no
     // placeholder icon), just the page background showing through.
     context.spellbookSlots = Array.from(
@@ -288,6 +321,31 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         if (display?.classList.contains('hero-paperdoll__primary-value-display')) display.hidden = false;
       });
     });
+
+    // §8.2 slot-type validation's other half: as soon as a paperdoll or
+    // backpack item is picked up, highlight every paperdoll slot it could
+    // legally land on (helpers/paperdoll-slots.mjs) — not per-slot
+    // dragover, so the whole set lights up together for the drag's
+    // duration, matching the requested UX. Native HTML5 drag events, not
+    // Foundry's own DragDrop hook (there isn't one to tap here — see
+    // paperdoll-slots.mjs's own dragstart/dragend wiring precedent in
+    // this file, none existed before); added on top of whatever
+    // dragstart/dragend Foundry core itself already binds to `.draggable`
+    // to actually carry the drag, not replacing it.
+    this.element.querySelectorAll('.draggable').forEach((el) => {
+      el.addEventListener('dragstart', () => {
+        const item = this.actor.items.get(el.dataset.itemId);
+        if (!item) return;
+        for (const slot of paperdollValidSlots(item)) {
+          this.element.querySelector(`[data-slot="${slot}"]`)?.classList.add('hero-paperdoll__slot--drop-target');
+        }
+      });
+      el.addEventListener('dragend', () => {
+        this.element.querySelectorAll('.hero-paperdoll__slot--drop-target').forEach((slotEl) => {
+          slotEl.classList.remove('hero-paperdoll__slot--drop-target');
+        });
+      });
+    });
   }
 
   /**
@@ -304,6 +362,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   async _preClose(options) {
     await super._preClose(options);
     hideTooltip();
+    // Closing mid-hold would otherwise fire #onBackpackScroll's timeout's
+    // render() against a torn-down application.
+    clearTimeout(this.#backpackPressTimeout);
   }
 
   /**
@@ -348,6 +409,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * spell falls through to plain item creation below — it's never in
    * EQUIPABLE_TYPES, so it never reaches #placeItem — and the spellbook
    * overlay picks it up straight from the actor's owned items.
+   *
+   * A paperdoll slot (unlike the backpack, `targetSlot === null`, which
+   * always accepts anything — it's just "unequip") rejects an item whose
+   * type doesn't fit it (see helpers/paperdoll-slots.mjs). For a
+   * same-actor re-drag this is a pure no-op — the item is left exactly
+   * where it was, nothing is written. For a drop from elsewhere the item
+   * is still created on the actor (so it isn't silently lost), just not
+   * placed into that slot — same as dropping outside any slot at all.
    * @override
    */
   async _onDropItem(event, item) {
@@ -355,16 +424,17 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const isPlaceable = EQUIPABLE_TYPES.includes(item.type);
     const slotEl = event.target.closest('[data-slot]');
     const targetSlot = !slotEl ? undefined : slotEl.dataset.slot === 'backpack' ? null : Number(slotEl.dataset.slot);
+    const fitsTarget = targetSlot == null || paperdollSlotAccepts(item, targetSlot);
 
     if (this.actor.uuid === item.parent?.uuid) {
       // Same-actor re-drag: skip the default `_onSortItem` behavior
       // (irrelevant to slot placement) entirely rather than calling super.
-      if (!isPlaceable || targetSlot === undefined) return null;
+      if (!isPlaceable || targetSlot === undefined || !fitsTarget) return null;
       return this.#placeItem(item, targetSlot);
     }
 
     const created = await super._onDropItem(event, item);
-    if (created && isPlaceable && targetSlot != null) await this.#placeItem(created, targetSlot);
+    if (created && isPlaceable && targetSlot != null && fitsTarget) await this.#placeItem(created, targetSlot);
     return created;
   }
 
@@ -407,15 +477,30 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * Page the backpack strip left/right (`data-direction="prev"|"next"`),
-   * clamped in `_prepareContext` on every render.
+   * Scroll the backpack strip left/right by one slot
+   * (`data-direction="prev"|"next"`), clamped in `_prepareContext` on
+   * every render. Also holds the clicked arrow's pressed frame for
+   * `BACKPACK_PRESS_HOLD_MS` (see #backpackPressedDirection) — otherwise,
+   * at a scroll boundary, the very same render that shows the press also
+   * flips the button to :disabled, and the pressed frame never gets a
+   * chance to be seen.
    * @this {HeroesGloryHeroSheet}
    * @param {PointerEvent} event
    * @param {HTMLElement} target
    */
-  static #onBackpackPage(event, target) {
-    const delta = target.dataset.direction === 'prev' ? -1 : 1;
-    this.#backpackPage = Math.max(0, this.#backpackPage + delta);
+  static #onBackpackScroll(event, target) {
+    const direction = target.dataset.direction;
+    const delta = direction === 'prev' ? -1 : 1;
+    this.#backpackOffset = Math.max(0, this.#backpackOffset + delta);
+
+    this.#backpackPressedDirection = direction;
+    clearTimeout(this.#backpackPressTimeout);
+    this.#backpackPressTimeout = setTimeout(() => {
+      this.#backpackPressedDirection = null;
+      this.#backpackPressTimeout = null;
+      this.render();
+    }, BACKPACK_PRESS_HOLD_MS);
+
     return this.render();
   }
 
@@ -440,7 +525,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
   /**
    * Page the spellbook spread left/right (`data-direction="prev"|"next"`),
-   * clamped in `_prepareContext` on every render — mirrors #onBackpackPage.
+   * clamped in `_prepareContext` on every render — same defensive-floor-clamp
+   * pattern as #onBackpackScroll, minus its pressed-frame hold timer (the
+   * spellbook's own turn-corner art has no pressed frame to hold).
    * @this {HeroesGloryHeroSheet}
    * @param {PointerEvent} event
    * @param {HTMLElement} target

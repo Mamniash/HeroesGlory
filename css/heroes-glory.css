@@ -878,13 +878,13 @@
 }
 .heroes-glory .hero-paperdoll__slot--arrow_left {
   left: 51.667%;
-  top: 74.207%;
+  top: 73.996%;
   width: 3.667%;
   height: 9.725%;
 }
 .heroes-glory .hero-paperdoll__slot--arrow_right {
   left: 93.667%;
-  top: 74.207%;
+  top: 73.996%;
   width: 3.667%;
   height: 9.725%;
 }
@@ -1334,36 +1334,45 @@
 }
 .heroes-glory .hero-paperdoll__slot--arrow_left,
 .heroes-glory .hero-paperdoll__slot--arrow_right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   border: none;
-  background: transparent;
+  outline: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   padding: 0;
   cursor: pointer;
 }
-.heroes-glory .hero-paperdoll__slot--arrow_left::before,
-.heroes-glory .hero-paperdoll__slot--arrow_right::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-top: 0.6em solid transparent;
-  border-bottom: 0.6em solid transparent;
-}
 .heroes-glory .hero-paperdoll__slot--arrow_left:disabled,
 .heroes-glory .hero-paperdoll__slot--arrow_right:disabled {
-  opacity: 0.3;
   cursor: not-allowed;
 }
-.heroes-glory .hero-paperdoll__slot--arrow_left:not(:disabled):hover::before,
-.heroes-glory .hero-paperdoll__slot--arrow_right:not(:disabled):hover::before {
-  filter: brightness(1.3);
+.heroes-glory .hero-paperdoll__slot--arrow_left {
+  background-image: url("../assets/buttons/hsbtns3/hsbtns3_g00_f000.png");
 }
-.heroes-glory .hero-paperdoll__slot--arrow_left::before {
-  border-right: 0.7em solid #e8dcc0;
+.heroes-glory .hero-paperdoll__slot--arrow_left:disabled {
+  background-image: url("../assets/buttons/hsbtns3/hsbtns3_g00_f002.png");
 }
-.heroes-glory .hero-paperdoll__slot--arrow_right::before {
-  border-left: 0.7em solid #e8dcc0;
+.heroes-glory .hero-paperdoll__slot--arrow_right {
+  background-image: url("../assets/buttons/hsbtns5/hsbtns5_g00_f000.png");
+}
+.heroes-glory .hero-paperdoll__slot--arrow_right:disabled {
+  background-image: url("../assets/buttons/hsbtns5/hsbtns5_g00_f002.png");
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left.hero-paperdoll__slot--pressed {
+  background-image: url("../assets/buttons/hsbtns3/hsbtns3_g00_f001.png");
+}
+.heroes-glory .hero-paperdoll__slot--arrow_right.hero-paperdoll__slot--pressed {
+  background-image: url("../assets/buttons/hsbtns5/hsbtns5_g00_f001.png");
+}
+.heroes-glory .hero-paperdoll__slot--drop-target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("../assets/artifact/artifact_g00_f144.png");
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 .heroes-glory .hero-paperdoll__more {
   margin-top: 10px;

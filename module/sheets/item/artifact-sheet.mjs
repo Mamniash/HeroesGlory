@@ -10,6 +10,8 @@ export class HeroesGloryArtifactSheet extends HeroesGloryItemSheet {
     actions: {
       addModifier: this.#onAddModifier,
       deleteModifier: this.#onDeleteModifier,
+      addTargetSlot: this.#onAddTargetSlot,
+      deleteTargetSlot: this.#onDeleteTargetSlot,
     },
   };
 
@@ -32,5 +34,26 @@ export class HeroesGloryArtifactSheet extends HeroesGloryItemSheet {
     const index = Number(target.dataset.index);
     const modifiers = this.item.system.modifiers.filter((_, i) => i !== index);
     return this.item.update({ 'system.modifiers': modifiers });
+  }
+
+  /**
+   * Append a default targetSlots row (§8.2 hand-curated paperdoll slots).
+   * @this {HeroesGloryArtifactSheet}
+   */
+  static async #onAddTargetSlot() {
+    const targetSlots = [...this.item.system.targetSlots, 1];
+    return this.item.update({ 'system.targetSlots': targetSlots });
+  }
+
+  /**
+   * Remove the targetSlots row at `data-index`.
+   * @this {HeroesGloryArtifactSheet}
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target
+   */
+  static async #onDeleteTargetSlot(event, target) {
+    const index = Number(target.dataset.index);
+    const targetSlots = this.item.system.targetSlots.filter((_, i) => i !== index);
+    return this.item.update({ 'system.targetSlots': targetSlots });
   }
 }

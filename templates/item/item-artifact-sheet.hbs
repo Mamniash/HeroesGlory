@@ -24,6 +24,22 @@
   </label>
 
   <fieldset class="item-sheet__modifiers">
+    <legend>{{localize 'HEROES_GLORY.Artifact.TargetSlots'}}</legend>
+    {{#each system.targetSlots}}
+      <div class="item-sheet__modifier-row">
+        <select name="system.targetSlots.{{@index}}">
+          {{selectOptions ../config.paperdollSlotLabels selected=this localize=true}}
+        </select>
+        <button type="button" class="item-sheet__icon-button" data-action="deleteTargetSlot" data-index="{{@index}}"
+          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    {{/each}}
+    <button type="button" class="item-sheet__add-button" data-action="addTargetSlot">
+      <i class="fa-solid fa-plus"></i> {{localize 'HEROES_GLORY.Artifact.AddTargetSlot'}}
+    </button>
+  </fieldset>
+
+  <fieldset class="item-sheet__modifiers">
     <legend>{{localize 'HEROES_GLORY.Artifact.Modifiers'}}</legend>
     {{#each system.modifiers}}
       <div class="item-sheet__modifier-row">

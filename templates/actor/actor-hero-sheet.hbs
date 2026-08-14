@@ -222,8 +222,8 @@
     </div>
   {{/each}}
 
-  {{!-- ==================== Backpack (5 visible of a paged list) + arrows ==================== --}}
-  {{#each backpackPageItems}}
+  {{!-- ==================== Backpack (5 visible, scrolls 1 slot at a time) + arrows ==================== --}}
+  {{#each backpackVisibleItems}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--backpack-{{inc @index}}" data-slot="backpack">
       {{#if this}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
@@ -234,10 +234,12 @@
     </div>
   {{/each}}
 
-  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_left" data-action="backpackPage" data-direction="prev"
-    {{#unless backpackPage}}disabled{{/unless}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackPrevHint'}}"></button>
-  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_right" data-action="backpackPage" data-direction="next"
-    {{#if (eq backpackPage backpackMaxPage)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
+  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_left{{#if (eq backpackPressedDirection 'prev')}} hero-paperdoll__slot--pressed{{/if}}"
+    data-action="backpackScroll" data-direction="prev"
+    {{#unless backpackOffset}}disabled{{/unless}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackPrevHint'}}"></button>
+  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_right{{#if (eq backpackPressedDirection 'next')}} hero-paperdoll__slot--pressed{{/if}}"
+    data-action="backpackScroll" data-direction="next"
+    {{#if (eq backpackOffset backpackMaxOffset)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
 
 </div>
 {{/if}}

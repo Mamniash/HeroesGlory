@@ -135,8 +135,8 @@ $hg-named-slots: (
   experience_desc: (9.833, 47.357, 15.333, 8.879),
   mana_name: (26.167, 47.357, 7, 8.879),
   mana_desc: (33.667, 47.357, 15.333, 8.879),
-  arrow_left: (51.667, 74.207, 3.667, 9.725),
-  arrow_right: (93.667, 74.207, 3.667, 9.725),
+  arrow_left: (51.667, 73.996, 3.667, 9.725),
+  arrow_right: (93.667, 73.996, 3.667, 9.725),
 );
 
 @each $name, $box in $hg-named-slots {
@@ -445,42 +445,81 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   pointer-events: auto;
 }
 
-// No dedicated arrow sprite exists in assets/ui — drawn as plain CSS
-// triangles rather than inventing an asset path that isn't there.
+// hsbtns3_g00_f0NN.png / hsbtns5_g00_f0NN.png — HOMM3's real scroll-button
+// art (extracted from hsbtns3.def/hsbtns5.def), 3 frames each: f000 enabled,
+// f001 pressed, f002 disabled. Native frame size is already 22x46, matching
+// arrow_left/arrow_right's box in $hg-named-slots above, so no resize was
+// needed there.
 .hero-paperdoll__slot--arrow_left,
 .hero-paperdoll__slot--arrow_right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   border: none;
-  background: transparent;
+  // Suppresses the default browser/Foundry white focus ring on click —
+  // these buttons have their own pressed/disabled art (above) to show
+  // state, and any framing/highlight elsewhere on the sheet is the
+  // artifact-slot drop-target overlay below (a drawn asset, not this
+  // property), not a focus outline.
+  outline: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   padding: 0;
   cursor: pointer;
 
-  &::before {
-    content: '';
-    width: 0;
-    height: 0;
-    border-top: 0.6em solid transparent;
-    border-bottom: 0.6em solid transparent;
-  }
-
   &:disabled {
-    opacity: 0.3;
     cursor: not-allowed;
   }
+}
 
-  &:not(:disabled):hover::before {
-    filter: brightness(1.3);
+.hero-paperdoll__slot--arrow_left {
+  background-image: url('../assets/buttons/hsbtns3/hsbtns3_g00_f000.png');
+
+  &:disabled {
+    background-image: url('../assets/buttons/hsbtns3/hsbtns3_g00_f002.png');
   }
 }
 
-.hero-paperdoll__slot--arrow_left::before {
-  border-right: 0.7em solid $hg-parchment;
+.hero-paperdoll__slot--arrow_right {
+  background-image: url('../assets/buttons/hsbtns5/hsbtns5_g00_f000.png');
+
+  &:disabled {
+    background-image: url('../assets/buttons/hsbtns5/hsbtns5_g00_f002.png');
+  }
 }
 
-.hero-paperdoll__slot--arrow_right::before {
-  border-left: 0.7em solid $hg-parchment;
+// JS-driven (hero-sheet.mjs's #onBackpackScroll/#backpackPressedDirection)
+// rather than :active — a click's `this.render()` swaps this button out
+// for a brand-new DOM node, so the browser's own :active state doesn't
+// survive long enough to be seen, especially when that same click also
+// lands on the last/first page and the button becomes :disabled in that
+// very render. The pressed frame is held for BACKPACK_PRESS_HOLD_MS
+// regardless of the button's new disabled state, then a second render()
+// clears it — see the constant's own comment for the timing rationale.
+.hero-paperdoll__slot--arrow_left.hero-paperdoll__slot--pressed {
+  background-image: url('../assets/buttons/hsbtns3/hsbtns3_g00_f001.png');
+}
+
+.hero-paperdoll__slot--arrow_right.hero-paperdoll__slot--pressed {
+  background-image: url('../assets/buttons/hsbtns5/hsbtns5_g00_f001.png');
+}
+
+// §8.2 slot-type validation's drag-start highlight (hero-sheet.mjs's
+// dragstart/dragend listeners toggle this class on every paperdoll slot
+// the dragged item could legally land on). artifact_g00_f144.png is a
+// ready-made 44x44 highlight-frame sprite (HOMM3 asset), used as-is —
+// same size as a paperdoll slot box, so no scaling math needed. An
+// `::after` overlay rather than `border`/`outline` so the frame's own
+// drawn edge — not a CSS-drawn line — is what shows, and `pointer-events:
+// none` keeps it from intercepting the drop this highlight exists to
+// guide.
+.hero-paperdoll__slot--drop-target::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/artifact/artifact_g00_f144.png');
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
 // ---------------------------------------------------------------

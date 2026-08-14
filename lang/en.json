@@ -69,6 +69,27 @@
       "MagicClothing": "Magic Clothing",
       "MagicItem": "Magic Item"
     },
+    "PaperdollSlot": {
+      "1": "1 — Main hand (melee weapon)",
+      "2": "2 — Forearm/ring (right hand)",
+      "3": "3 — Head",
+      "4": "4 — Neck (necklace)",
+      "5": "5 — Torso",
+      "6": "6 — Off hand/shield",
+      "7": "7 — Forearm/ring (left hand)",
+      "8": "8 — Cloak/back",
+      "9": "9 — Legs",
+      "10": "10 — Spellbook",
+      "11": "11 — Carried item",
+      "12": "12 — Carried item",
+      "13": "13 — Carried item",
+      "14": "14 — Carried item",
+      "15": "15 — Carried item",
+      "16": "16 — Ranged weapon",
+      "17": "17 — Reserved slot",
+      "18": "18 — Reserved slot",
+      "19": "19 — Reserved slot"
+    },
     "Vision": {
       "Normal": "Normal",
       "Darkvision": "Darkvision",
@@ -122,14 +143,18 @@
     "Hero": {
       "PanelColor": "Panel color",
       "MoreDetails": "More stats",
-      "BackpackPrevHint": "Previous backpack page",
-      "BackpackNextHint": "Next backpack page"
+      "BackpackPrevHint": "Scroll backpack left",
+      "BackpackNextHint": "Scroll backpack right"
     },
     "Item": {
       "Spell": {
         "SpellLVL": "Level {level} Spells",
         "AddLVL": "Add LVL {level}"
       }
+    },
+    "Artifact": {
+      "TargetSlots": "Compatible paperdoll slots",
+      "AddTargetSlot": "Add slot"
     },
     "Roll": {
       "SkillTitle": "{actor}: \"{skill}\" ({tier})",

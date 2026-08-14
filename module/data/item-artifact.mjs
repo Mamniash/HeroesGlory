@@ -34,6 +34,22 @@ export default class HeroesGloryArtifact extends HeroesGloryDataModel {
       required: false, nullable: true, integer: true, initial: null, min: 1, max: 19,
     });
 
+    // §8.2: which paperdoll slot(s) this specific artifact is *allowed*
+    // to be dragged onto — curated by hand per item (e.g. a ring artifact
+    // would list both forearm slots, [2, 7]), not derived from
+    // `artifactType` above: several artifact types share the same body
+    // slots (both "Зачарованные доспехи" and "Волшебная одежда" can cover
+    // head/torso/cloak/legs) and some slots (the rings) have no
+    // artifactType of their own, so `artifactType` stays a loot-table
+    // category only — see helpers/paperdoll-slots.mjs, which reads this
+    // field to validate/highlight paperdoll drops. Empty by default: an
+    // artifact with no curated targetSlots can't be placed on the
+    // paperdoll yet (still fine in the backpack) until someone sets it.
+    schema.targetSlots = new fields.ArrayField(
+      new fields.NumberField({ required: true, nullable: false, integer: true, min: 1, max: 19 }),
+      { initial: [] },
+    );
+
     // Structured bonuses (§8.2), separate from the free-text `bonus` above
     // — many book bonuses aren't a single number ("Восстанавливает 1 ОЗ за
     // каждый факт нанесения урона") and stay text-only, unmodeled. These
