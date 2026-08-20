@@ -1185,6 +1185,11 @@
   font-weight: bold;
   font-size: 1.3em;
 }
+.heroes-glory .hero-paperdoll__name-input:disabled {
+  color: inherit;
+  cursor: default;
+  opacity: 1;
+}
 .heroes-glory .hero-paperdoll__name-line {
   margin: 0;
   font-size: 0.85em;
@@ -1273,8 +1278,8 @@
 .heroes-glory .hero-paperdoll__value-max {
   font-weight: bold;
 }
-.heroes-glory .hero-paperdoll__slot--morale,
-.heroes-glory .hero-paperdoll__slot--luck {
+.heroes-glory .hero-paperdoll__slot--luck,
+.heroes-glory .hero-paperdoll__slot--morale {
   object-fit: contain;
 }
 .heroes-glory .hero-paperdoll__slot--skill_desc_1,
@@ -1309,6 +1314,10 @@
   height: 100%;
   object-fit: contain;
   cursor: pointer;
+}
+.heroes-glory .hero-paperdoll__icon-img--secskill {
+  object-fit: cover;
+  object-position: center;
 }
 .heroes-glory .draggable.hero-paperdoll__icon-img {
   cursor: grab;
@@ -1418,6 +1427,9 @@
 }
 .heroes-glory .hero-paperdoll__slot--edit_button_toggle[aria-pressed=true] {
   background-image: url("../assets/buttons/edit/edit-2.png");
+}
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle:disabled {
+  opacity: 0.5;
 }
 .heroes-glory .hero-paperdoll__more {
   margin-top: 10px;

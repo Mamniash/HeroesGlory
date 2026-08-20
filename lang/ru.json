@@ -168,7 +168,8 @@
       "BackpackPrevHint": "Прокрутить рюкзак влево",
       "BackpackNextHint": "Прокрутить рюкзак вправо",
       "EditModeEnableHint": "Включить режим редактирования",
-      "EditModeDisableHint": "Выключить режим редактирования"
+      "EditModeDisableHint": "Выключить режим редактирования",
+      "EditModeGmOnlyHint": "Доступно только Ведущему"
     },
     "Creature": {
       "Faction": "Фракция",
@@ -281,7 +282,6 @@
     "Roll": {
       "CheckHint": "Клик — проверка (d20 + значение)",
       "AttackHint": "Клик — бросок атаки",
-      "CastHint": "Клик — сотворить заклинание",
       "AttackRow": "Атака {attack}, Урон {damage}, атак за раунд: {count}",
       "AttackTitle": "{attacker} атакует",
       "Weapon": "Оружие: {weapon}",
@@ -348,8 +348,7 @@
       "PostBattleSurvived": "Приходит в себя через час с 1 ОЗ и 1 Маны. +1 Ранение.",
       "PostBattleDied": "Погиб(ла) навсегда.",
       "PostBattleHelped": "Получил(а) помощь — сразу приходит в себя с 1 ОЗ и 1 Маны. +1 Ранение.",
-      "SkillTitle": "{actor}: «{skill}» ({tier})",
-      "SkillUseHint": "Клик / удержание ПКМ — подсказка (в режиме редактирования клик — открыть лист навыка)"
+      "SkillTitle": "{actor}: «{skill}» ({tier})"
     },
     "Tooltip": {
       "BaseValue": "Базовое значение: {value}",

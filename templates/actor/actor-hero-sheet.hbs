@@ -7,7 +7,7 @@
     <div class="hero-spellbook__slot hero-spellbook__slot--icon_{{inc @index}}">
       {{#if this}}
         <img class="hero-spellbook__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
-          data-action="castSpell" data-tooltip-trigger="spell-{{this.item.id}}" title="{{localize 'HEROES_GLORY.Roll.CastHint'}}">
+          data-action="castSpell" data-tooltip-trigger="spell-{{this.item.id}}">
         {{#if this.frame}}
           <img class="hero-spellbook__frame-img" src="{{this.frame}}" alt="">
         {{/if}}
@@ -38,7 +38,7 @@
   </button>
 
   {{!-- ==================== Mana (read-only duplicate of the paperdoll's own slot) ==================== --}}
-  <div class="hero-spellbook__slot hero-spellbook__slot--mana" data-tooltip-trigger="mana">
+  <div class="hero-spellbook__slot hero-spellbook__slot--mana" data-tooltip-trigger="mana" data-tooltip-click>
     <span>{{system.mana.value}}</span><span class="hero-paperdoll__value-sep">/</span><span>{{system.mana.max}}</span>
   </div>
 
@@ -56,7 +56,7 @@
 
   <div class="hero-paperdoll__slot hero-paperdoll__slot--name">
     <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
-      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">
+      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}" {{#unless editMode}}disabled{{/unless}}>
     <p class="hero-paperdoll__name-line">{{localize raceLabel}} — {{localize classLabel}}</p>
     <p class="hero-paperdoll__name-line">{{localize factionLabel}}</p>
   </div>
@@ -74,13 +74,18 @@
   </div>
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--attack" src="{{icons.attack}}" alt=""
-    data-tooltip-trigger="skill-attack">
+    data-tooltip-trigger="skill-attack" data-tooltip-click>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--defence" src="{{icons.defense}}" alt=""
-    data-tooltip-trigger="skill-defense">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--knowledge" src="{{icons.knowledge}}" alt=""
-    data-tooltip-trigger="skill-knowledge">
-  <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.magicPower}}" alt=""
-    data-tooltip-trigger="skill-magicPower">
+    data-tooltip-trigger="skill-defense" data-tooltip-click>
+  {{!-- Class names --knowledge/--witchcraft are just the CSS position hooks
+    (3rd/4th slot in the row) — rules.md §2.1's order is Attack, Defense,
+    MagicPower, Knowledge, so the 3rd slot (--knowledge) is MagicPower's
+    icon/tooltip and the 4th (--witchcraft) is Knowledge's; matches the
+    label/value rows above and below, which were never swapped. --}}
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--knowledge" src="{{icons.magicPower}}" alt=""
+    data-tooltip-trigger="skill-magicPower" data-tooltip-click>
+  <img class="hero-paperdoll__slot hero-paperdoll__slot--witchcraft" src="{{icons.knowledge}}" alt=""
+    data-tooltip-trigger="skill-knowledge" data-tooltip-click>
 
   {{!-- Each cell shows the effective (post-artifact) value by default;
     clicking it (editPrimaryStat, hero-sheet.mjs) reveals the input below,
@@ -107,7 +112,7 @@
 
   {{!-- ==================== Health / Experience / Mana ==================== --}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--health_name" src="{{icons.health}}" alt=""
-    data-tooltip-trigger="health">
+    data-tooltip-trigger="health" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--health_desc">
     <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
     <span class="hero-paperdoll__value-sep">/</span>
@@ -115,13 +120,13 @@
   </div>
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt=""
-    data-tooltip-trigger="experience">
+    data-tooltip-trigger="experience" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc">
     <input type="number" name="system.experience" value="{{system.experience}}" min="0">
   </div>
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--mana_name" src="{{icons.mana}}" alt=""
-    data-tooltip-trigger="mana">
+    data-tooltip-trigger="mana" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--mana_desc">
     <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
     <span class="hero-paperdoll__value-sep">/</span>
@@ -130,17 +135,17 @@
 
   {{!-- ==================== Morale / Luck (read display — editable in the details fallback) ==================== --}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
-    data-tooltip-trigger="morale">
+    data-tooltip-trigger="morale" data-tooltip-click>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
-    data-tooltip-trigger="luck">
+    data-tooltip-trigger="luck" data-tooltip-click>
 
   {{!-- ==================== Secondary skills (8 slots) ==================== --}}
   {{#each secondarySkillSlots}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_name_{{inc @index}}">
       {{#if this}}
         <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
-          {{#if ../editMode}}data-action="openItem"{{/if}} title="{{localize 'HEROES_GLORY.Roll.SkillUseHint'}}"
-          data-tooltip-trigger="secskill-{{inc @index}}">
+          {{#if ../editMode}}data-action="openItem"{{/if}}
+          data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
         {{#if ../editMode}}
           <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
             title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
@@ -216,9 +221,17 @@
   {{#each paperdollSlots}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}">
       {{#if this.item}}
+        {{!-- §5.3: a weapon only attacks on click while equipped (always
+          true here — a paperdoll slot only ever holds an equipped item —
+          but not in the backpack loop below, where the same weapon can
+          land after being unequipped). Edit mode off + unequipped: no
+          `data-action` at all, same as an artifact — left click is a
+          no-op there, not a tooltip (paperdoll/backpack icons never get
+          `data-tooltip-click`, see the trigger-binding loop in
+          hero-sheet.mjs's `_onRender`). --}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
           {{#if (eq this.item.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (eq this.item.type 'weapon')}}data-action="{{#if ../editMode}}openItem{{else}}rollAttack{{/if}}"
+          {{else if (eq this.item.type 'weapon')}}{{#if ../editMode}}data-action="openItem"{{else if this.item.system.equipped}}data-action="rollAttack"{{/if}}
           {{else if ../editMode}}data-action="openItem"{{/if}}
           data-tooltip-trigger="paperdoll-{{this.index}}">
         {{#if ../editMode}}
@@ -238,7 +251,7 @@
       {{#if this}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
           {{#if (eq this.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (eq this.type 'weapon')}}data-action="{{#if ../editMode}}openItem{{else}}rollAttack{{/if}}"
+          {{else if (eq this.type 'weapon')}}{{#if ../editMode}}data-action="openItem"{{else if this.system.equipped}}data-action="rollAttack"{{/if}}
           {{else if ../editMode}}data-action="openItem"{{/if}}
           data-tooltip-trigger="backpack-{{inc @index}}">
         {{#if ../editMode}}
@@ -262,8 +275,9 @@
   {{!-- ==================== Free zone below the inventory (docs/paperdoll_grid.json's
        "edit_zone") — room reserved for 2-3 buttons, edit-mode toggle first ==================== --}}
   <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--edit_button_toggle" data-action="toggleEditMode"
+    {{#unless isGM}}disabled{{/unless}}
     aria-pressed="{{editMode}}"
-    aria-label="{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}"></button>
+    aria-label="{{#if isGM}}{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeGmOnlyHint'}}{{/if}}"></button>
 
 </div>
 {{/if}}

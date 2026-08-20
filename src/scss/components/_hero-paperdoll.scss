@@ -261,6 +261,17 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   font-family: inherit;
   font-weight: bold;
   font-size: 1.3em;
+
+  // `disabled` outside edit mode (see the template) is what actually
+  // blocks click/focus/typing — the UA default `:disabled` look
+  // (typically a dimmed `GrayText`) would otherwise make the name look
+  // different depending on edit mode for no reason; this keeps it
+  // reading exactly like the enabled field above.
+  &:disabled {
+    color: inherit;
+    cursor: default;
+    opacity: 1;
+  }
 }
 
 .hero-paperdoll__name-line {
@@ -350,6 +361,20 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 // silently overriding the correct box size and blowing the icon up to
 // fill the sheet. object-fit alone is enough to keep each sprite crisp
 // within whatever box $hg-named-slots already gave it.
+//
+// Back on the 42×42 set (skill-icons.mjs) — a high-quality-icons attempt
+// briefly pointed these at the 82×93 "portrait" set instead (assets/
+// pskill) with `object-fit: cover` cropping it down to this box's 1:1
+// aspect, then got rolled back. That crop mechanism is still worth
+// keeping around for the next time a similar-shaped mismatched asset
+// shows up, so it's preserved here, just inactive:
+//   object-fit: cover;
+//   object-position: center;
+// Verified directly against the actual pskill source files that this
+// crops the middle 82 of each 82×93 sprite (5-6px off top and bottom)
+// without ever cutting into the artwork itself, only the background
+// around it — safe to re-enable outright if `skill-icons.mjs` ever points
+// these at the large set again (pass `{ large: true }`).
 .hero-paperdoll__slot--attack,
 .hero-paperdoll__slot--defence,
 .hero-paperdoll__slot--knowledge,
@@ -395,8 +420,39 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 
 // Same reasoning as the primary-skill icons above: morale/luck are also
 // slot-is-the-img elements, sized entirely by $hg-named-slots.
-.hero-paperdoll__slot--morale,
-.hero-paperdoll__slot--luck {
+//
+// Back on the 42×38 set (skill-icons.mjs), same rollback as the
+// primary-skill icons above — the 82×93-set crop mechanism is kept here,
+// inactive, for reuse:
+//   Luck (ilck82_g00_f000-006.png): checked all 7 frames directly — every
+//   one keeps a comfortable margin above and below the horseshoe(s) even
+//   at a ~9-10px-per-side crop (42×38's aspect against an 82×93 source
+//   keeps the middle ~74 of 93px, a taller crop than the skill icons'
+//   ~5-6px) — they stack side-by-side as luck's value rises, not
+//   top-to-bottom, so a plain centered crop was safe:
+//     object-fit: cover;
+//     object-position: center;
+//
+//   Morale (imrl82_g00_f000-006.png) stacks its bird motif TOP-TO-BOTTOM
+//   as the value rises in either direction, so unlike luck it doesn't have
+//   equal headroom on both sides at every frame — checked all 7 directly:
+//   the two most extreme frames (f000 = -3, f006 = +3) each fill nearly
+//   the full 93px height, and between them there's no single top/bottom
+//   split that stays clear of both — f000's own art starts only 7px from
+//   the top, f006's own art ends only 10px from the bottom, and 7 + 10 =
+//   17 is short of the 19px that crop needed to remove. A dead-centered
+//   crop (50%) would have cut visibly into f006's tail feathers, so this
+//   shifted the split slightly (42% vs the default 50%) so the shortfall
+//   landed as a roughly even ~1px into each extreme frame's own art
+//   instead of ~2px concentrated on one side — at this element's actual
+//   on-screen size that's sub-pixel and not visible, without distorting
+//   anything (no vertical squeeze, still a pure crop):
+//     object-fit: cover;
+//     object-position: center 42%;
+// If `skill-icons.mjs` ever points these at the large set again (pass
+// `{ large: true }`), these are safe to re-enable outright as-is.
+.hero-paperdoll__slot--luck,
+.hero-paperdoll__slot--morale {
   object-fit: contain;
 }
 
@@ -432,6 +488,23 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   height: 100%;
   object-fit: contain;
   cursor: pointer;
+}
+
+// Currently unused — no template applies this modifier class, since the
+// secondary-skill icon is back on its 44×44 sprite (skill-icons.mjs,
+// rolled back from a high-quality-icons attempt that briefly pointed it
+// at the 82×93 `secsk82` set instead). Kept, inactive, for that same
+// reuse-later reason as the commented-out rules above: if the icon ever
+// points at `secsk82` again (pass `{ large: true }`), add this class back
+// onto that `<img>` (not the paperdoll/backpack item icons, which share
+// the plain `.hero-paperdoll__icon-img` above but show arbitrary user
+// item art — `contain` is correct for those, unrelated to this). Same
+// crop as the primary-skill icons above: the 44×44 slot's own 1:1 aspect
+// against an 82×93 source keeps the middle 82 of 93px, checked directly
+// against the actual sprites the same way.
+.hero-paperdoll__icon-img--secskill {
+  object-fit: cover;
+  object-position: center;
 }
 
 .draggable.hero-paperdoll__icon-img {
@@ -553,6 +626,18 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 
   &[aria-pressed='true'] {
     background-image: url('../assets/buttons/edit/edit-2.png');
+  }
+
+  // GM-only (hero-sheet.mjs's #onToggleEditMode/`_prepareContext`) — the
+  // template renders this `disabled` for anyone else. assets/buttons/edit
+  // only has the two states this button already used above (off/on), no
+  // dedicated disabled art the way the backpack arrows and the tooltip OK
+  // button do (assets/buttons/hsbtns3, /hsbtns5, /iok6432 each ship an
+  // f002 disabled frame) — flagged rather than guessed at; dimming the off
+  // frame (always what's showing here, since a non-GM's `editMode` is
+  // forced off) is a placeholder until a real disabled asset exists.
+  &:disabled {
+    opacity: 0.5;
   }
 }
 

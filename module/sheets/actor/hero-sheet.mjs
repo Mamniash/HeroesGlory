@@ -96,13 +96,18 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
   /**
    * Gates the hover-reveal delete buttons on paperdoll/backpack/secondary-
-   * skill slots, the primary-stat click-to-edit affordance, and which
+   * skill slots, the primary-stat click-to-edit affordance, the name
+   * field's own `disabled` state (see the template — off means it can't
+   * even be focused, not just that submitting it is blocked), and which
    * action a left click on a weapon/artifact/secondary-skill icon
-   * performs (game action — attack, for a weapon — or the tooltip
-   * (tooltip.mjs's click-to-pin) when off, open that item's own sheet
-   * when on; see the template's per-icon `data-action`) — all unrelated
-   * to any game rule, off by default so a freshly opened sheet doesn't
-   * invite accidental deletes. Sheet-local rather than a
+   * performs (its game action — attack for an equipped weapon, use for a
+   * secondary skill — or nothing at all (an unequipped weapon, any
+   * artifact — tooltip.mjs's click-to-pin never applies to these, only
+   * to the left-half stat icons and secondary-skill icon, see the
+   * template's `data-tooltip-click`) when off; open that item's own
+   * sheet when on; see the template's per-icon `data-action`) — all
+   * unrelated to any game rule, off by default so a freshly opened sheet
+   * doesn't invite accidental deletes. Sheet-local rather than a
    * `system.*` field: same transient-UI-state pattern as #spellbookOpen
    * above, chosen because this is a per-viewer editing-workflow toggle,
    * not actor data — a `system.*` field would sync to every client
@@ -110,7 +115,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * sheet) and would need its own migration/schema entry for something
    * that isn't part of the character at all. If edit mode ever needs to
    * survive a sheet close/reopen or be visible to other clients, that's
-   * the point to revisit this as a `system.*` (or actor flag) field instead.
+   * the point to revisit this as a `system.*` (or actor flag) field
+   * instead — and, if that ever happens, `_prepareContext`'s own
+   * `context.editMode` line (not just #onToggleEditMode) is what has to
+   * keep gating this on `game.user.isGM`, since a persisted flag is
+   * exactly the kind of thing that could otherwise leave a GM's own
+   * edit-mode session visible to a player opening the same actor.
+   * GM-only (#onToggleEditMode/`_prepareContext` both enforce it): a
+   * player has no legitimate use for it and it gates real capability
+   * (deleting items, editing base stats), not just a display preference.
    * @type {boolean}
    */
   #editMode = false;
@@ -123,7 +136,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
     // Gates the hover-reveal delete buttons and primary-stat click-to-edit
     // affordance across the whole template — see #editMode's own comment.
-    context.editMode = this.#editMode;
+    // `&& game.user.isGM` on top of the field itself, not instead of it:
+    // #onToggleEditMode already refuses to flip #editMode for a non-GM (see
+    // its own comment), so in practice this can't currently diverge — but
+    // this line is what actually decides what the template renders, and it
+    // shouldn't rely on that other guard alone to keep a non-GM out. Belt
+    // and suspenders against the field ever being true for a non-GM by some
+    // path that isn't #onToggleEditMode (a future persisted flag, say).
+    context.editMode = this.#editMode && game.user.isGM;
 
     context.raceLabel = config.races[system.race] ?? '';
     context.factionLabel = config.factions[system.faction] ?? '';
@@ -320,14 +340,16 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // triggers live under `.hero-spellbook` instead, a sibling canvas,
       // never both at once.
       const boundsEl = triggerEl.closest('.hero-paperdoll, .hero-spellbook');
-      // A left click only pins the tooltip open on triggers whose left
-      // click isn't already some other action (weapon attack, spell cast,
-      // open spellbook — these carry their own `data-action` in every
-      // mode) and only while edit mode is off (edit mode's own click
-      // affordances, e.g. opening an item's sheet, take left click over
-      // instead — including the secondary-skill icon, which otherwise has
-      // no `data-action` of its own at all).
-      const clickToPin = !this.#editMode && !triggerEl.dataset.action;
+      // A left click only pins the tooltip open on triggers that opt in
+      // via the template's bare `data-tooltip-click` (the left-half stat
+      // icons, the secondary-skill icon, the spellbook's mana slot) and
+      // only while edit mode is off. Deliberately NOT inferred from "has
+      // no `data-action`" — paperdoll/backpack item icons (weapon/
+      // artifact/spellbook) never opt in even when they have none (an
+      // unequipped weapon or an artifact, edit mode off): left click is a
+      // no-op there, not a tooltip, so it stays free for a future drag/
+      // interact feature without this fighting it.
+      const clickToPin = !this.#editMode && triggerEl.hasAttribute('data-tooltip-click');
       attachTooltip(triggerEl, template, { boundsEl, clickToPin });
     });
 
@@ -572,9 +594,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * Toggle #editMode (the free zone's edit-mode button, below the
    * inventory) — gates the delete buttons and primary-stat edit
    * affordance across the whole template, see #editMode's own comment.
+   * GM-only: the template already renders this button `disabled` for a
+   * non-GM (so a real click can't reach this at all), but that's a DOM
+   * attribute, not a security boundary — this guard is what actually
+   * keeps a non-GM from flipping their own #editMode, e.g. via a
+   * hand-crafted `dispatchEvent` from the console.
    * @this {HeroesGloryHeroSheet}
    */
   static #onToggleEditMode() {
+    if (!game.user.isGM) return;
     this.#editMode = !this.#editMode;
     return this.render();
   }

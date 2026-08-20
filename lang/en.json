@@ -146,7 +146,8 @@
       "BackpackPrevHint": "Scroll backpack left",
       "BackpackNextHint": "Scroll backpack right",
       "EditModeEnableHint": "Enable edit mode",
-      "EditModeDisableHint": "Disable edit mode"
+      "EditModeDisableHint": "Disable edit mode",
+      "EditModeGmOnlyHint": "Game Master only"
     },
     "Item": {
       "Spell": {
@@ -159,8 +160,7 @@
       "AddTargetSlot": "Add slot"
     },
     "Roll": {
-      "SkillTitle": "{actor}: \"{skill}\" ({tier})",
-      "SkillUseHint": "Click / hold right-click — tooltip (edit mode: click opens skill sheet)"
+      "SkillTitle": "{actor}: \"{skill}\" ({tier})"
     },
     "Tooltip": {
       "CloseHint": "Close"
