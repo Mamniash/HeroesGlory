@@ -642,6 +642,30 @@
       "top": 74.419,
       "width": 7.333,
       "height": 9.302
+    },
+    {
+      "_note": "Reserved free zone below the inventory for edit-mode-workflow buttons — not a rendered slot itself, no CSS rule of its own. edit_button_toggle below is the first button placed inside it; room left for 2-3 more. Corrected coordinates — an earlier version of this entry was measured on a 672x586 reference and was wrong; these are measured directly on this file's own 600x473 canvas.",
+      "name": "edit_zone",
+      "x": 304,
+      "y": 418,
+      "w": 280,
+      "h": 42,
+      "left": 50.667,
+      "top": 88.372,
+      "width": 46.667,
+      "height": 8.879
+    },
+    {
+      "_note": "Standard button size for the edit_zone (52x36 px on this canvas) is $hg-zone-button-width/$hg-zone-button-height in _hero-paperdoll.scss — reused by any future button added to this zone.",
+      "name": "edit_button_toggle",
+      "x": 529,
+      "y": 421,
+      "w": 52,
+      "h": 36,
+      "left": 88.167,
+      "top": 89.006,
+      "width": 8.667,
+      "height": 7.611
     }
   ]
 }

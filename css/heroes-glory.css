@@ -888,6 +888,12 @@
   width: 3.667%;
   height: 9.725%;
 }
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle {
+  left: 88.167%;
+  top: 89.006%;
+  width: 8.6666666667%;
+  height: 7.6109936575%;
+}
 .heroes-glory .hero-paperdoll__slot--skill_name_1 {
   left: 2.167%;
   top: 57.294%;
@@ -1220,9 +1226,11 @@
 .heroes-glory .hero-paperdoll__primary-value-display {
   font-weight: bold;
   font-size: 1.1em;
+}
+.heroes-glory .hero-paperdoll__primary-value-display[data-action] {
   cursor: pointer;
 }
-.heroes-glory .hero-paperdoll__primary-value-display:hover {
+.heroes-glory .hero-paperdoll__primary-value-display[data-action]:hover {
   text-decoration: underline;
 }
 .heroes-glory .hero-paperdoll__primary-total {
@@ -1334,14 +1342,25 @@
 }
 .heroes-glory .hero-paperdoll__slot--arrow_left,
 .heroes-glory .hero-paperdoll__slot--arrow_right {
-  display: block;
+  appearance: none;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
   outline: none;
+  background: none;
+  gap: 0;
+  padding: 0;
+  transition: none;
+  display: block;
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  padding: 0;
+  image-rendering: pixelated;
   cursor: pointer;
+}
+.heroes-glory .hero-paperdoll__slot--arrow_left:disabled,
+.heroes-glory .hero-paperdoll__slot--arrow_right:disabled {
+  cursor: default;
 }
 .heroes-glory .hero-paperdoll__slot--arrow_left:disabled,
 .heroes-glory .hero-paperdoll__slot--arrow_right:disabled {
@@ -1373,6 +1392,32 @@
   background-size: 100% 100%;
   image-rendering: pixelated;
   pointer-events: none;
+}
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle {
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  background: none;
+  gap: 0;
+  padding: 0;
+  transition: none;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle:disabled {
+  cursor: default;
+}
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle {
+  background-image: url("../assets/buttons/edit/edit-1.png");
+}
+.heroes-glory .hero-paperdoll__slot--edit_button_toggle[aria-pressed=true] {
+  background-image: url("../assets/buttons/edit/edit-2.png");
 }
 .heroes-glory .hero-paperdoll__more {
   margin-top: 10px;
@@ -1696,6 +1741,9 @@
 .heroes-glory .hg-tooltip[data-mode=modal] {
   pointer-events: auto;
 }
+.heroes-glory .hg-tooltip[data-pinned=true] {
+  pointer-events: auto;
+}
 .heroes-glory .hg-tooltip > * {
   min-width: 0;
 }
@@ -1741,6 +1789,35 @@
 }
 .heroes-glory .hg-tooltip[data-color=white] {
   border-image-source: url("../assets/ui/dialog_frame_white.png");
+}
+.heroes-glory .hg-tooltip__ok {
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  background: none;
+  gap: 0;
+  padding: 0;
+  transition: none;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.heroes-glory .hg-tooltip__ok:disabled {
+  cursor: default;
+}
+.heroes-glory .hg-tooltip__ok {
+  width: 9cqw;
+  aspect-ratio: 2/1;
+  margin-top: 0.8cqw;
+  background-image: url("../assets/buttons/iok6432/iok6432_g00_f000.png");
+}
+.heroes-glory .hg-tooltip__ok.hg-tooltip__ok--pressed {
+  background-image: url("../assets/buttons/iok6432/iok6432_g00_f001.png");
 }
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,

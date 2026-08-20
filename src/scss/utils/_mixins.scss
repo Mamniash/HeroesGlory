@@ -14,3 +14,61 @@
 @mixin hide {
   display: none;
 }
+
+// Every HOMM3-sprite image button in this system (backpack scroll arrows,
+// the edit-mode toggle, the tooltip OK button, and future 52x36 buttons in
+// the free zone below the inventory) is a `<button>` showing nothing but a
+// background-image frame swapped by class/attribute/`:disabled` — it must
+// show ONLY the states its own asset frames define, nothing else.
+//
+// A bare `<button>` still carries Foundry's own default look on top of the
+// UA default: foundry2.css's `button {}` rule (inside `@layer
+// elements.forms`) sets background/border/border-radius/gap/padding/
+// transition, plus a `:hover` background+border swap and a `:focus`/
+// `.active` outline+glow box-shadow. This mixin zeroes out exactly those
+// properties — nothing more.
+//
+// This used to be a blanket `all: unset`, which reset far more than
+// Foundry's button chrome and turned out actively harmful: it has the
+// exact same specificity as this system's own `.hero-paperdoll__slot`/
+// named-slot rules that set `position`/`left`/`top`/`width`/`height`
+// (_hero-paperdoll.scss's `$hg-named-slots` loop), and — being the later
+// rule wherever a button using this mixin happened to be declared after
+// them in this file — silently won that fight too, resetting `position`
+// back to `static` and making the backpack scroll arrows vanish from the
+// sheet entirely (not just look wrong). Listing only the actual chrome
+// properties means this mixin can never again reach into a slot's own
+// layout, regardless of where in the file it's included relative to that
+// slot's positioning rule. (It doesn't need its own explicit `box-sizing`
+// either — `.hero-paperdoll__slot`, already on every element this mixin
+// is used on, sets `border-box` there once for all of them.)
+//
+// It also doesn't need `:hover`/`:focus`/`.active` variants of its own:
+// this system's compiled stylesheet has no `@layer` of its own, and an
+// unlayered declaration always wins over a layered one for the same
+// property regardless of which pseudo-class/specificity matched it — so
+// a single unconditional `background: none` etc. here already outranks
+// Foundry's layered `:hover`/`:focus`/`.active` rules for those same
+// properties too, without needing to restate them per state.
+@mixin hg-image-button {
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  background: none;
+  gap: 0;
+  padding: 0;
+  transition: none;
+
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}

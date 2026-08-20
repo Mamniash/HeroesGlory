@@ -144,7 +144,9 @@
       "PanelColor": "Panel color",
       "MoreDetails": "More stats",
       "BackpackPrevHint": "Scroll backpack left",
-      "BackpackNextHint": "Scroll backpack right"
+      "BackpackNextHint": "Scroll backpack right",
+      "EditModeEnableHint": "Enable edit mode",
+      "EditModeDisableHint": "Disable edit mode"
     },
     "Item": {
       "Spell": {
@@ -158,7 +160,10 @@
     },
     "Roll": {
       "SkillTitle": "{actor}: \"{skill}\" ({tier})",
-      "SkillUseHint": "Click — post description to chat, right-click — open skill sheet"
+      "SkillUseHint": "Click / hold right-click — tooltip (edit mode: click opens skill sheet)"
+    },
+    "Tooltip": {
+      "CloseHint": "Close"
     },
     "Effect": {
       "Source": "Source",

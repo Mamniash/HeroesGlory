@@ -88,19 +88,19 @@
     .hero-paperdoll__primary-value-display for why. --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--text_2 hero-paperdoll__primary-row">
     <span class="hero-paperdoll__primary-cell">
-      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.attack}}</span>
+      <span class="hero-paperdoll__primary-value-display"{{#if editMode}} data-action="editPrimaryStat"{{/if}}>{{system.attack}}</span>
       <input class="hero-paperdoll__primary-value" type="number" name="system.attack" value="{{source.attack}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.defense}}</span>
+      <span class="hero-paperdoll__primary-value-display"{{#if editMode}} data-action="editPrimaryStat"{{/if}}>{{system.defense}}</span>
       <input class="hero-paperdoll__primary-value" type="number" name="system.defense" value="{{source.defense}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.magicPower}}</span>
+      <span class="hero-paperdoll__primary-value-display"{{#if editMode}} data-action="editPrimaryStat"{{/if}}>{{system.magicPower}}</span>
       <input class="hero-paperdoll__primary-value" type="number" name="system.magicPower" value="{{source.magicPower}}" min="0" hidden>
     </span>
     <span class="hero-paperdoll__primary-cell">
-      <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{system.knowledge}}</span>
+      <span class="hero-paperdoll__primary-value-display"{{#if editMode}} data-action="editPrimaryStat"{{/if}}>{{system.knowledge}}</span>
       <input class="hero-paperdoll__primary-value" type="number" name="system.knowledge" value="{{source.knowledge}}" min="0" hidden>
     </span>
   </div>
@@ -139,10 +139,12 @@
     <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_name_{{inc @index}}">
       {{#if this}}
         <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
-          data-action="useSkill" title="{{localize 'HEROES_GLORY.Roll.SkillUseHint'}}"
+          {{#if ../editMode}}data-action="openItem"{{/if}} title="{{localize 'HEROES_GLORY.Roll.SkillUseHint'}}"
           data-tooltip-trigger="secskill-{{inc @index}}">
-        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        {{#if ../editMode}}
+          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        {{/if}}
         <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
           <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
           <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
@@ -215,9 +217,17 @@
     <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}">
       {{#if this.item}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
-          data-action="{{#if (eq this.item.type 'spellbook')}}openSpellbook{{else}}openItem{{/if}}" data-tooltip="{{this.item.name}}">
-        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+          {{#if (eq this.item.type 'spellbook')}}data-action="openSpellbook"
+          {{else if (eq this.item.type 'weapon')}}data-action="{{#if ../editMode}}openItem{{else}}rollAttack{{/if}}"
+          {{else if ../editMode}}data-action="openItem"{{/if}}
+          data-tooltip-trigger="paperdoll-{{this.index}}">
+        {{#if ../editMode}}
+          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        {{/if}}
+        <template class="hg-tooltip-tpl" data-tooltip-key="paperdoll-{{this.index}}">
+          <p class="hg-tooltip__title">{{this.item.name}}</p>
+        </template>
       {{/if}}
     </div>
   {{/each}}
@@ -227,9 +237,17 @@
     <div class="hero-paperdoll__slot hero-paperdoll__slot--backpack-{{inc @index}}" data-slot="backpack">
       {{#if this}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
-          data-action="{{#if (eq this.type 'spellbook')}}openSpellbook{{else}}openItem{{/if}}" data-tooltip="{{this.name}}">
-        <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
-          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+          {{#if (eq this.type 'spellbook')}}data-action="openSpellbook"
+          {{else if (eq this.type 'weapon')}}data-action="{{#if ../editMode}}openItem{{else}}rollAttack{{/if}}"
+          {{else if ../editMode}}data-action="openItem"{{/if}}
+          data-tooltip-trigger="backpack-{{inc @index}}">
+        {{#if ../editMode}}
+          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
+            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        {{/if}}
+        <template class="hg-tooltip-tpl" data-tooltip-key="backpack-{{inc @index}}">
+          <p class="hg-tooltip__title">{{this.name}}</p>
+        </template>
       {{/if}}
     </div>
   {{/each}}
@@ -240,6 +258,12 @@
   <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--arrow_right{{#if (eq backpackPressedDirection 'next')}} hero-paperdoll__slot--pressed{{/if}}"
     data-action="backpackScroll" data-direction="next"
     {{#if (eq backpackOffset backpackMaxOffset)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
+
+  {{!-- ==================== Free zone below the inventory (docs/paperdoll_grid.json's
+       "edit_zone") — room reserved for 2-3 buttons, edit-mode toggle first ==================== --}}
+  <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--edit_button_toggle" data-action="toggleEditMode"
+    aria-pressed="{{editMode}}"
+    aria-label="{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}"></button>
 
 </div>
 {{/if}}

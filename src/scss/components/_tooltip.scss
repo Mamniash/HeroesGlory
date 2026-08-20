@@ -91,6 +91,13 @@
     // nothing sets `data-mode="modal"` yet, see tooltip.mjs.
     pointer-events: auto;
   }
+
+  // A left-click-pinned tooltip (tooltip.mjs's `pinTooltip`) needs its OK
+  // button to actually receive clicks, unlike the plain hover-replacement
+  // (right-click-hold) tooltip above, which never intercepts anything.
+  &[data-pinned='true'] {
+    pointer-events: auto;
+  }
 }
 
 // Flex items default to `min-width: auto` (their own unwrapped content
@@ -128,5 +135,29 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
 @each $color in $hg-tooltip-colors {
   .hg-tooltip[data-color='#{$color}'] {
     border-image-source: url('../assets/ui/dialog_frame_#{$color}.png');
+  }
+}
+
+// assets/buttons/iok6432 (64×32 native, 2:1) — same 3-state
+// enabled/pressed/disabled pattern as the backpack scroll arrows
+// (_hero-paperdoll.scss's hsbtns3/hsbtns5), pressed frame held by JS for
+// PIN_OK_PRESS_HOLD_MS (tooltip.mjs) rather than relying on :active for
+// the same reason: the click handler disables the button and tears the
+// whole tooltip down shortly after, so :active wouldn't survive long
+// enough to read as a press.
+.hg-tooltip__ok {
+  @include hg-image-button;
+  width: 9cqw;
+  aspect-ratio: 2 / 1;
+  // A small gap above the button, separating it from the tooltip's own
+  // content — .hg-tooltip's `gap: 0.6cqw` (its own flex `gap` between
+  // every child) already applies here too since this button is just
+  // another flex item, but that alone reads as flush against the last
+  // line of text; this margin is on top of it, not instead of it.
+  margin-top: 0.8cqw;
+  background-image: url('../assets/buttons/iok6432/iok6432_g00_f000.png');
+
+  &.hg-tooltip__ok--pressed {
+    background-image: url('../assets/buttons/iok6432/iok6432_g00_f001.png');
   }
 }

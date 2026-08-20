@@ -118,6 +118,14 @@ $hg-canvas-ratio: '600 / 473';
 // Named, uniquely-positioned slots (разметка.json's non-repeating boxes)
 // ---------------------------------------------------------------
 
+// Standard button size (% of the 600x473 canonical canvas) for the free
+// zone below the inventory (docs/paperdoll_grid.json's "edit_zone",
+// currently holding only edit_button_toggle below but sized for 2-3
+// more) — reused by every button placed there, not hardcoded per button,
+// so a new one just needs its own left/top paired with these same two.
+$hg-zone-button-width: 52 / 600 * 100;
+$hg-zone-button-height: 36 / 473 * 100;
+
 $hg-named-slots: (
   portrait: (2.333, 2.96, 9.667, 13.531),
   name: (12.667, 3.171, 36.333, 13.319),
@@ -137,6 +145,13 @@ $hg-named-slots: (
   mana_desc: (33.667, 47.357, 15.333, 8.879),
   arrow_left: (51.667, 73.996, 3.667, 9.725),
   arrow_right: (93.667, 73.996, 3.667, 9.725),
+  // Right-biased within the free zone (docs/paperdoll_grid.json's
+  // "edit_zone": left 50.667%, top 88.372%, width 46.667%, height
+  // 8.879% — measured directly on this file's own 600x473 canvas, unlike
+  // an earlier draft of this zone that used a 672x586 reference and was
+  // wrong) rather than centered — leaves ~37.5% of the zone's width free
+  // to its left for 2-3 more buttons later, no re-layout needed.
+  edit_button_toggle: (88.167, 89.006, $hg-zone-button-width, $hg-zone-button-height),
 );
 
 @each $name, $box in $hg-named-slots {
@@ -298,13 +313,23 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 // `value` is the pristine base (rules.md §8.2 artifact modifiers; see
 // base-actor-sheet.mjs's `context.source` comment for why the base, not
 // this displayed number, is what the input must submit).
+//
+// The cursor/hover affordance is scoped to [data-action] rather than the
+// bare class — the template only adds that attribute when edit mode is
+// on (hero-sheet.mjs's #editMode), so this stays in lockstep with actual
+// clickability without a separate edit-mode-aware selector here: with
+// edit mode off there's no data-action, #onEditPrimaryStat never fires,
+// and this rule simply doesn't match.
 .hero-paperdoll__primary-value-display {
   font-weight: bold;
   font-size: 1.1em;
-  cursor: pointer;
 
-  &:hover {
-    text-decoration: underline;
+  &[data-action] {
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 
@@ -334,9 +359,10 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 .hero-paperdoll__slot--mana_name {
   object-fit: contain;
   // `pointer-events: none` used to sit here since these were pure
-  // decoration with nothing to hover — now each one is a
+  // decoration with nothing to interact with — now each one is a
   // `[data-tooltip-trigger]` (module/helpers/tooltip.mjs), so they need
-  // to receive mouseenter/mouseleave like morale/luck already do below.
+  // to receive mousedown/click/contextmenu like morale/luck already do
+  // below.
 }
 
 .hero-paperdoll__slot--health_desc,
@@ -452,20 +478,11 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 // needed there.
 .hero-paperdoll__slot--arrow_left,
 .hero-paperdoll__slot--arrow_right {
-  display: block;
-  border: none;
-  // Suppresses the default browser/Foundry white focus ring on click —
-  // these buttons have their own pressed/disabled art (above) to show
-  // state, and any framing/highlight elsewhere on the sheet is the
-  // artifact-slot drop-target overlay below (a drawn asset, not this
-  // property), not a focus outline.
-  outline: none;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  padding: 0;
-  cursor: pointer;
+  @include hg-image-button;
 
+  // These buttons have their own disabled art (below) to show that state —
+  // `not-allowed` is still a deliberate choice on top of the mixin's plain
+  // `default`, not leftover Foundry chrome.
   &:disabled {
     cursor: not-allowed;
   }
@@ -520,6 +537,23 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   background-size: 100% 100%;
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+// edit-1.png/edit-2.png (assets/buttons/edit/) — a 2-state toggle (off/on),
+// not the 3-state hsbtns pattern above: `aria-pressed` is both the
+// correct ARIA role for a toggle button and, doubling as the state
+// selector here, one less thing to keep in sync than a separate CSS
+// class would be. Pre-resized to $hg-zone-button-width/height's own
+// 52x36 (contain == 100% 100% here since the box already shares that
+// exact aspect ratio; contain kept for consistency with the other
+// button-asset rules above).
+.hero-paperdoll__slot--edit_button_toggle {
+  @include hg-image-button;
+  background-image: url('../assets/buttons/edit/edit-1.png');
+
+  &[aria-pressed='true'] {
+    background-image: url('../assets/buttons/edit/edit-2.png');
+  }
 }
 
 // ---------------------------------------------------------------

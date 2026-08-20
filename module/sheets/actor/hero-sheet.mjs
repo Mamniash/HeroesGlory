@@ -1,7 +1,7 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { useSkill, findSpellVariant, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
 import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
 } from '../../helpers/skill-icons.mjs';
@@ -43,14 +43,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
   static DEFAULT_OPTIONS = {
     actions: {
-      // buttons:[0,2] opts into right-click (auxclick) alongside the
-      // default left-click-only behavior a bare handler function gets.
-      useSkill: { handler: this.#onUseSkill, buttons: [0, 2] },
       backpackScroll: this.#onBackpackScroll,
       openSpellbook: this.#onOpenSpellbook,
       closeSpellbook: this.#onCloseSpellbook,
       spellbookPage: this.#onSpellbookPage,
       editPrimaryStat: this.#onEditPrimaryStat,
+      toggleEditMode: this.#onToggleEditMode,
     },
   };
 
@@ -96,11 +94,36 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    */
   #spellbookPage = 0;
 
+  /**
+   * Gates the hover-reveal delete buttons on paperdoll/backpack/secondary-
+   * skill slots, the primary-stat click-to-edit affordance, and which
+   * action a left click on a weapon/artifact/secondary-skill icon
+   * performs (game action — attack, for a weapon — or the tooltip
+   * (tooltip.mjs's click-to-pin) when off, open that item's own sheet
+   * when on; see the template's per-icon `data-action`) — all unrelated
+   * to any game rule, off by default so a freshly opened sheet doesn't
+   * invite accidental deletes. Sheet-local rather than a
+   * `system.*` field: same transient-UI-state pattern as #spellbookOpen
+   * above, chosen because this is a per-viewer editing-workflow toggle,
+   * not actor data — a `system.*` field would sync to every client
+   * looking at this actor (including players, if they can see this
+   * sheet) and would need its own migration/schema entry for something
+   * that isn't part of the character at all. If edit mode ever needs to
+   * survive a sheet close/reopen or be visible to other clients, that's
+   * the point to revisit this as a `system.*` (or actor flag) field instead.
+   * @type {boolean}
+   */
+  #editMode = false;
+
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const config = CONFIG.HEROES_GLORY;
     const system = this.actor.system;
+
+    // Gates the hover-reveal delete buttons and primary-stat click-to-edit
+    // affordance across the whole template — see #editMode's own comment.
+    context.editMode = this.#editMode;
 
     context.raceLabel = config.races[system.race] ?? '';
     context.factionLabel = config.factions[system.faction] ?? '';
@@ -282,17 +305,11 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
-    // The `useSkill` action already opts into right-click via `auxclick`
-    // (see DEFAULT_OPTIONS.actions above); without this, the browser's own
-    // context menu would also flash on right-click before auxclick fires.
-    this.element.querySelectorAll('[data-action="useSkill"]').forEach((el) => {
-      el.addEventListener('contextmenu', (event) => event.preventDefault());
-    });
 
-    // A re-render can swap the hovered trigger element out from under a
-    // still-hovering cursor — its `mouseleave` would then never fire, so
-    // a tooltip from the previous render would otherwise keep floating
-    // over the new one. Unconditionally clear it before re-binding.
+    // A re-render can swap out a trigger element mid right-click-hold or
+    // mid-pin — attachTooltip's own listeners on the old (now-detached)
+    // element would never fire again either way. Unconditionally clear
+    // before re-binding.
     hideTooltip();
     this.element.querySelectorAll('[data-tooltip-trigger]').forEach((triggerEl) => {
       const key = triggerEl.dataset.tooltipTrigger;
@@ -303,7 +320,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // triggers live under `.hero-spellbook` instead, a sibling canvas,
       // never both at once.
       const boundsEl = triggerEl.closest('.hero-paperdoll, .hero-spellbook');
-      attachTooltip(triggerEl, template, { boundsEl });
+      // A left click only pins the tooltip open on triggers whose left
+      // click isn't already some other action (weapon attack, spell cast,
+      // open spellbook — these carry their own `data-action` in every
+      // mode) and only while edit mode is off (edit mode's own click
+      // affordances, e.g. opening an item's sheet, take left click over
+      // instead — including the secondary-skill icon, which otherwise has
+      // no `data-action` of its own at all).
+      const clickToPin = !this.#editMode && !triggerEl.dataset.action;
+      attachTooltip(triggerEl, template, { boundsEl, clickToPin });
     });
 
     // Primary-skill cells show the effective (post-artifact) value by
@@ -463,20 +488,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * Left-click a secondary-skill slot: post its current tier to chat.
-   * Right-click: open the skill item's own sheet.
-   * @this {HeroesGloryHeroSheet}
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static #onUseSkill(event, target) {
-    const skill = this.actor.items.get(target.dataset.itemId);
-    if (!skill) return;
-    if (event.button === 2) return skill.sheet.render(true);
-    return useSkill(this.actor, skill);
-  }
-
-  /**
    * Scroll the backpack strip left/right by one slot
    * (`data-direction="prev"|"next"`), clamped in `_prepareContext` on
    * every render. Also holds the clicked arrow's pressed frame for
@@ -555,5 +566,16 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     input.hidden = false;
     input.focus();
     input.select();
+  }
+
+  /**
+   * Toggle #editMode (the free zone's edit-mode button, below the
+   * inventory) — gates the delete buttons and primary-stat edit
+   * affordance across the whole template, see #editMode's own comment.
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onToggleEditMode() {
+    this.#editMode = !this.#editMode;
+    return this.render();
   }
 }
