@@ -1,32 +1,20 @@
 r"""
-downscale_border.py -- umenshaet assets/ui/dialog_frame_<цвет>.png
-(192x192, ugol/trim 64px) do 96x96 (ugol/trim 32px) kachestvennym
+downscale_border.py -- umenshaet uzhe sobrannye dialog_frame_<цвет>.png
+(192x192, ugly/trim 64px) do 96x96 (ugly/trim 32px) kachestvennym
 resemplingom (LANCZOS), pishet OTDELNYE fayly dialog_frame_32_<цвет>.png --
-originaly NE trogaet (oni ostayutsya obshchim istochnikom dlya etogo
-skripta i dlya crop_tooltip_fill.py, derzhat ih otdelno ot proizvodnyh
-32px failov -- prosto gigiena, ne trebovanie CSS: border-image-source v
-_tooltip.scss teper ssylaetsya tolko na _32-varianty).
+originaly NE trogaet (te zhe dialog_frame_<цвет>.png ispolzuet ne tolko
+tooltip, no i race/faction/class/panel-color pikery cherez tot zhe sloy
+.hg-tooltip -- porcha na meste uehala by srazu vezde).
+
+Pochemu ne peresobrat cherez make_border.py s nulya: syrye kadry
+(D:\HG_Sheet_Assets\ui\dialgbox\*.png, dibox128.png -- ne v repozitorii)
+narisovany HOMM3 tolko v 64px, bolshe nikakogo razreshenija u nih net --
+lyuboe umenshenie vsyo ravno trebuet resemplinga, tak chto proshche
+(i vosproizvodimee, bez zavisimosti ot vneshnih failov) sdelat eto na uzhe
+gotovom 192x192 kompozite.
 
 Proverено (sm. plan/scratch-eksperiment): LANCZOS na 64->32 uglu ostavlyaet
 scrollwork chitaemym, zametno luchshe nyneshnego runtime-szhatiya do ~20-24px.
-
-VAZhNO pro sami originaly: assets/ui/dialog_frame_<цвет>.png sobrany
-(scripts/make_border.py) BEZ --bg. S --bg middle byl by zapolnen tem zhe
-netayl'nym kropom vneshney tekstury, chto dal vidimye styki v bolshom
-"fill" kvadrate (sm. _tooltip.scss) -- i ottuda zhe tekli styki tonkoy
-polosoy vdol lyubogo kraya, potomu chto sprity "top"/"bottom"/"left"/
-"right" iz dialgbox.def pokryvayut tolko samu zolotuyu liniyu, koroche
-svoey zonoy, i ostal'noe zapolnyal tot zhe tayl fona. Bez --bg krome
-liniy/uglov ostaetsya prozrachnost' -- edinstvennyy fon teper risuet
-`::before` v _tooltip.scss, poetomu povtora (i shva) net nigde.
-
-Peresobrat originaly (nuzhny vneshnie fayly, ne v repozitorii -- tolko na
-mashine avtora assetov):
-    python scripts/make_border.py D:\HG_Sheet_Assets\ui\dialgbox ^
-        -o assets/ui --name dialog_frame --all-colors
-(BEZ --bg -- imenno eto i ubiraet shov; s --bg poluchitsya staraya, shovnaya
-versiya). Zatem etot skript peresobiraet 32px variant iz obnovlennyh
-originalov.
 
 Primer:
     python scripts/downscale_border.py

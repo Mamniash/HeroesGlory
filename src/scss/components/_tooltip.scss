@@ -88,24 +88,14 @@
   // sliced pieces render on screen. 32 here matches that source's own
   // 32px corners exactly, so nothing gets rescaled a second time by the
   // browser on top of the offline downscale.
-  // No `fill` keyword, and dialog_frame_<color>.png (source for
-  // dialog_frame_32_<color> below) is regenerated WITHOUT
-  // make_border.py's `--bg` step (scripts/downscale_border.py's own
-  // header explains why the 32px size needs a re-run through
-  // make_border.py at all). That `--bg` fill used to paint a tiled,
-  // unmatched crop of an external leather texture across the WHOLE
-  // canvas before the corner/edge sprites were drawn on top — and those
-  // sprites don't fully cover their own allotted band (checked: the
-  // "top"/"bottom"/"left"/"right" edge frames are only the trim line
-  // itself, shorter than the band make_border.py reserves for them), so
-  // the same seam that `fill` caused in the big middle square was also
-  // leaking through as a thinner tiled strip along every edge — a
-  // border-width `repeat` of the OLD asset on a tall/wide tooltip showed
-  // it clearly once actually rendered close up, not just in the middle.
-  // Skipping `--bg` leaves corners/edges as sprite art on a transparent
-  // field with nothing else drawn — `::before` below is the only thing
-  // painting a background anywhere on this element now, so there's
-  // exactly one instance of the texture, never a repeat, never a seam.
+  // No `fill` keyword: the middle of dialog_frame_<color>.png is a raw,
+  // unmatched crop of an external tile texture (make_border.py's `--bg`,
+  // pasted with a plain paste loop, no edge blending) — tiling it via
+  // `fill` + `border-image-repeat: repeat` showed visible seams. The
+  // middle is left transparent here and painted once, stretched, by
+  // `::before` below instead (assets/ui/tooltip_fill.png, a single crop
+  // of that same region, from the original 192px file for more source
+  // detail before it gets stretched — one instance can't have a seam).
   border-image-slice: 32;
   // Fixed-height edge tiles repeating along a tall tooltip's sides can in
   // principle end on a partial tile — not checked against a real long
