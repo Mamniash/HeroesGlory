@@ -85,12 +85,16 @@
   // texture, not a crop of the border art — one instance can't have a
   // seam).
   border-image-slice: 64;
-  // Fixed-height edge tiles repeating along a tall tooltip's sides can in
-  // principle end on a partial tile — not checked against a real long
-  // tooltip render yet; switch to `round` here if that's visible (round
-  // stretches tiles slightly to fit a whole number instead of clipping
-  // the last one).
-  border-image-repeat: repeat;
+  // `repeat` clips whatever doesn't divide evenly into a whole tile —
+  // confirmed on a real render this isn't an edge case: the actual open
+  // tooltip's left/right edges (64px-tall native tile) had ~153px to
+  // fill, 2.4 tiles' worth, so a third of a tile got cut off wherever the
+  // browser chose to start counting from — visible both as a seam and as
+  // the two edges no longer looking symmetric around the middle. `round`
+  // stretches the tile count that DOES fit so it always lands exactly on
+  // a whole number — no clipped partial tile, so no seam and no
+  // top/bottom (or left/right) mismatch from one.
+  border-image-repeat: round;
   // Governs the border-image corners/edges above AND `.hg-tooltip__icon`
   // (both genuine pixel art) — deliberately NOT applied to the `::before`
   // background below, which needs its own `image-rendering: auto` (a
@@ -105,6 +109,20 @@
     content: '';
     position: absolute;
     inset: 0;
+    // `inset: 0` alone sizes this to .hg-tooltip's PADDING box, not its
+    // border box — the containing block for an absolutely positioned
+    // element is the nearest positioned ancestor's padding edge, not its
+    // border edge (CSS spec, not a bug in the browser). That left the
+    // whole 64px border band uncovered: dialog_frame_<color>.png is
+    // transparent there beyond the trim line itself (see the
+    // border-image-slice comment above), so nothing painted it and
+    // whatever sat behind the tooltip showed through as a gap between the
+    // frame and the fill — confirmed live (Foundry, not the offline
+    // mockup that didn't catch this). `margin: -#{64px}` (matches
+    // border-width exactly) expands this back out to the full border box,
+    // same trick as any "bleed a pseudo-element under its own parent's
+    // border" layout.
+    margin: -64px;
     // Stays inside .hg-tooltip's own stacking context (position: absolute
     // + z-index: 10 above already establishes one), so this negative
     // z-index only drops it behind this element's own border/content, not
