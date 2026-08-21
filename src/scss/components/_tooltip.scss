@@ -35,51 +35,105 @@
   justify-content: center;
   gap: 0.6cqw;
   text-align: center;
-  // No explicit min-width/min-height: the old fixed-px design needed one
-  // (128px of border alone could exceed a short tooltip's own content
-  // width), but at these much smaller cqw sizes the icon alone (7cqw)
-  // plus padding already exceeds the border's own structural minimum
-  // (2 × 2.5cqw border + 2 × 1.5cqw padding = 8cqw) in every real
-  // tooltip, so a stated floor would never actually bind — see §3 of the
-  // task this came from for the actual numbers measured.
+  // No explicit min-width/min-height: box-sizing: border-box guarantees
+  // outer width/height = content + padding + 2×border always, so it can
+  // never fall below 2×border — opposite corners structurally can't
+  // overlap no matter how little content there is. Not a coincidence of
+  // particular numbers, a property of the box model.
   max-width: 42cqw; // long secondary-skill descriptions wrap here
   // instead of stretching the frame into a bar
   padding: 1cqw 1.5cqw;
-  // border-image doesn't distort the frame's proportions as border-width
-  // shrinks — verified against the spec: border-width is uniform on every
-  // side here, so corner slices scale by the same factor on both axes
-  // (square in, square out) and edge tiles keep their own aspect ratio
-  // under `border-image-repeat: repeat` (below) rather than stretching.
-  // What actually degrades at small sizes is plain downscale detail loss:
-  // the 64px source slice rendering into as little as ~7px at a small
-  // canvas. Checked for real (cropped the actual corner out of
-  // dialog_frame_red.png at several target sizes, nearest-neighbor
-  // upscaled for inspection — not just computed-style math): the gold
-  // filigree only reads as a scroll pattern from ~32px; 19-24px keeps a
-  // gold accent but no scrollwork; 14px is a flat stripe with no frame
-  // impression at all. 32px isn't a usable floor either — 2.5cqw only
-  // reaches 32px past a ~1280px-wide canvas, wider than most real sheet
-  // windows get, so that floor would dominate almost every session,
-  // defeating the point of scaling with the window at all. 20px is the
-  // chosen middle ground: the gold corner accent stays readable even
-  // though the scrollwork itself doesn't. `max()` gives an unbounded
-  // upper end (unlike the floor, growth with the window is wanted); 2.5cqw
-  // only overtakes 20px once the canvas is >=800px wide, so typical
-  // windows still scale proportionally and only small windows pin at 20px
-  // instead of continuing to shrink into unrecognizable territory.
-  border-width: max(20px, 2.5cqw);
+  // Fixed px, not cqw — deliberately doesn't scale with the canvas or
+  // `--hg-pixel-scale`. Used to be `max(20px, 2.5cqw)`, shrinking the
+  // frame along with the tooltip; that avoided the frame ever dominating
+  // a small tooltip, but meant border-image was almost always rendering
+  // the 64px source corner/edge slices at well under half their own size
+  // — softened past recognition (checked for real: cropped the actual
+  // corner out of dialog_frame_red.png at the sizes this clamped to,
+  // upscaled for inspection — 19-24px keeps a gold accent but no
+  // scrollwork, 14px is a flat stripe). Native size avoids that, but only
+  // if border-width is pinned to the source's own resolution — hence
+  // fixed, not responsive.
+  //
+  // 32px, not the frame source's original 64px: measured (real cqw
+  // constants from this file, `--hg-pixel-scale` formula from
+  // hero-sheet.mjs, real content — an icon+one-word tooltip like
+  // `skill-attack`, and an icon+title+~140-char body like an expert
+  // secondary-skill tooltip) what fraction of the tooltip's own area a
+  // fixed border eats at 20/32/64px across ~420/~758/~1400px canvas
+  // widths. 64px was untenable — 70-93% border on a short tooltip
+  // depending on width, and on a long tooltip at the narrowest canvas the
+  // text column shrinks to ~36px (title wraps letter by letter, not just
+  // "a bit tight"); even at the widest canvas tested, the title still
+  // wraps to 2 lines where it fit on 1 at 32px. 32px roughly halves the
+  // 64px numbers and keeps the source's own scrollwork legible when
+  // downscaled with a real resampling filter (LANCZOS — checked by
+  // shrinking the actual corner crop, not just eyeballing) — see
+  // scripts/downscale_border.py, which is where dialog_frame_32_<color>
+  // (below) actually comes from. It's the floor of legibility, not a
+  // margin: a short tooltip on the narrowest canvas still lands at ~82%
+  // border, worse than the old adaptive 71% — inherent to a border that
+  // no longer shrinks with content that still does (`cqw`); not
+  // compensated for here (e.g. a larger min-width for icon-only
+  // tooltips specifically) since nothing asked for that and it's a
+  // separate call.
+  border-width: 32px;
   border-style: solid;
   border-color: transparent;
-  // Pixel coordinate INTO the 192×192 source PNG (where to slice the
-  // corners/edges from) — unrelated to border-width above, which only
-  // controls how big the sliced pieces render on screen. Stays 64
-  // regardless of how small border-width gets.
-  border-image-slice: 64 fill;
+  // Pixel coordinate INTO the 96×96 source PNG (dialog_frame_32_<color>,
+  // scripts/downscale_border.py — NOT the original 192×192
+  // dialog_frame_<color>, which the race/faction/class/panel-color picker
+  // still uses unscaled via this same .hg-tooltip layer, pinTooltip) —
+  // unrelated to border-width above, which only controls how big the
+  // sliced pieces render on screen. 32 here matches that source's own
+  // 32px corners exactly, so nothing gets rescaled a second time by the
+  // browser on top of the offline downscale.
+  // No `fill` keyword: the middle of dialog_frame_<color>.png is a raw,
+  // unmatched crop of an external tile texture (make_border.py's `--bg`,
+  // pasted with a plain paste loop, no edge blending) — tiling it via
+  // `fill` + `border-image-repeat: repeat` showed visible seams. The
+  // middle is left transparent here and painted once, stretched, by
+  // `::before` below instead (assets/ui/tooltip_fill.png, a single crop
+  // of that same region, from the original 192px file for more source
+  // detail before it gets stretched — one instance can't have a seam).
+  border-image-slice: 32;
+  // Fixed-height edge tiles repeating along a tall tooltip's sides can in
+  // principle end on a partial tile — not checked against a real long
+  // tooltip render yet; switch to `round` here if that's visible (round
+  // stretches tiles slightly to fit a whole number instead of clipping
+  // the last one).
   border-image-repeat: repeat;
+  // Governs the border-image corners/edges above AND `.hg-tooltip__icon`
+  // (both genuine pixel art) — deliberately NOT applied to the `::before`
+  // background below, which needs its own `image-rendering: auto` (a
+  // painterly leather crop stretched 5-20× turns to flat mush blocks under
+  // `pixelated`, checked against an actual render). That's the whole
+  // reason the fill moved to a separate pseudo-element instead of just
+  // adding `background` here: one element can't have two different
+  // `image-rendering` values for two different images it draws.
   image-rendering: pixelated;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    // Stays inside .hg-tooltip's own stacking context (position: absolute
+    // + z-index: 10 above already establishes one), so this negative
+    // z-index only drops it behind this element's own border/content, not
+    // behind anything outside .hg-tooltip.
+    z-index: -1;
+    background: url('../assets/ui/tooltip_fill.png') center / 100% 100% no-repeat;
+    image-rendering: auto;
+  }
+  // Body text (this box's own `p` elements — the icon/title get their own
+  // rules below) — smalfont, same role as the sheet's own body text, and
+  // the same `--hg-pixel-scale` step (inherited: this layer is a real DOM
+  // child of whichever canvas is showing, `tooltip.mjs`'s own
+  // `boundsEl.appendChild`, so the custom property set on the canvas
+  // element by hero-sheet.mjs's `#updatePixelScale` reaches this for free —
+  // no separate JS wiring needed here).
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
   color: $hg-parchment;
-  font-family: $font-primary;
-  font-size: 1.8cqw;
   pointer-events: none; // tooltip mode never intercepts clicks
 
   &[hidden] {
@@ -123,7 +177,13 @@
 
 .hg-tooltip__title {
   margin: 0;
-  font-weight: bold;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+  // Role E ($hg-gold, utils/_fonts.scss) — the deepest/most saturated step
+  // of the gold family, matching the original's own header/title
+  // treatment. The emphasis that used to come from `font-weight: bold`
+  // (removed, a pixel font has no bold weight to switch to) comes from
+  // size (medium vs the body's small) and color instead.
+  color: $hg-gold;
 }
 
 .hg-tooltip p {
@@ -134,7 +194,12 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
 
 @each $color in $hg-tooltip-colors {
   .hg-tooltip[data-color='#{$color}'] {
-    border-image-source: url('../assets/ui/dialog_frame_#{$color}.png');
+    // _32 (96×96, 32px corners) — scripts/downscale_border.py, separate
+    // files from the original dialog_frame_<color>.png (192×192) so the
+    // race/faction/class/panel-color picker, which renders through this
+    // same .hg-tooltip[data-color] layer via pinTooltip, isn't affected
+    // by an in-place edit gone wrong.
+    border-image-source: url('../assets/ui/dialog_frame_32_#{$color}.png');
   }
 }
 
@@ -159,5 +224,46 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
 
   &.hg-tooltip__ok--pressed {
     background-image: url('../assets/buttons/iok6432/iok6432_g00_f001.png');
+  }
+}
+
+// Race/Faction/ClassType/PanelColor pickers (hero-sheet.mjs's
+// #openOptionPicker) — a vertical list of plain text buttons inside the
+// same pinned .hg-tooltip layer as .hg-tooltip__ok above (called with
+// `okButton: false`, since picking an option or clicking outside already
+// closes the list — a second explicit close button would be redundant).
+// No fixed-count native art exists for an arbitrary-length option list,
+// unlike .hg-tooltip__ok's iok6432 sprite, so this is a plain styled
+// button rather than a background-image swap.
+.hg-option-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3cqw;
+  width: 100%;
+}
+
+.hg-option-list__item {
+  // Point reset, not a blanket one — this selector is unique to this new
+  // component and doesn't share a class with any real Foundry control, so
+  // `all: unset` here doesn't risk the kind of collision CLAUDE.md warns
+  // about for .hero-paperdoll__slot.
+  all: unset;
+  cursor: pointer;
+  text-align: center;
+  padding: 0.3cqw 0.6cqw;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  color: $hg-parchment;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  // The currently-selected value (hero-sheet.mjs's #openOptionPicker sets
+  // this via `dataset.current`) — role E ($hg-gold, utils/_fonts.scss),
+  // the same emphasis color as this same layer's own tooltip title just
+  // above, not tied to the paperdoll's own label palette.
+  &[data-current='true'] {
+    color: $hg-gold;
   }
 }
