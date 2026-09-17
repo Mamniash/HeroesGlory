@@ -75,7 +75,10 @@ export class HeroesGloryItem extends Item {
    * §8.1: a hero can have at most one equipped melee weapon and one
    * equipped ranged weapon. When this item transitions to `equipped: true`,
    * unequip whatever else currently occupies its weapon-type slot instead
-   * of silently letting two items share it.
+   * of silently letting two items share it. Applies equally to a real
+   * weapon and to an artifact whose `artifactType` is "enchantedWeapon" —
+   * see #isWeaponLike below — so a hero can't dual-wield a real sword and
+   * an enchanted one, or two enchanted ones, any more than two real ones.
    *
    * The old "one equipped artifact per artifactType" rule this method used
    * to also enforce was never a book rule (rules.md §8.2 has no such text)
@@ -88,7 +91,12 @@ export class HeroesGloryItem extends Item {
    * Also keeps an artifact's structured `system.modifiers` (§8.2) synced
    * onto a real embedded ActiveEffect, so the bonuses actually apply
    * instead of just being displayed as text — see module/helpers/
-   * modifiers.mjs and #syncModifierEffect below.
+   * modifiers.mjs and #syncModifierEffect below. This runs independently
+   * of the weapon-slot logic above: an enchanted weapon's `+N к Атаке`
+   * keeps applying via its own ActiveEffect (gated on `equipped` alone)
+   * regardless of whether it's sitting in the weapon paperdoll slot, the
+   * backpack, or nowhere in particular — `#syncModifierEffect` never
+   * looks at `paperdollSlot`.
    * @override
    */
   _onUpdate(changed, options, userId) {
@@ -103,7 +111,7 @@ export class HeroesGloryItem extends Item {
     }
 
     if (!this.actor) return;
-    if (this.type !== 'weapon') return;
+    if (!HeroesGloryItem.#isWeaponLike(this)) return;
     if (changed.system?.equipped !== true) return;
 
     const conflict = this.#findEquippedSlotConflict();
@@ -111,14 +119,29 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
-   * Find another owned weapon of the same melee/ranged category currently
-   * equipped, per §8.1's one-melee/one-ranged rule.
+   * Whether `item` behaves as a weapon for the one-melee/one-ranged
+   * exclusivity rule (§8.1) and the weapon paperdoll slot (helpers/
+   * paperdoll-slots.mjs) — a real weapon, or an artifact whose
+   * `artifactType` is "enchantedWeapon" (§8.2, made to behave exactly
+   * like a real weapon once equipped).
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  static #isWeaponLike(item) {
+    return item.type === 'weapon'
+      || (item.type === 'artifact' && item.system.artifactType === 'enchantedWeapon');
+  }
+
+  /**
+   * Find another owned weapon (or enchanted-weapon artifact) of the same
+   * melee/ranged category currently equipped, per §8.1's one-melee/
+   * one-ranged rule.
    * @returns {Item|undefined}
    */
   #findEquippedSlotConflict() {
     const ranged = this.system.weaponType === 'ranged';
     return this.actor.items.find((i) =>
-      i.id !== this.id && i.type === 'weapon' && i.system.equipped
+      i.id !== this.id && i.system.equipped && HeroesGloryItem.#isWeaponLike(i)
       && (i.system.weaponType === 'ranged') === ranged
     );
   }

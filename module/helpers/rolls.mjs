@@ -109,6 +109,24 @@ export function resolveEpicTableRow(d6, table) {
 }
 
 /**
+ * §5.4/§8.1: whether `table` actually has anything in it — `false` for
+ * `null`/`undefined` (no table at all, e.g. a ranged weapon) AND for an
+ * array of blank strings (e.g. an enchanted-weapon artifact: the book's
+ * "Зачарованное оружие" table has no epic-table column at all, but the
+ * schema still keeps the same 6-string `epicTable` shape item-weapon.mjs
+ * uses, defaulting to 6 blanks — see item-artifact.mjs's own comment).
+ * Without this check, a present-but-blank array would still read as "has
+ * an epic table" downstream and trigger the severity/"Куда попал"
+ * cascade with empty flavor text on a 6, instead of skipping the whole
+ * cascade the way a genuinely absent table does for a ranged weapon.
+ * @param {string[]|null|undefined} table
+ * @returns {boolean}
+ */
+export function epicTableHasContent(table) {
+  return Array.isArray(table) && table.some((row) => typeof row === 'string' && row.trim() !== '');
+}
+
+/**
  * §5.4/§5.7: whether the repeated d6 counts as "существенное повреждение".
  * Normally needs a 6; a legendary creature's epic triggers it on a 4+.
  * @param {number} d6

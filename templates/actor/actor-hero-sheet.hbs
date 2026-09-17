@@ -228,10 +228,14 @@
           `data-action` at all, same as an artifact — left click is a
           no-op there, not a tooltip (paperdoll/backpack icons never get
           `data-tooltip-click`, see the trigger-binding loop in
-          hero-sheet.mjs's `_onRender`). --}}
+          hero-sheet.mjs's `_onRender`). An artifact whose artifactType is
+          "enchantedWeapon" counts as a weapon here too (§8.2 — made to
+          behave exactly like a real one once equipped); the other 5
+          artifact types fall through to the plain editMode-only branch,
+          same as before. --}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
           {{#if (eq this.item.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (eq this.item.type 'weapon')}}{{#if ../editMode}}data-action="openItem"{{else if this.item.system.equipped}}data-action="rollAttack"{{/if}}
+          {{else if (or (eq this.item.type 'weapon') (and (eq this.item.type 'artifact') (eq this.item.system.artifactType 'enchantedWeapon')))}}{{#if ../editMode}}data-action="openItem"{{else if this.item.system.equipped}}data-action="rollAttack"{{/if}}
           {{else if ../editMode}}data-action="openItem"{{/if}}
           data-tooltip-trigger="paperdoll-{{this.index}}">
         {{#if ../editMode}}
@@ -251,7 +255,7 @@
       {{#if this}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
           {{#if (eq this.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (eq this.type 'weapon')}}{{#if ../editMode}}data-action="openItem"{{else if this.system.equipped}}data-action="rollAttack"{{/if}}
+          {{else if (or (eq this.type 'weapon') (and (eq this.type 'artifact') (eq this.system.artifactType 'enchantedWeapon')))}}{{#if ../editMode}}data-action="openItem"{{else if this.system.equipped}}data-action="rollAttack"{{/if}}
           {{else if ../editMode}}data-action="openItem"{{/if}}
           data-tooltip-trigger="backpack-{{inc @index}}">
         {{#if ../editMode}}

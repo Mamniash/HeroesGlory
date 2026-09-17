@@ -492,7 +492,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * backpack first. The §8.1 melee/ranged weapon conflict is still
    * auto-resolved separately by module/documents/item.mjs's
    * #findEquippedSlotConflict on this same `equipped: true` update
-   * (gated to `type === 'weapon'` there, so a spellbook is unaffected).
+   * (gated to real weapons and "enchantedWeapon" artifacts there via
+   * #isWeaponLike, so a spellbook or any other artifact is unaffected).
    * @param {Item} item
    * @param {number|null} slot
    * @returns {Promise<Item>}

@@ -10,6 +10,7 @@ import {
   resolveDamage,
   resolvePotentialDamage,
   resolveEpicTableRow,
+  epicTableHasContent,
   resolveEpicSeverity,
   resolveHitLocation,
   SCHOOL_SKILL_KEYS,
@@ -226,11 +227,19 @@ export async function rollAttack(actor, weapon = null) {
   }
 
   const baseDamage = weapon ? weapon.system.damage : actor.system.damage;
-  // §5.4: ranged weapons have no epic table. Creatures always have their
-  // own — the data model has no "ranged" concept for them.
-  const epicTable = weapon
+  // §5.4: ranged weapons have no epic table, and neither does an
+  // enchanted-weapon artifact (the book's "Зачарованное оружие" table has
+  // no epic-table column at all) — `epicTableHasContent` catches both:
+  // a ranged weapon's `epicTable` is nulled out below already, and an
+  // enchanted weapon's is a present-but-all-blank array (item-artifact.mjs
+  // keeps the same 6-string shape item-weapon.mjs uses), which would
+  // otherwise still read as "has a table" and run the severity/"Куда
+  // попал" cascade with empty flavor text. Creatures always have their
+  // own real table — the data model has no "ranged" concept for them.
+  const rawEpicTable = weapon
     ? (weapon.system.weaponType === 'ranged' ? null : weapon.system.epicTable)
     : actor.system.epicTable;
+  const epicTable = epicTableHasContent(rawEpicTable) ? rawEpicTable : null;
   const legendary = weapon ? false : !!actor.system.legendary;
   const targetDefense = targetActor?.system?.defense ?? null;
 
