@@ -1,0 +1,47 @@
+{
+  "_id": "gjpe7TqA8BEigw7C",
+  "name": "Воздушный Щит",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "air",
+    "level": 3,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.",
+        "manaCost": 12
+      },
+      "basic": {
+        "description": "Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.",
+        "manaCost": 10
+      },
+      "advanced": {
+        "description": "Снижает получаемый урон в дальнем бою на 10, до минимума в 1",
+        "manaCost": 10
+      },
+      "expert": {
+        "description": "Может воздействовать на количество существ, равное СМ",
+        "manaCost": 10
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 160000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!gjpe7TqA8BEigw7C"
+}

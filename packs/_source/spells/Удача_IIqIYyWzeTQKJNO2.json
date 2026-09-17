@@ -1,0 +1,47 @@
+{
+  "_id": "IIqIYyWzeTQKJNO2",
+  "name": "Удача",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "air",
+    "level": 1,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.",
+        "manaCost": 12
+      },
+      "basic": {
+        "description": "Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.",
+        "manaCost": 4
+      },
+      "advanced": {
+        "description": "Параметр удачи цели увеличивается на 2 до максимума в 3",
+        "manaCost": 4
+      },
+      "expert": {
+        "description": "Может воздействовать на количество существ, равное СМ",
+        "manaCost": 4
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 130000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!IIqIYyWzeTQKJNO2"
+}

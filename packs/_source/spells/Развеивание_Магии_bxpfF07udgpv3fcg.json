@@ -1,0 +1,47 @@
+{
+  "_id": "bxpfF07udgpv3fcg",
+  "name": "Развеивание Магии",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "water",
+    "level": 1,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Снимает все заклинания с выбранного дружественного существа.",
+        "manaCost": 5
+      },
+      "basic": {
+        "description": "Снимает все заклинания с выбранного дружественного существа.",
+        "manaCost": 4
+      },
+      "advanced": {
+        "description": "Работает на любое существо",
+        "manaCost": 4
+      },
+      "expert": {
+        "description": "Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его",
+        "manaCost": 4
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 230000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!bxpfF07udgpv3fcg"
+}

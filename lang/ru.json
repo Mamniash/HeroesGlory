@@ -526,7 +526,8 @@
     "Compendium": {
       "Weapons": "Оружие",
       "Skills": "Вторичные навыки",
-      "Artifacts": "Артефакты"
+      "Artifacts": "Артефакты",
+      "Spells": "Заклинания"
     }
   },
 

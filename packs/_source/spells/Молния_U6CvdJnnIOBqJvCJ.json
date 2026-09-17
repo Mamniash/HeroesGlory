@@ -1,0 +1,47 @@
+{
+  "_id": "U6CvdJnnIOBqJvCJ",
+  "name": "Молния",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "air",
+    "level": 2,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.",
+        "manaCost": 24
+      },
+      "basic": {
+        "description": "Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.",
+        "manaCost": 16
+      },
+      "advanced": {
+        "description": "Урон увеличивается до 4d6+СМ",
+        "manaCost": 16
+      },
+      "expert": {
+        "description": "Урон увеличивается до 5d6+СМ",
+        "manaCost": 16
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 140000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!U6CvdJnnIOBqJvCJ"
+}

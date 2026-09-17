@@ -1,0 +1,47 @@
+{
+  "_id": "C4orurNayAAzPHFF",
+  "name": "Инферно",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "fire",
+    "level": 4,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.",
+        "manaCost": 56
+      },
+      "basic": {
+        "description": "Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.",
+        "manaCost": 48
+      },
+      "advanced": {
+        "description": "Затрагивает клетки в радиусе 2 клеток от центра",
+        "manaCost": 48
+      },
+      "expert": {
+        "description": "Урон увеличивается до 1d6+1 за СМ",
+        "manaCost": 48
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 360000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!C4orurNayAAzPHFF"
+}

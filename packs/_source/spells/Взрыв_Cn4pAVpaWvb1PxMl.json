@@ -1,0 +1,47 @@
+{
+  "_id": "Cn4pAVpaWvb1PxMl",
+  "name": "Взрыв",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "earth",
+    "level": 5,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.",
+        "manaCost": 50
+      },
+      "basic": {
+        "description": "Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.",
+        "manaCost": 40
+      },
+      "advanced": {
+        "description": "Урон увеличивается до 2d6+4 за СМ",
+        "manaCost": 40
+      },
+      "expert": {
+        "description": "Урон увеличивается до 2d6+5 за СМ",
+        "manaCost": 40
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 100000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!Cn4pAVpaWvb1PxMl"
+}

@@ -1,0 +1,47 @@
+{
+  "_id": "jfHAIdsDwW8M0BIq",
+  "name": "Благословение",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "water",
+    "level": 1,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.",
+        "manaCost": 5
+      },
+      "basic": {
+        "description": "Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.",
+        "manaCost": 4
+      },
+      "advanced": {
+        "description": "Бонус урона увеличивается до +6",
+        "manaCost": 4
+      },
+      "expert": {
+        "description": "Может воздействовать на количество существ, равное СМ",
+        "manaCost": 4
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 210000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!jfHAIdsDwW8M0BIq"
+}

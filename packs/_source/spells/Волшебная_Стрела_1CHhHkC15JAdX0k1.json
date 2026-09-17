@@ -1,0 +1,47 @@
+{
+  "_id": "1CHhHkC15JAdX0k1",
+  "name": "Волшебная Стрела",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "universal",
+    "level": 1,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Наносит урон, равный 1d6+СМ выбранному существу.",
+        "manaCost": 10
+      },
+      "basic": {
+        "description": "Наносит урон, равный 1d6+СМ выбранному существу.",
+        "manaCost": 8
+      },
+      "advanced": {
+        "description": "Урон увеличивается до 2d6+СМ",
+        "manaCost": 8
+      },
+      "expert": {
+        "description": "Урон увеличивается до 3d6+СМ",
+        "manaCost": 8
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 380000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!1CHhHkC15JAdX0k1"
+}

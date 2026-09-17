@@ -1,0 +1,47 @@
+{
+  "_id": "7DGvZoOhMVyhpgzH",
+  "name": "Воскрешение",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "earth",
+    "level": 4,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.",
+        "manaCost": 20
+      },
+      "basic": {
+        "description": "Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.",
+        "manaCost": 16
+      },
+      "advanced": {
+        "description": "Существо воскресает навсегда",
+        "manaCost": 16
+      },
+      "expert": {
+        "description": "Существо Воскресает с полными ОЗ",
+        "manaCost": 16
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 80000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!7DGvZoOhMVyhpgzH"
+}
