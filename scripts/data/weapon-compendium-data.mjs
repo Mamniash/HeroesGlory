@@ -20,6 +20,8 @@
  * ключ выбора этого текста и в собранный компендиум не попадает.
  */
 
+import { buildItemDocument } from '../lib/pack-builder.mjs';
+
 // Урон: NumberField в item-weapon.mjs, max проверен по всей книге, не
 // только по этой таблице — верхняя граница артефактного «Гладиус титана»
 // (стр. 46, таблица «Зачарованное оружие») и «Короткий меч Титана» здесь
@@ -154,4 +156,31 @@ export function getWeaponEntries() {
     }
   }
   return entries;
+}
+
+/**
+ * Turns `getWeaponEntries()` into finished compendium Item documents for
+ * `scripts/build-packs.mjs` — id/sort/_stats boilerplate lives in
+ * pack-builder.mjs, this only supplies the weapon-specific `system` shape.
+ * @returns {object[]}
+ */
+export function buildWeaponDocuments() {
+  return getWeaponEntries().map((entry, index) => buildItemDocument({
+    name: entry.name,
+    type: 'weapon',
+    // No dedicated art per weapon yet (assets/ has no weapon icons) — the
+    // same core-Foundry fallback used elsewhere in the system without its
+    // own art (cf. icons/svg/aura.svg in module/documents/actor.mjs).
+    img: 'icons/svg/sword.svg',
+    system: {
+      weaponType: entry.type,
+      damage: entry.damage,
+      source: entry.source,
+      twoHanded: entry.twoHanded,
+      equipped: false,
+      paperdollSlot: null,
+      epicTable: entry.epicTable,
+    },
+    index,
+  }));
 }

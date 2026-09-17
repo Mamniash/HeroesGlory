@@ -1,0 +1,33 @@
+{
+  "_id": "c0kqLOeN90uYKwFS",
+  "name": "Мистицизм",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f027.png",
+  "system": {
+    "skillKey": "mysticism",
+    "tier": "base",
+    "effects": {
+      "base": "Вы можете потратить Основное Действие, чтобы восстановить 10 очков Маны. Это можно делать единожды в день. Ваше количество Маны не может превысить максимум при использовании Мистицизма",
+      "advanced": "Так же, как на Базовом уровне, но восстанавливает 15 очков Маны и может использоваться дважды в день",
+      "expert": "Так же, как на Продвинутом уровне, но восстанавливает 20 очков Маны и может использоваться трижды в день"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 150000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!c0kqLOeN90uYKwFS"
+}

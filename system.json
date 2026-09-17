@@ -67,6 +67,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "skills",
+      "label": "HEROES_GLORY.Compendium.Skills",
+      "path": "packs/skills",
+      "type": "Item",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [],

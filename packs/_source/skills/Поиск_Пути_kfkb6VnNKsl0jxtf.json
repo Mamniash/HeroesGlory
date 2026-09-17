@@ -1,0 +1,33 @@
+{
+  "_id": "kfkb6VnNKsl0jxtf",
+  "name": "Поиск Пути",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f003.png",
+  "system": {
+    "skillKey": "pathfinding",
+    "tier": "base",
+    "effects": {
+      "base": "Вы можете без штрафов перемещаться по сложной местности, как будто она таковой не является. Если вы не видите, ваша скорость перемещения не снижается (но остальные штрафы, например к атаке, остаются)",
+      "advanced": "Вы можете обменять действие «Взаимодействие» на дополнительное действие «Перемещения»",
+      "expert": "Ваша Скорость навсегда увеличивается на 1. Кроме того, вы получаете иммунитет к заклинанию «Замедление»"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 80000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!kfkb6VnNKsl0jxtf"
+}

@@ -1,0 +1,33 @@
+{
+  "_id": "fL60bWGY4niADjCW",
+  "name": "Волшебство",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f078.png",
+  "system": {
+    "skillKey": "sorcery",
+    "tier": "base",
+    "effects": {
+      "base": "Каждый раз, когда вы используете заклинание, наносящее урон, добавляйте 2d6 к суммарному урону",
+      "advanced": "Так же, как на Базовом уровне, но добавляет 3d6 урона",
+      "expert": "Так же, как на Продвинутом уровне, но добавляет 4d6 урона"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 160000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!fL60bWGY4niADjCW"
+}

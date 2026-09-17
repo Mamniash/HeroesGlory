@@ -1,0 +1,33 @@
+{
+  "_id": "I9BcFF8kl76WOIx2",
+  "name": "Магия Воды",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f051.png",
+  "system": {
+    "skillKey": "waterMagic",
+    "tier": "base",
+    "effects": {
+      "base": "Снижает цену произнесения заклинаний Воды",
+      "advanced": "Заклинания Воды произносятся на Продвинутом уровне. Произносить заклинания можно без Книги Магии в руках",
+      "expert": "Заклинания Воды произносятся на Экспертном уровне. Произносить заклинания можно телепатически (не произнося вслух)"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 110000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!I9BcFF8kl76WOIx2"
+}

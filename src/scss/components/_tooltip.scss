@@ -10,141 +10,376 @@
 // working for $hg-panel-colors between hero-paperdoll and spellbook) —
 // no local copy of the parchment color needed here anymore.
 //
-// Every size below is in `cqw`, resolved against the CANVAS's own width
-// (`container-type: inline-size`, set on .hero-paperdoll/.hero-spellbook
-// in _hero-paperdoll.scss) — the same convention .hero-paperdoll__slot's
-// own font-size already uses. This is what makes the tooltip shrink and
-// grow proportionally with the sheet instead of staying a fixed pixel
-// size that can dominate a small window. Border/background sizing below
-// is the one deliberate exception — see the comments on those properties.
+// Every size inside .hg-tooltip below is a fixed, NATIVE px value —
+// deliberately not `cqw`. An earlier version sized the border/background
+// natively but left everything else (icon, padding, text) in `cqw`, which
+// meant the frame's share of the tooltip grew without bound as the canvas
+// shrank (fixed frame, shrinking content) — on a small enough window the
+// tooltip was mostly frame. This version keeps `.hg-tooltip`'s own
+// internal geometry entirely native (same numbers at every canvas width)
+// and scales the WHOLE assembled box — frame, icon, text, all of it — as
+// one unit via `transform: scale(var(--hg-pixel-scale))` below, the same
+// variable that already scales fonts elsewhere on the sheet
+// (`hero-sheet.mjs`'s `#updatePixelScale`). That keeps the frame:content
+// ratio constant at every canvas width, and the source PNG is only ever
+// sampled once at its own native resolution — no re-resampling at any
+// window size, which is what let the filigree go soft in the very first
+// version of this file.
+//
+// Values below are each cqw-value this replaced, evaluated at
+// REFERENCE_CANVAS_WIDTH_PX = 758 (hero-sheet.mjs) — the width where
+// --hg-pixel-scale is exactly 1 by definition, so nothing visually jumps
+// where this shipped.
+//
+// UPDATE (module/apps/picker-app.mjs): `.hg-tooltip` markup now also renders
+// inside a real ApplicationV2 window (the Раса/Фракция/Класс/Цвет панели
+// picker), not just tooltip.mjs's own floating layer — by explicit
+// requirement, it must look IDENTICAL there: same frame, same fill, same
+// padding, same max-width/shrink-wrap sizing rules, everything this header
+// comment describes. The only thing that's actually different between the
+// two hosts is POSITIONING (the floating layer self-centers on a canvas via
+// `position: absolute` + `transform`; the picker window is positioned by
+// Foundry's own window machinery instead) — so only that split out, into
+// `.hg-tooltip--floating` below, a modifier only tooltip.mjs's own floating
+// layer adds. `.hg-tooltip` itself (frame, fill, padding, max-width, font —
+// everything in this header comment) is shared, unconditionally, by both.
+// (An earlier pass over-split this — moved the frame/fill/padding out of
+// `.hg-tooltip` too, chasing a visual "second frame inside the window"
+// report that turned out to mean something narrower: don't ALSO draw
+// Foundry's own default `.window-content` gap around it, not don't draw
+// the frame at all. That's `.window-content:has(.hg-picker)` below, a
+// separate, correct fix — reverted the over-split, kept that one.)
+//
+// No `--hg-pixel-scale` transform for the picker window either way: that
+// variable is part of `.hg-tooltip--floating`'s own positioning concern
+// (scaling the floating layer to match whatever canvas width it's
+// currently centered on), and the picker window was never wired to set it
+// (module/apps/picker-app.mjs has no `PixelScaleController` of its own) —
+// so its `.hg-tooltip` simply renders at native 1:1 there, same numbers as
+// the floating layer at its own reference width.
 
+$hg-tooltip-border-repeat: stretch; // round | repeat | stretch — see the
+// border-image-repeat comment below; switch this one line + `npm run
+// build` to compare on a real render, no other change needed.
+
+// $hg-tooltip-frame-width (64px) is the ::after border-image's own
+// border-width/border-image-slice below — the frame's real reserved
+// thickness, and NOT reducible (shrinking it would resample/rescale the
+// source art itself and flatten the filigree, confirmed painful in an
+// earlier pass). Content padding, below, used to just equal this number
+// plus a little extra — but that assumed the whole 64px band is opaque
+// decoration, which turned out false: measured directly against
+// assets/ui/dialog_frame_*.png's own alpha channel (identical shape
+// across all 10 recolors, checked red/blue/black/tan), the actual ink is
+// far shallower —
+//   - a straight edge, away from any corner: opaque only ~15px deep on
+//     the top/bottom trim, ~14px on the left/right trim (the other ~49-50
+//     of the reserved 64 is transparent — the dark fill shows through it
+//     today, nothing else).
+//   - a corner tile (64x64) is a simple L: the top-edge trim's full-width
+//     band runs 15 rows deep, the left-edge trim's full-height strip runs
+//     14 columns wide, joined by a short taper (rows 15-18) that reaches
+//     as far as column 17 at its widest (row 15) — checked per-row/column
+//     directly, not estimated. A content rectangle only needs to clear
+//     BOTH numbers on whichever two edges meet at each corner; clearing
+//     each edge's own straight-run depth alone isn't quite enough right at
+//     the taper, hence $hg-tooltip-content-clearance-inline below sitting
+//     a little above the straight-edge left/right depth (14), not equal
+//     to it — 19 clears the worst-case taper (18) with a 1px margin, and
+//     $hg-tooltip-content-clearance-block's own 16 (vs the straight-edge
+//     15) does the same on that axis. Same margin logic on the other
+//     three corners (checked TL and BR directly; TR/BL are safe too, this
+//     art doesn't mix trim widths between edges).
+$hg-tooltip-frame-width: 64px;
+// Real safety floor established by the measurement above — content padding
+// must never go below this on either axis, whatever the two tune-live
+// values below get set to, or it starts overlapping real frame ink again.
+// Not wired into the padding formula anymore (see the two variables below
+// for why), just recorded here as the wall future tuning shouldn't cross.
+// $hg-tooltip-content-clearance-block: 16px;
+// $hg-tooltip-content-clearance-inline: 19px;
+
+// Two independent live-tunable padding sets, not one — plain tooltips
+// (info, option list, a confirm dialog with no portrait) read as too
+// airy at one value and the portrait-split confirm dialog (wider, denser
+// content) reads differently at the same value, so a single shared number
+// was never going to satisfy both. Both are flat absolute targets, not
+// composed as "portrait = plain + delta": the requested numbers work out
+// to the portrait case being SMALLER than the plain case (54/56 vs
+// 28/33 — confirmed with the user rather than silently "fixed", since a
+// bigger dialog reading fine with proportionally less border-to-content
+// air than a small icon+word tooltip is a real, plausible outcome, not
+// obviously a mistake), so an additive relationship would fight the
+// actual target rather than express it.
+//   - plain: the very first flat pre-variable value this file ever had
+//     (72px/75px) x0.75.
+//   - portrait: the value in effect immediately before this pass (was
+//     $hg-tooltip-content-clearance-* + 6px/8px = 22px/27px) +6px more.
+// Both comfortably clear the 16/19 floor above.
+$hg-tooltip-padding-block: 54px; // was 22px (72px original x0.75)
+$hg-tooltip-padding-inline: 56px; // was 27px (75px original x0.75, 56.25 rounded)
+$hg-tooltip-split-padding-block: 28px; // was N/A — 22px (this file's own
+// value immediately before this pass) + 6px
+$hg-tooltip-split-padding-inline: 33px; // 27px + 6px
+
+// Same `.window-content:has(<content wrapper>) { padding: 0; }` trick as
+// `.window-content:has(.hero-paperdoll-wrapper)` in _hero-paperdoll.scss and
+// `.window-content:has(.hg-lvlup)` in _lvlup.scss — Foundry core's own
+// ApplicationV2 default `.window-content` padding (not set anywhere in this
+// project, confirmed by search) otherwise leaves a gap between the window's
+// own chrome and `.hg-tooltip`'s OWN frame, wrapping it in a second border
+// where there should just be one. `.hg-tooltip` itself keeps its real
+// frame/padding unconditionally (see that class's own header comment) — the
+// window is what gets its native padding zeroed, so the window's edge and
+// the frame's own outer edge end up flush, same as `.hero-paperdoll`/
+// `.hg-lvlup` already sit flush against their own windows. Keyed off
+// `.hg-picker` (picker.hbs's own marker class, template's own comment has
+// why), not `.hg-tooltip` — that class also appears transiently inside
+// OTHER windows' `.window-content` whenever tooltip.mjs shows a floating
+// hover tooltip there, which this rule must not touch. `.window-content`
+// genuinely IS a descendant of `.heroes-glory` (both are nested inside the
+// SAME `.application` root, at different DOM depths — unlike
+// `.heroes-glory`/`.hg-picker-app`, which sit on that root TOGETHER, see
+// `.hg-tooltip`'s own header comment for the selector trap that distinction
+// caused earlier), so this file's own `.heroes-glory { @import
+// 'components/tooltip'; }` wrapper (heroes-glory.scss) compiling this to
+// `.heroes-glory .window-content:has(.hg-picker)` is correct here, the same
+// way it already is for the other two.
+.window-content:has(.hg-picker) {
+  padding: 0;
+}
+
+// This class is everything that has to look IDENTICAL wherever `.hg-tooltip`
+// markup renders — frame, fill, padding, max-width/shrink-wrap sizing, font.
+// Only POSITIONING (self-centering on a canvas vs. living inside a real
+// window's own chrome) differs between the two hosts, so only that's split
+// out, into `.hg-tooltip--floating` below (a modifier only tooltip.mjs's
+// own floating layer adds — module/apps/picker-app.mjs's picker window
+// renders this class bare, no modifier, and gets the exact same frame/fill/
+// padding as a result, unconditionally).
+//
+// This split used to go further, briefly: an earlier pass moved the frame/
+// padding (and, even more briefly, the fill) out of this class entirely
+// for the picker window's own sake — reverted. What was actually reported
+// as a bug was Foundry's own default `.window-content` padding ALSO
+// applying around this class's frame (a visible gap between the window's
+// edge and the frame's own outer edge, `.window-content:has(.hg-picker)`
+// above fixes exactly that), not the frame itself being unwanted — the
+// picker window is meant to look like this same tooltip card, just hosted
+// in a window instead of floating.
 .hg-tooltip {
-  position: absolute;
-  // Centered on the canvas, not anchored to the cursor — replaces the
-  // old cursor-follow-plus-edge-flip positioning entirely (removed from
-  // tooltip.mjs, not just visually superseded by this).
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10; // above the canvas's own slot content; doesn't need to
-  // out-rank Foundry's ApplicationV2 windows anymore now that this lives
-  // inside one instead of document.body.
+  position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.6cqw;
+  gap: 5px; // was 0.6cqw
   text-align: center;
-  // A short tooltip (icon + one word, e.g. skill-attack) with a fixed
-  // 64px border and no floor here would size itself to bare content —
-  // measured for real: 204×222px at the default 758px canvas, ~84% of
-  // that box is border. Not "cozy," reads as a picture frame with a word
-  // in it. These two floors give it comfortable matting instead —
-  // checked visually (real DOM box sizes composited against the actual
-  // frame/background assets, not just computed): 320×260 makes the same
-  // short tooltip read as a proper framed card. A long tooltip (title +
-  // ~140-char body) already exceeds this at every canvas width tested, so
-  // the floor never fights it. Numbers are a starting point, not derived
-  // from a formula — adjust after looking at a real render.
-  min-width: 320px;
-  min-height: 260px;
-  max-width: 42cqw; // long secondary-skill descriptions wrap here
-  // instead of stretching the frame into a bar
-  padding: 1cqw 1.5cqw;
-  // Fixed px, not cqw — deliberately doesn't scale with the canvas or
-  // `--hg-pixel-scale`. `border-image-slice` below is pinned to the
-  // source PNG's own 64px corners/edges, so this has to stay 64px too:
-  // any other border-width would resize those slices away from their own
-  // native resolution, softening the filigree (confirmed directly —
-  // shrinking the source art even 2× already flattens the scrollwork into
-  // a plain hook shape, independent of resampling filter or of going
-  // through the original composited PNG vs the raw corner sprite). The
-  // min-width/min-height above exist specifically so this fixed 64px
-  // doesn't dominate small tooltips instead of shrinking the border
-  // itself, which is what an earlier version of this file did (and what
-  // caused the softened-filigree problem in the first place).
-  border-width: 64px;
-  border-style: solid;
-  border-color: transparent;
-  // Pixel coordinate INTO the 192×192 source PNG (where to slice the
-  // corners/edges from) — unrelated to border-width above, which only
-  // controls how big the sliced pieces render on screen. Stays 64
-  // regardless of how small border-width gets.
-  // No `fill` keyword: the middle of dialog_frame_<color>.png is
-  // transparent (regenerated via make_border.py WITHOUT its `--bg` step)
-  // — with `--bg`, the whole canvas (not just the middle, also the gaps
-  // in the edge sprites, which don't fully cover their own reserved band)
-  // gets a tiled, unmatched crop of an external leather texture pasted
-  // under the corner/edge art, and tiling that via `fill` +
-  // `border-image-repeat: repeat` showed visible seams both in the big
-  // middle square and as a thinner repeating seam along every edge. The
-  // middle (and every other transparent gap) is painted once, stretched,
-  // by `::before` below instead (assets/ui/tooltip_fill.png, converted
-  // from HOMM3's own DiBoxBck.bmp — a real 256×256 dialog-background
-  // texture, not a crop of the border art — one instance can't have a
-  // seam).
-  border-image-slice: 64;
-  // `repeat` clips whatever doesn't divide evenly into a whole tile —
-  // confirmed on a real render this isn't an edge case: the actual open
-  // tooltip's left/right edges (64px-tall native tile) had ~153px to
-  // fill, 2.4 tiles' worth, so a third of a tile got cut off wherever the
-  // browser chose to start counting from — visible both as a seam and as
-  // the two edges no longer looking symmetric around the middle. `round`
-  // stretches the tile count that DOES fit so it always lands exactly on
-  // a whole number — no clipped partial tile, so no seam and no
-  // top/bottom (or left/right) mismatch from one.
-  border-image-repeat: round;
-  // Governs the border-image corners/edges above AND `.hg-tooltip__icon`
-  // (both genuine pixel art) — deliberately NOT applied to the `::before`
-  // background below, which needs its own `image-rendering: auto` (a
-  // photographic leather texture under `pixelated` turns into flat mush
-  // blocks once stretched any real amount — checked against an actual
-  // render). That's the whole reason the fill is a separate pseudo-element
-  // instead of just adding `background` here: one element can't have two
-  // different `image-rendering` values for two different images it draws.
+  // No min-width/min-height: a short tooltip (icon + one word) with none
+  // of these is content(~79×95) + 64px frame on every side = ~207×223
+  // native px — frame and content comparable, not a bare word rattling
+  // around in a mostly-empty card. An earlier version added
+  // min-width:320/min-height:260 here to fight the frame dominating a
+  // SHRINKING canvas — that problem doesn't exist anymore now that the
+  // whole box scales together (see the file header), so those floors
+  // only added dead texture around a small icon+word. If a real render
+  // still looks frame-heavy, raise these in small steps and check each
+  // one — not straight back to 320.
+  max-width: 318px; // was 42cqw; long secondary-skill descriptions still
+  // wrap here instead of stretching the frame into a bar
+  // 64px extra on every side is the frame's own thickness, folded into
+  // padding instead of a real `border` on this element — see the
+  // ::before/::after comments below for why: this element carries no
+  // border of its own at all now, only its two pseudo-elements do, so
+  // there's nothing here for `box-sizing: border-box` to distinguish
+  // between "border" and "padding" — same reserved space either way.
+  // was a flat 72px 75px, then calc(64px+6px) calc(64px+8px), then
+  // calc(16px+6px) calc(19px+8px) — see $hg-tooltip-padding-block's own
+  // comment above for the current, flat-value scheme and why it's no
+  // longer composed as clearance+extra.
+  padding: $hg-tooltip-padding-block $hg-tooltip-padding-inline;
+  // Governs `.hg-tooltip__icon` (genuine pixel art) — border-image and
+  // the background fill moved to ::after/::before below, each with its
+  // own image-rendering (see those comments for why one image-rendering
+  // value can't serve both a crisp 9-slice frame and a stretched
+  // photographic texture).
   image-rendering: pixelated;
 
+  // Paints first among the negative-z-index children (most negative
+  // first — CSS2.1 Appendix E), i.e. behind ::after below: the fill.
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    // `inset: 0` alone sizes this to .hg-tooltip's PADDING box, not its
-    // border box — the containing block for an absolutely positioned
-    // element is the nearest positioned ancestor's padding edge, not its
-    // border edge (CSS spec, not a bug in the browser). That left the
-    // whole 64px border band uncovered: dialog_frame_<color>.png is
-    // transparent there beyond the trim line itself (see the
-    // border-image-slice comment above), so nothing painted it and
-    // whatever sat behind the tooltip showed through as a gap between the
-    // frame and the fill — confirmed live (Foundry, not the offline
-    // mockup that didn't catch this). `margin: -#{64px}` (matches
-    // border-width exactly) expands this back out to the full border box,
-    // same trick as any "bleed a pseudo-element under its own parent's
-    // border" layout.
-    margin: -64px;
-    // Stays inside .hg-tooltip's own stacking context (position: absolute
-    // + z-index: 10 above already establishes one), so this negative
-    // z-index only drops it behind this element's own border/content, not
-    // behind anything outside .hg-tooltip.
-    z-index: -1;
+    z-index: -2;
     background: url('../assets/ui/tooltip_fill.png') center / 100% 100% no-repeat;
     image-rendering: auto;
   }
+
+  // The frame itself, as this element's own border-image used to be —
+  // moved to a pseudo-element on purpose. `.hg-tooltip` no longer carries
+  // any `border` of its own: a parent's OWN border/background paints
+  // before ANY of its children, even ones with negative z-index (CSS2.1
+  // Appendix E, step 1 vs step 2) — so when ::before (the fill) grew to
+  // cover the full box, it started painting on top of `.hg-tooltip`'s own
+  // border-image instead of under it, hiding the frame entirely (regression:
+  // fixing the fill's coverage broke the frame's visibility). Giving the
+  // frame to ::after (z-index: -1, so after/above ::before's -2, both
+  // still before the real flex children at step 3) restores the intended
+  // order: fill, then frame on top of it, then icon/title/text on top of
+  // both. `inset: 0` alone is correct here — no margin trick needed, since
+  // .hg-tooltip's own padding-box IS its border-box now (no border of its
+  // own to create a gap between them).
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-style: solid;
+    border-color: transparent;
+    // Fixed px, matches border-image-slice below — this is the ONE
+    // place in the whole component that stays a literal px number
+    // instead of following --hg-pixel-scale directly, on purpose: it's
+    // the native resolution the source PNG was drawn at, and the outer
+    // `transform: scale()` on `.hg-tooltip--floating` is what actually
+    // scales it with the canvas there, applied AFTER this renders at
+    // 1:1 — so the slice itself never gets resampled at any window size
+    // (confirmed directly: shrinking the source art even 2× before
+    // display already flattens the scrollwork into a plain hook shape,
+    // independent of resampling filter or of going through the original
+    // composited PNG vs the raw corner sprite — the fix is to never
+    // resample it at all, not to pick a better filter). The picker
+    // window has no such transform at all, so this renders native 1:1
+    // there unconditionally — same art, same crispness, no scaling step.
+    border-width: $hg-tooltip-frame-width;
+    // Pixel coordinate INTO the 192×192 source PNG (where to slice the
+    // corners/edges from) — unrelated to border-width above, which only
+    // controls how big the sliced pieces render on screen. Stays 64
+    // regardless of how small border-width gets.
+    // No `fill` keyword: the middle of dialog_frame_<color>.png is
+    // transparent (regenerated via make_border.py WITHOUT its `--bg`
+    // step) — with `--bg`, the whole canvas (not just the middle, also
+    // the gaps in the edge sprites, which don't fully cover their own
+    // reserved band) gets a tiled, unmatched crop of an external leather
+    // texture pasted under the corner/edge art, and tiling that via
+    // `fill` + `border-image-repeat: repeat` showed visible seams both in
+    // the big middle square and as a thinner repeating seam along every
+    // edge. The middle (and every other transparent gap) is painted once,
+    // stretched, by ::before above instead (assets/ui/tooltip_fill.png,
+    // converted from HOMM3's own DiBoxBck.bmp — a real 256×256
+    // dialog-background texture, not a crop of the border art — one
+    // instance can't have a seam).
+    border-image-slice: 64;
+    // Three options, none free of tradeoffs, picked via the
+    // $hg-tooltip-border-repeat variable above instead of guessing which
+    // one to hardcode (no way to see the actual render from here this
+    // session):
+    //   repeat  — tiles at native size, clips whatever fraction of a
+    //             tile doesn't fit. Confirmed on a real render this
+    //             isn't an edge case: a real tooltip's left/right edges
+    //             needed ~2.4 native-height tiles, so a third of a tile
+    //             got cut off wherever the browser started counting from
+    //             — visible seam, and the two edges no longer symmetric.
+    //   round   — stretches the tile count that DOES fit so it always
+    //             lands on a whole number, no clipped partial tile.
+    //             Tried this after `repeat` — introduced a DIFFERENT
+    //             seam: each stretched tile copy is rasterized
+    //             separately, and sub-pixel rounding where two stretched
+    //             copies meet showed up as a hairline gap/line crossing
+    //             the frame, with the middle segment landing a pixel off
+    //             from the corners. Confirmed the source PNG itself
+    //             isn't the cause first (see make_border.py history in
+    //             this file's git log) — this is a rendering-time
+    //             artifact of `round` specifically.
+    //   stretch — one native tile, stretched to fill, no repetition at
+    //             all — nothing to seam against, by construction. Costs
+    //             proportion: the trim motif (rings/chain) stretches
+    //             non-uniformly along a long edge instead of repeating
+    //             at native scale, which can read as ovals instead of
+    //             rings on a long tooltip. Real tradeoff, not
+    //             hypothetical — pick by looking at an actual render,
+    //             not blind.
+    border-image-repeat: $hg-tooltip-border-repeat;
+    image-rendering: pixelated;
+  }
   // Body text (this box's own `p` elements — the icon/title get their own
-  // rules below) — smalfont, same role as the sheet's own body text, and
-  // the same `--hg-pixel-scale` step (inherited: this layer is a real DOM
-  // child of whichever canvas is showing, `tooltip.mjs`'s own
-  // `boundsEl.appendChild`, so the custom property set on the canvas
-  // element by hero-sheet.mjs's `#updatePixelScale` reaches this for free —
-  // no separate JS wiring needed here).
-  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  // rules below).
+  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
+  font-family: var(--hg-temp-font-small, #{$font-h3-small});
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: $hg-font-h3-small-height;
+  line-height: 1;
   color: $hg-parchment;
-  pointer-events: none; // tooltip mode never intercepts clicks
 
   &[hidden] {
     display: none;
   }
+}
+
+// Item 1: the split layout needs more horizontal room than any other
+// tooltip content this shows, and its own smaller padding (see
+// $hg-tooltip-split-padding-* above) — scoped via :has() so only THIS
+// layout gets either override; every other tooltip (info, option list,
+// plain single-column confirm, the level-up window's own tooltips, and the
+// picker window's own plain screens) keeps max-width: 318px and the plain
+// $hg-tooltip-padding-* above.
+.hg-tooltip:has(.hg-confirm__split) {
+  // .hg-confirm__text (240) + gap (16) + .hg-confirm__portrait-frame (220)
+  // + this element's own horizontal padding (33*2=66) = 542 at minimum —
+  // 640 leaves real headroom rather than capping at the exact sum. Tune
+  // together with those two fixed widths if either changes.
+  max-width: 640px;
+  padding: $hg-tooltip-split-padding-block $hg-tooltip-split-padding-inline;
+}
+
+// Flex items default to `min-width: auto` (their own unwrapped content
+// width), which can silently defeat `max-width` on the flex container
+// above — long text would overflow sideways instead of wrapping. This
+// isn't a redundant reset; it's the standard fix for that flexbox
+// default.
+.hg-tooltip > * {
+  min-width: 0;
+}
+
+// tooltip.mjs's floating layer only: self-centers on whichever canvas it's
+// currently living in (see that file's own header comment — `ensureLayer`
+// re-parents the single shared layer to `.hero-paperdoll`/`.hero-spellbook`/
+// the level-up window's `.hg-lvlup`) and defaults to non-interactive
+// (`pointer-events: none`) so a plain hover tooltip never intercepts
+// clicks meant for whatever it's floating over. Neither makes sense for
+// `.hg-tooltip` markup rendered as a real window's own content
+// (module/apps/picker-app.mjs, templates/apps/picker.hbs) — that content
+// is placed by the window itself (drag, screen-clamping, centering-on-opener)
+// and is always interactive, never an overlay — so picker.hbs's root never
+// carries this modifier, only `ensureLayer` adds it. Positioning is ALL
+// this modifier is for now — frame/fill/padding/sizing live on `.hg-tooltip`
+// itself, shared unconditionally by both hosts (see that class's own header
+// comment for why an earlier pass split those out here too, and why that
+// was reverted).
+.hg-tooltip--floating {
+  position: absolute;
+  // Centered on the canvas, not anchored to the cursor — replaces the old
+  // cursor-follow-plus-edge-flip positioning entirely (removed from
+  // tooltip.mjs, not just visually superseded by this).
+  top: 50%;
+  left: 50%;
+  // `translate(-50%, -50%)` resolves against this element's own
+  // (untransformed) border-box and centers it on the canvas — standard
+  // "center via top/left:50%, then translate back by half your own size"
+  // trick. `scale()` is listed after it and applies around
+  // `transform-origin` (default: this element's own center) — since the
+  // translate already centered that point on the canvas, scaling around
+  // it keeps the tooltip centered at any --hg-pixel-scale.
+  transform: translate(-50%, -50%) scale(var(--hg-pixel-scale));
+  z-index: 10; // above the canvas's own slot content; doesn't need to
+  // out-rank Foundry's ApplicationV2 windows (the level-up window, or the
+  // picker window) — a floating tooltip only ever shows over the hero
+  // sheet or the level-up window's own canvas, never over either window's
+  // frame.
+  pointer-events: none; // tooltip mode never intercepts clicks
 
   &[data-mode='modal'] {
     // Reserved for the future level-up modal (click interception: yes) —
@@ -160,18 +395,9 @@
   }
 }
 
-// Flex items default to `min-width: auto` (their own unwrapped content
-// width), which can silently defeat `max-width` on the flex container
-// above — long text would overflow sideways instead of wrapping. This
-// isn't a redundant reset; it's the standard fix for that flexbox
-// default.
-.hg-tooltip > * {
-  min-width: 0;
-}
-
 .hg-tooltip__icon {
   display: block;
-  width: 7cqw;
+  width: 53px; // was 7cqw
   // Preserves each icon's own aspect ratio (82×93 for most, 78×65 for
   // spells) from the `width`/`height` HTML attributes already on every
   // `<img class="hg-tooltip__icon">` in actor-hero-sheet.hbs — modern
@@ -183,7 +409,15 @@
 
 .hg-tooltip__title {
   margin: 0;
-  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+  // No --hg-pixel-scale multiplication — see the comment on .hg-tooltip's
+  // own body-text font-size above, same reasoning.
+  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
+  font-family: var(--hg-temp-font-medium, #{$font-h3-medium});
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: $hg-font-h3-medium-height;
+  line-height: 1;
   // Role E ($hg-gold, utils/_fonts.scss) — the deepest/most saturated step
   // of the gold family, matching the original's own header/title
   // treatment. The emphasis that used to come from `font-weight: bold`
@@ -194,12 +428,122 @@
 
 .hg-tooltip p {
   margin: 0;
+  // Lets a book table transcribed as line-per-row (e.g. a secondary skill's
+  // Экспертный effect text — Некромантия's level-to-undead table, rules.md
+  // §3) keep its line breaks instead of collapsing to one run-on line
+  // (`white-space: normal`'s default behavior for literal "\n" in text
+  // content). `pre-line` still wraps normally at the tooltip's width —
+  // only explicit newlines in the source string are preserved — so text
+  // that never had an embedded "\n" (i.e. every other tooltip so far)
+  // renders identically to before.
+  white-space: pre-line;
+}
+
+// #buildRecomputeDialogContent's "было -> станет" list (hero-sheet.mjs) —
+// the only <ul> this project renders inside the pixel-font layer. Browser
+// default `list-style: disc` draws its marker as a native UA glyph
+// centered against ordinary font metrics; H3 SmallFont's own metrics
+// aren't ordinary (baseline sits at the bottom of a fixed-height glyph
+// box, not where a typical font's baseline sits — see _fonts.scss's own
+// build-script comment), so the native marker centers itself against the
+// wrong reference point and sits visibly off (measured live: ~4px below
+// the text's own vertical center). A glyph substitution wouldn't fix
+// this even if H3 SmallFont had its own bullet character (it does, U+2022
+// — checked directly in the font's cmap, so this isn't a missing-glyph
+// case at all) — the marker's mis-centering is a UA layout behavior
+// against this font's unusual metrics, not a wrong-font fallback.
+// Replacing the native marker with one drawn in plain CSS, sized off the
+// font's own dimensions rather than the UA's marker-centering guess,
+// sidesteps the whole problem instead of patching its symptom.
+.hg-confirm__stat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left; // redundant under the current `.hg-confirm__block`
+  // wrapper (which already sets this on the whole block), kept explicit
+  // since this list can in principle render without one — nothing about
+  // this rule depends on that wrapper existing.
+}
+
+.hg-confirm__stat-list li {
+  position: relative;
+  padding-left: 12px;
+}
+
+.hg-confirm__stat-list li + li {
+  margin-top: 2px;
+}
+
+.hg-confirm__stat-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  // Native px square, not tied to font-size by `em` — this list only
+  // ever renders at $hg-font-h3-small-height (14px), same reasoning as
+  // every other native-px value in this file (the whole .hg-tooltip box
+  // scales as one unit via `transform: scale()`, so a fixed native size
+  // here already scales correctly with everything else around it).
+  top: 4px; // (14px line box - 6px square) / 2 — centers it on the line
+  // box exactly; this font's own glyphs fill close to their full
+  // declared height with little internal leading (see _fonts.scss's own
+  // build-script comment on baseline placement), so the line-box center
+  // and the visible ink center land close enough together that this one
+  // number works without a separate ink-based measurement.
+  width: 6px;
+  height: 6px;
+  background: currentColor; // follows this list's own text color (role E/
+  // parchment depending on context) rather than a hardcoded color, same
+  // as a real glyph would via `color`.
+}
+
+// Confirm-dialog content blocks (hero-sheet.mjs's #buildRecomputeDialogContent/
+// #buildConfirmBlock) — description / starting weapon / feature / "было ->
+// станет" each get their own `.hg-confirm__block`, so multiple paragraphs
+// read as distinct sections instead of one undifferentiated brick.
+$hg-confirm-block-gap: 10px; // tune live — the air BETWEEN blocks
+// specifically. Title-to-first-block and last-block-to-buttons keep the
+// smaller shared flex `gap` on `.hg-confirm`/`.hg-confirm__text` (8px,
+// unrelated to this variable) — only consecutive blocks get the extra
+// margin below.
+
+.hg-confirm__block {
+  width: 100%;
+  text-align: left;
+  margin-top: $hg-confirm-block-gap;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.hg-confirm__block-title {
+  margin: 0 0 2px;
+  // Role A ($hg-gold-pale, utils/_fonts.scss) — one step down from the
+  // dialog title's own $hg-gold (role E), enough for a block subheading
+  // to read as its own thing at a glance without competing with the
+  // title for the same emphasis. An existing project color token, not a
+  // new one.
+  color: $hg-gold-pale;
+}
+
+.hg-confirm__block-text {
+  margin: 0;
+  // Widow prevention, on top of the explicit non-breaking spaces already
+  // placed in the source strings (lang/ru.json) for the specific short
+  // pairs (a number with its own period, "+N к <X>", "= N") those alone
+  // wouldn't reliably catch every case — balances line lengths across the
+  // whole paragraph instead, reducing the odds of a short leftover
+  // fragment on the last line. Gracefully ignored on a browser that
+  // doesn't support it yet (this project's own Electron/Chromium does).
+  text-wrap: pretty;
 }
 
 $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, white;
 
 @each $color in $hg-tooltip-colors {
-  .hg-tooltip[data-color='#{$color}'] {
+  // ::after, not the element itself — the frame moved there, see the
+  // ::after comment on .hg-tooltip above.
+  .hg-tooltip[data-color='#{$color}']::after {
     border-image-source: url('../assets/ui/dialog_frame_#{$color}.png');
   }
 }
@@ -207,20 +551,20 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
 // assets/buttons/iok6432 (64×32 native, 2:1) — same 3-state
 // enabled/pressed/disabled pattern as the backpack scroll arrows
 // (_hero-paperdoll.scss's hsbtns3/hsbtns5), pressed frame held by JS for
-// PIN_OK_PRESS_HOLD_MS (tooltip.mjs) rather than relying on :active for
+// PRESS_HOLD_MS (button-press.mjs) rather than relying on :active for
 // the same reason: the click handler disables the button and tears the
 // whole tooltip down shortly after, so :active wouldn't survive long
 // enough to read as a press.
 .hg-tooltip__ok {
   @include hg-image-button;
-  width: 9cqw;
+  width: 68px; // was 9cqw
   aspect-ratio: 2 / 1;
   // A small gap above the button, separating it from the tooltip's own
-  // content — .hg-tooltip's `gap: 0.6cqw` (its own flex `gap` between
-  // every child) already applies here too since this button is just
-  // another flex item, but that alone reads as flush against the last
-  // line of text; this margin is on top of it, not instead of it.
-  margin-top: 0.8cqw;
+  // content — .hg-tooltip's `gap` (its own flex `gap` between every
+  // child) already applies here too since this button is just another
+  // flex item, but that alone reads as flush against the last line of
+  // text; this margin is on top of it, not instead of it.
+  margin-top: 6px; // was 0.8cqw
   background-image: url('../assets/buttons/iok6432/iok6432_g00_f000.png');
 
   &.hg-tooltip__ok--pressed {
@@ -236,12 +580,32 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
 // No fixed-count native art exists for an arbitrary-length option list,
 // unlike .hg-tooltip__ok's iok6432 sprite, so this is a plain styled
 // button rather than a background-image swap.
+// §task: the level picker's own list (0-99, hero-sheet.mjs's #onPickLevel)
+// is the first caller long enough to need scrolling at all — every other
+// list (Раса 12, Фракция 10, Цвет панели 10, Тип класса 2) fits well
+// under the cap below and is completely unaffected by it. Row math: 14px
+// font (line-height 1) + 2px top/bottom padding (.hg-option-list__item
+// below) = 18px per row, plus this rule's own 2px `gap` between rows —
+// 20px/row, minus one trailing gap that never happens: `20*N - 2`. 300px
+// covers ~15 rows before scrolling kicks in — comfortably past Race's own
+// 12-row height (238px) so nothing existing changes, while a 100-row list
+// scrolls instead of blowing the window (`position: {height: 'auto'}`,
+// picker-app.mjs) out past the screen. Same scrollbar treatment as the
+// secondary-skills grid (_hero-paperdoll.scss) — not reinventing a second
+// scrollbar look.
+$hg-option-list-max-height: 300px;
+
 .hg-option-list {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.3cqw;
+  gap: 2px; // was 0.3cqw
   width: 100%;
+  max-height: $hg-option-list-max-height;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba($hg-gold-pale, 0.65) transparent;
 }
 
 .hg-option-list__item {
@@ -252,19 +616,285 @@ $hg-tooltip-colors: red, blue, tan, green, orange, purple, teal, pink, black, wh
   all: unset;
   cursor: pointer;
   text-align: center;
-  padding: 0.3cqw 0.6cqw;
-  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  padding: 2px 5px; // was 0.3cqw 0.6cqw
+  // No --hg-pixel-scale multiplication — see the comment on .hg-tooltip's
+  // own body-text font-size above, same reasoning (this list lives inside
+  // the same .hg-tooltip that now scales as a whole via transform).
+  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
+  font-family: var(--hg-temp-font-small, #{$font-h3-small});
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: $hg-font-h3-small-height;
+  line-height: 1;
   color: $hg-parchment;
 
   &:hover {
     text-decoration: underline;
   }
 
-  // The currently-selected value (hero-sheet.mjs's #openOptionPicker sets
-  // this via `dataset.current`) — role E ($hg-gold, utils/_fonts.scss),
-  // the same emphasis color as this same layer's own tooltip title just
-  // above, not tied to the paperdoll's own label palette.
+  // The currently-selected value (tooltip.mjs's `pinOptionList`/
+  // picker-app.mjs's list screens both set this via `dataset.current`) —
+  // role E ($hg-gold, utils/_fonts.scss), the same emphasis color as this
+  // same layer's own tooltip title just above, not tied to the
+  // paperdoll's own label palette.
   &[data-current='true'] {
     color: $hg-gold;
   }
 }
+
+// §task: close to how a secondary skill's icon actually reads in its own
+// cell on the hero sheet (`$hg-secondary-skill-icon-size`,
+// _hero-paperdoll.scss, also 44px native) — live-tune from here, not a
+// derived/shared constant with that variable: the two live in different
+// scaling contexts (that one inside a percentage-of-canvas cell, this one
+// inside `.hg-tooltip`'s own whole-layer `transform: scale()`), so a
+// shared variable would imply a relationship between them that isn't
+// actually load-bearing, just a starting point picked to look similar.
+$hg-option-list-icon-size: 44px;
+
+// §task: an icon-bearing row (tooltip.mjs's `pinOptionList`, e.g. the
+// level-up window's "which skill to upgrade" list) — icon left, label
+// right, left-aligned, instead of the plain variant's centered text.
+// Additive on top of `.hg-option-list__item` above (`all: unset` there
+// already cleared `display`, so this sets it explicitly rather than
+// relying on flex having been the base value) — a caller with no icons at
+// all never gets this class, so every existing plain-text list (the level
+// picker, hero-sheet.mjs) renders exactly as it did before this existed.
+.hg-option-list__item--icon {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 6px;
+}
+
+// Not `--hg-pixel-scale`-multiplied, matching this whole list's own
+// already-established convention (`.hg-option-list__item`'s own comment
+// above, on why body text here doesn't scale that way either): this list
+// lives inside `.hg-tooltip`, which scales as a whole via CSS `transform`,
+// not per-element `calc()`.
+.hg-option-list__icon {
+  width: $hg-option-list-icon-size;
+  height: $hg-option-list-icon-size;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+// §task: "Продвинутый / Магия Огня" — tier above name, two stacked lines,
+// no separator between them — matching how a secondary skill's own desc
+// cell is built on the hero sheet (`.hero-paperdoll__skill-cell-desc`,
+// _hero-paperdoll.scss: `display: flex; flex-direction: column;` around
+// two bare `<span>`s, tier first) rather than the single "{skill} —
+// {tier}" line this used to be. Only ever present alongside an icon
+// (`pinOptionList` builds this for a row with `tierLabel`/`skillLabel`,
+// plain `label` rows get a bare text node instead) — a plain-text list
+// (the level picker) never gets this element at all.
+.hg-option-list__item-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.2; // a hair looser than .hg-option-list__item's own `1`
+  // — two stacked short lines read as one label at `line-height: 1`, the
+  // tier crowding straight into the name below it.
+}
+
+// tooltip.mjs's pinConfirm — this project's own Yes/No dialog, replacing
+// DialogV2.confirm for the race/faction/classType recompute confirmations
+// (hero-sheet.mjs's #confirmRaceChange/#confirmClassEffectiveChange).
+// Same pinned .hg-tooltip layer as .hg-option-list above, so everything
+// here follows that component's own convention: plain native px, no
+// --hg-pixel-scale multiplication anywhere (the whole .hg-tooltip box
+// already scales once via `transform: scale()` — see that rule's own
+// comment), not the calc(Npx * var(--hg-pixel-scale)) pattern the
+// paperdoll canvas itself uses.
+// `align-items: stretch`, not `center` — a centered flex item only ever
+// shrinks to its own content width, which is exactly what made every
+// paragraph's left edge ragged (reported live: unreadable). Stretching
+// gives `.hg-confirm__block`s (and the stat list) the full column width
+// to left-align a real paragraph against. `.hg-tooltip__title` (a direct
+// child here, not inside a block) still reads centered regardless —
+// stretch only changes how much width a flex item is GIVEN, never its
+// own `text-align`, and the title never set that property itself, so it
+// keeps inheriting `center` from `.hg-tooltip`. `.hg-confirm__buttons`
+// needs its own explicit `justify-content: center` now for the same
+// reason (see that rule's own comment) — it used to get centered for
+// free from this same `align-items: center`.
+.hg-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+// Item 1: race confirm's two-column layout (#confirmRaceChange only, when
+// the race has portrait art) — the "было -> станет" body sits in a left
+// column (.hg-confirm__text) next to the portrait on the right; the title
+// and Yes/No row stay OUTSIDE this row entirely (siblings of it inside
+// .hg-confirm, see hero-sheet.mjs/pinConfirm), full-width and centered
+// over both columns. Faction/classType confirms, and a race with no art,
+// never build this row at all — they stay the plain single-column
+// `.hg-confirm` above, unchanged.
+//
+// `justify-content: center`: the row's own combined content width can be
+// narrower than the tooltip's max-width (a race with a short "было ->
+// стало" list) — centers the pair as a unit instead of hugging the left
+// edge in that case. Doesn't affect the common case where the row already
+// fills the available width.
+// No `width: 100%` here (removed — see .hg-confirm__portrait-frame's own
+// comment for why a percentage-width child broke this whole row once the
+// portrait's own width also stopped being determinate). With every
+// descendant now a genuine fixed px width, this row — and `.hg-tooltip`
+// itself, shrink-wrapping around it — size themselves correctly from the
+// sum of real numbers, no percentage/auto circularity left to resolve.
+.hg-confirm__split {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 16px;
+}
+
+// A fixed width, not a flexible share of the row and not a bare
+// `min-width` floor either — two different bugs, found live, one after
+// the other:
+//  1. An earlier version gave this `flex: 1 1 auto`, expecting it to share
+//     space with the portrait — but the portrait (a plain `<img>` flex
+//     item back then) resolved its own flex-basis from its NATIVE
+//     intrinsic width first (the source art is ~300px+ wide even scaled to
+//     a modest display height), which alone ate almost the whole row and
+//     left this column crushed to near-zero ("Здоровье (база): 30 → 35"
+//     wrapped across three lines). Fixed by giving the portrait its own
+//     sizing box instead (.hg-confirm__portrait-frame below).
+//  2. With the portrait fixed, this was still `flex: 0 0 auto; min-width:
+//     230px` — but `flex-shrink: 0` means a flex item never shrinks below
+//     its own unconstrained (max-content) width, and the race feature
+//     note (a full sentence, e.g. Minotaur's "Выбрать: +1 к Атаке ИЛИ...")
+//     has no natural wrap point at any narrower width than that, so
+//     `min-width` never even came into play — the column ballooned to fit
+//     that one long sentence on as few lines as it liked, overflowing the
+//     row (measured live: 489px column inside a 246px row).
+// A genuine fixed `width` forces wrapping at that width regardless of
+// content length — long stat lines like the two above fit on one line at
+// this value (checked against Minotaur's actual "было -> станет" list,
+// the longest today); the feature-note sentence wraps across several
+// lines, same as it always has in the single-column layout, which is fine.
+.hg-confirm__text {
+  display: flex;
+  flex-direction: column;
+  // Same `stretch`-not-`center` reasoning as `.hg-confirm`'s own rule
+  // above — this column's only children are `.hg-confirm__block`s (the
+  // title and Yes/No row are siblings of `.hg-confirm__split`, never
+  // inside this column, see hero-sheet.mjs's #buildConfirmContent), so
+  // there's no centered sibling here needing special handling either.
+  align-items: stretch;
+  gap: 8px;
+  flex: 0 0 240px;
+  width: 240px;
+}
+
+// The portrait's actual flex item is this frame, not the `<img>` itself
+// (see .hg-confirm__portrait below for why) — a genuine fixed width, same
+// reasoning as .hg-confirm__text's own: this was originally `flex: 1 1
+// auto` ("take whatever's left"), which needs a determinate width on
+// `.hg-confirm__split` to size against — but that row (and `.hg-tooltip`
+// itself, above it) both shrink-wrap their own content rather than
+// stretching to `max-width`, so "whatever's left" had nothing real to
+// resolve against and collapsed to 0 (measured live: this frame at 0px
+// wide next to a 240px text column, portrait invisible). A fixed width
+// breaks the circularity the same way .hg-confirm__text's did: every
+// width in this row is now a real number, so the shrink-wrap above it
+// sums correctly instead of asking "how wide is 100%/flex:1 of a box
+// that's still deciding its own width from me".
+.hg-confirm__portrait-frame {
+  flex: 0 0 220px;
+  width: 220px;
+  display: flex;
+}
+
+// One portrait per race (race-stats.mjs's raceIconPath) — book illustration
+// as-is, not pixelated: forcing a painterly digital painting into a chunky
+// pixel-art filter reads as a bad filter, not authentic pixel art, so this
+// stays smooth (image-rendering: auto, not the canvas's own `pixelated`)
+// inside the pixel-art frame around it. Real alpha-cutout source art (no
+// rectangular photo edge), confirmed directly against the extracted files
+// — sits straight on .hg-tooltip's own dark fill with nothing extra
+// needed. Faction/classType confirms have no portrait — #confirmRaceChange
+// is the only caller that adds one, and only for races that have art.
+//
+// A flex item's default `flex-basis: auto` resolves a replaced element
+// (an `<img>`) from its own INTRINSIC size, not from whatever box the
+// flex algorithm would otherwise give it — that's what crushed
+// .hg-confirm__text in the first version of this layout (see that rule's
+// own comment). Filling `.hg-confirm__portrait-frame` above with plain
+// `width/height: 100%` sidesteps the whole "replaced element as a flex
+// item" sizing problem: the FRAME is the flex item and behaves like any
+// ordinary box, while this `<img>` just fills whatever box the frame ends
+// up with, and `object-fit: contain` keeps its own aspect ratio inside
+// that box without stretching or overflowing it either axis.
+.hg-confirm__portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+// Faction confirm's own portrait (hero-sheet.mjs's
+// #confirmClassEffectiveChange, faction changes only) — genuine low-res
+// HOMM3 sprite art (extracted CREST58.def frames, see faction-icons.mjs's
+// own doc comment) scaled well past native size, unlike the race
+// portraits' smooth painterly source — crisp nearest-neighbor upscaling
+// reads as authentic pixel art here, `auto` would just look soft.
+.hg-confirm__portrait--pixelated {
+  image-rendering: pixelated;
+}
+
+.hg-confirm__buttons {
+  display: flex;
+  justify-content: center; // .hg-confirm's own align-items:stretch (see
+  // that rule's comment) makes this row fill the full column width now
+  // instead of shrink-wrapping its two buttons — without this, they'd
+  // hug the left edge instead of sitting centered under the dialog.
+  gap: 16px;
+  margin-top: 6px;
+}
+
+// Same iok6432/icn6432 sizing/pattern as .hg-tooltip__ok above (64×32
+// native, 2:1) — Yes reuses that same OK checkmark art (it already means
+// "confirm" everywhere else this layer uses it), No is icn6432's
+// prohibition-sign art, unused anywhere else in the project until now.
+// Same press-then-release pattern as .hg-tooltip__ok too (pinConfirm's own
+// click handlers add these classes synchronously and hold them for
+// PRESS_HOLD_MS before the tooltip actually closes).
+.hg-confirm__yes,
+.hg-confirm__no {
+  @include hg-image-button;
+  width: 68px;
+  aspect-ratio: 2 / 1;
+}
+
+.hg-confirm__yes {
+  background-image: url('../assets/buttons/iok6432/iok6432_g00_f000.png');
+
+  &.hg-confirm__yes--pressed {
+    background-image: url('../assets/buttons/iok6432/iok6432_g00_f001.png');
+  }
+}
+
+.hg-confirm__no {
+  background-image: url('../assets/buttons/icn6432/icn6432_g00_f000.png');
+
+  &.hg-confirm__no--pressed {
+    background-image: url('../assets/buttons/icn6432/icn6432_g00_f001.png');
+  }
+}
+
+// Both buttons get disabled together the instant either is clicked (see
+// pinConfirm), so a second click on either one is a no-op — but the
+// OTHER (unpressed) button deliberately keeps its normal f000 look while
+// that's true. Swapping it to a disabled/dimmed frame read as the two
+// buttons fighting each other for a beat before the tooltip closed
+// (reported live) — only the button actually clicked shows any visual
+// change at all.
+

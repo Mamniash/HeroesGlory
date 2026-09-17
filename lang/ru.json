@@ -523,7 +523,8 @@
       "ConfirmNoHint": "Нет"
     },
     "Compendium": {
-      "Weapons": "Оружие"
+      "Weapons": "Оружие",
+      "Skills": "Вторичные навыки"
     }
   },
 

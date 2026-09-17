@@ -1,2 +1,6 @@
 node_modules/
 *.log
+# Scratch dir a pack build stages into before the atomic rename into
+# packs/_source/<name> and packs/<name> (scripts/lib/pack-builder.mjs) —
+# only survives on disk if the process was killed mid-build.
+packs/.build-*/

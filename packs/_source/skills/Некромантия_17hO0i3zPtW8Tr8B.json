@@ -1,0 +1,33 @@
+{
+  "_id": "17hO0i3zPtW8Tr8B",
+  "name": "Некромантия",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f039.png",
+  "system": {
+    "skillKey": "necromancy",
+    "tier": "base",
+    "effects": {
+      "base": "Вы можете призвать скелет трупа убитого существа. Труп должен быть свежим. Потратив действие, вы создаете из трупа нежить, которая сражается под вашим началом до конца боя. Скелет всегда ходит в вашу инициативу и абсолютно вам послушен",
+      "advanced": "Вместо Скелета вы поднимаете Скелета-Воина",
+      "expert": "В зависимости от вашего уровня, вы можете поднять еще более мощную нежить.\nУровень Персонажа / Существа:\nдо 6 / Живой Мертвец\n7-8 / Зомби\n9-12 / Дух\n13-16 / Призрак\n17+ / Лич"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 210000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!17hO0i3zPtW8Tr8B"
+}

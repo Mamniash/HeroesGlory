@@ -1,0 +1,33 @@
+{
+  "_id": "PvCpWQNaHP4xF5Vn",
+  "name": "Лидерство",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f021.png",
+  "system": {
+    "skillKey": "leadership",
+    "tier": "base",
+    "effects": {
+      "base": "Базовый Боевой дух становится равен 1 (2 для Минотавров)",
+      "advanced": "Базовый Боевой дух становится равен 2 (3 для Минотавров)",
+      "expert": "Базовый Боевой дух становится равен 3 (4 для Минотавров)"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 60000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!PvCpWQNaHP4xF5Vn"
+}

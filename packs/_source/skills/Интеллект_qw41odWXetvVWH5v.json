@@ -1,0 +1,33 @@
+{
+  "_id": "qw41odWXetvVWH5v",
+  "name": "Интеллект",
+  "type": "skill",
+  "img": "systems/heroes-glory/assets/secsk82/secsk82_g00_f075.png",
+  "system": {
+    "skillKey": "intellect",
+    "tier": "base",
+    "effects": {
+      "base": "Умножайте Знания на 12, а не на 10, чтобы определить ваше максимальное количество Маны",
+      "advanced": "Умножайте Знания на 14, а не на 10, чтобы определить ваше максимальное количество Маны",
+      "expert": "Умножайте Знания на 15, а не на 10, чтобы определить ваше максимальное количество Маны"
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 140000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!qw41odWXetvVWH5v"
+}
