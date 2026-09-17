@@ -1,0 +1,47 @@
+{
+  "_id": "eiU8uQuuLPxynae0",
+  "name": "Огненный Шар",
+  "type": "spell",
+  "img": "systems/heroes-glory/assets/spells/spells_g00_f002.png",
+  "system": {
+    "school": "fire",
+    "level": 3,
+    "range": 24,
+    "variants": {
+      "none": {
+        "description": "Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.",
+        "manaCost": 15
+      },
+      "basic": {
+        "description": "Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.",
+        "manaCost": 36
+      },
+      "advanced": {
+        "description": "Урон увеличивается до 6d6+СМ",
+        "manaCost": 36
+      },
+      "expert": {
+        "description": "Урон увеличивается до 8d6+СМ",
+        "manaCost": 36
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 350000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!eiU8uQuuLPxynae0"
+}
