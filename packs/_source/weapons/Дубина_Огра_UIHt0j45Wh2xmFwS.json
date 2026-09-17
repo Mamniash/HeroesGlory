@@ -1,0 +1,40 @@
+{
+  "_id": "UIHt0j45Wh2xmFwS",
+  "name": "Дубина Огра",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "bludgeoning",
+    "damage": 12,
+    "source": "Цитадель",
+    "twoHanded": false,
+    "equipped": false,
+    "paperdollSlot": null,
+    "epicTable": [
+      "Удар рукоятью",
+      "Удар плашмя дробящей частью",
+      "Удар снизу вверх апперкотом",
+      "Удар с разворота наотмашь",
+      "Бросок молота прямо в цель",
+      "Удар в прыжке сверху вниз"
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 290000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!UIHt0j45Wh2xmFwS"
+}

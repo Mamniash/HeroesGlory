@@ -1,0 +1,40 @@
+{
+  "_id": "NRjECAdhxGgBpCri",
+  "name": "Хлыст Владыки бездны",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "slashing",
+    "damage": 17,
+    "source": "Инферно",
+    "twoHanded": false,
+    "equipped": false,
+    "paperdollSlot": null,
+    "epicTable": [
+      "Удар рукоятью",
+      "Удар лезвием плашмя",
+      "Простой удар с маленькой амплитудой",
+      "Удар с плеча",
+      "Бросок оружия прямо в цель",
+      "Рубящий удар наотмашь"
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 210000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!NRjECAdhxGgBpCri"
+}

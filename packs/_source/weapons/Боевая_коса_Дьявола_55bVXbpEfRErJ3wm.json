@@ -1,0 +1,40 @@
+{
+  "_id": "55bVXbpEfRErJ3wm",
+  "name": "Боевая коса Дьявола",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "slashing",
+    "damage": 40,
+    "source": "Инферно",
+    "twoHanded": true,
+    "equipped": false,
+    "paperdollSlot": null,
+    "epicTable": [
+      "Удар рукоятью",
+      "Удар лезвием плашмя",
+      "Простой удар с маленькой амплитудой",
+      "Удар с плеча",
+      "Бросок оружия прямо в цель",
+      "Рубящий удар наотмашь"
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 220000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!55bVXbpEfRErJ3wm"
+}

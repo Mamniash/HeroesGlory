@@ -1,0 +1,40 @@
+{
+  "_id": "RdjSmroLVe5GJ6t7",
+  "name": "Короткий меч всадниц на пегасах",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "piercingSlashing",
+    "damage": 9,
+    "source": "Оплот",
+    "twoHanded": false,
+    "equipped": false,
+    "paperdollSlot": null,
+    "epicTable": [
+      "Крепкий удар рукоятью",
+      "Выпад с прямой рукой и меч наносит колющий удар",
+      "Разворачивая корпус, мечом наносится скользящий удар снизу вверх",
+      "Рубящим ударом с плеча меч стремится к цели",
+      "Обманным финтом удается направить лезвие на уязвимое место цели",
+      "Сделав оборот вокруг себя для придания силы удару, мечом попадаем в цель"
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 110000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!RdjSmroLVe5GJ6t7"
+}

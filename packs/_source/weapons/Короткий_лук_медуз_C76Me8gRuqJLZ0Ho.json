@@ -1,0 +1,40 @@
+{
+  "_id": "C76Me8gRuqJLZ0Ho",
+  "name": "Короткий лук медуз",
+  "type": "weapon",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "weaponType": "ranged",
+    "damage": 8,
+    "source": "Темница",
+    "twoHanded": true,
+    "equipped": false,
+    "paperdollSlot": null,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 370000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!C76Me8gRuqJLZ0Ho"
+}

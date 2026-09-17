@@ -108,6 +108,10 @@
       "Black": "Black",
       "White": "White"
     },
+    "TempFont": {
+      "Fira": "Fira Sans Extra Condensed",
+      "Fixedsys": "Fixedsys Excelsior"
+    },
     "SecondarySkill": {
       "Assault": "Assault",
       "Armor": "Armor",
@@ -142,6 +146,8 @@
     },
     "Hero": {
       "PanelColor": "Panel color",
+      "TempFont": "Font (demo)",
+      "TempFontPickHint": "Pick font (temporary, for demo)",
       "MoreDetails": "More stats",
       "BackpackPrevHint": "Scroll backpack left",
       "BackpackNextHint": "Scroll backpack right",
@@ -171,6 +177,9 @@
       "Temporary": "Temporary Effects",
       "Passive": "Passive Effects",
       "Inactive": "Inactive Effects"
+    },
+    "Compendium": {
+      "Weapons": "Weapons"
     }
   },
 

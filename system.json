@@ -56,7 +56,19 @@
       "path": "lang/en.json"
     }
   ],
-  "packs": [],
+  "packs": [
+    {
+      "name": "weapons",
+      "label": "HEROES_GLORY.Compendium.Weapons",
+      "path": "packs/weapons",
+      "type": "Item",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
   "packFolders": [],
   "socket": false,
   "manifest": "Replace this with a link to the /latest release system.json so people can receive updates after they've installed the system",

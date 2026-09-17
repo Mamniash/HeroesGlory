@@ -5,7 +5,8 @@
   "scripts": {
     "build": "sass src/scss/heroes-glory.scss css/heroes-glory.css --style=expanded --no-source-map",
     "watch": "sass src/scss/heroes-glory.scss css/heroes-glory.css --style=expanded --source-map --watch",
-    "test": "node --test"
+    "test": "node --test",
+    "build:packs": "node scripts/build-weapon-pack.mjs"
   },
   "browserslist": [
     "last 3 versions"
@@ -14,6 +15,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@foundryvtt/foundryvtt-cli": "^3.0.4",
     "sass": "^1.53.0"
   }
 }

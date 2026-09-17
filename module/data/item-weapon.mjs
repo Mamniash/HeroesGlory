@@ -12,8 +12,13 @@ export default class HeroesGloryWeapon extends HeroesGloryDataModel {
     schema.weaponType = new fields.StringField({
       required: true, blank: true, initial: "", choices: CONFIG.HEROES_GLORY.weaponTypes,
     });
+    // Max checked against the whole book, not just the weapon tables
+    // (§8.1, стр. 40-44): the highest base weapon is "Короткий меч
+    // Титана" (60), and the enchanted-weapon artifact table (стр. 46)
+    // tops out at the same 60 ("Гладиус титана") — 100 leaves headroom
+    // above both without being a fresh ceiling an artifact could hit.
     schema.damage = new fields.NumberField({
-      required: true, nullable: false, integer: true, initial: 2, min: 2, max: 50,
+      required: true, nullable: false, integer: true, initial: 2, min: 2, max: 100,
     });
     // "где встречается" — free text on origin/source.
     schema.source = new fields.StringField({ required: true, blank: true });
