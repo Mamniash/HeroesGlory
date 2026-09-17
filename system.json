@@ -78,6 +78,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "artifacts",
+      "label": "HEROES_GLORY.Compendium.Artifacts",
+      "path": "packs/artifacts",
+      "type": "Item",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [],

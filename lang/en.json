@@ -180,7 +180,8 @@
     },
     "Compendium": {
       "Weapons": "Weapons",
-      "Skills": "Secondary Skills"
+      "Skills": "Secondary Skills",
+      "Artifacts": "Artifacts"
     }
   },
 

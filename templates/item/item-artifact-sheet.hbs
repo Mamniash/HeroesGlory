@@ -18,6 +18,38 @@
     </label>
   </div>
 
+  {{!-- Only "Зачарованное оружие" (artifactType enchantedWeapon) uses these
+    three — blank/false and harmless for the other 5 types, same as Level
+    above already is for everything except enchantedArmor. No epicTable
+    field here on purpose: the book never fills one in for any artifact
+    (see item-artifact.mjs's own comment), and an equipped artifact can't
+    be attacked with yet regardless (separate task), so exposing 6 empty
+    text inputs here would suggest more than currently works. --}}
+  <div class="grid grid-3col">
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Type'}}</span>
+      {{!-- blank must be a non-empty string, same reasoning as skillKey's
+        own placeholder in item-skill-sheet.hbs: without it, a still-blank
+        weaponType ("", correct for 5 of 6 artifact types) matches no
+        <option>, and the browser silently shows the first real one
+        ("Piercing") as if selected — misleading on, say, a necklace,
+        where the field is simply not meaningful. --}}
+      <select name="system.weaponType">
+        {{selectOptions config.weaponTypes selected=system.weaponType localize=true blank='HEROES_GLORY.Weapon.TypeNotApplicable'}}
+      </select>
+    </label>
+
+    <label class="item-sheet__field">
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Damage'}}</span>
+      <input type="number" name="system.damage" value="{{system.damage}}" min="2" max="100" step="1">
+    </label>
+
+    <label class="item-sheet__field item-sheet__field--checkbox">
+      <input type="checkbox" name="system.twoHanded" {{checked system.twoHanded}}>
+      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.TwoHanded'}}</span>
+    </label>
+  </div>
+
   <label class="item-sheet__field item-sheet__field--wide">
     <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Bonus'}}</span>
     <textarea name="system.bonus" rows="4">{{system.bonus}}</textarea>

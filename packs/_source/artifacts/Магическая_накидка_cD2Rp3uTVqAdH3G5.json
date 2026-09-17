@@ -1,0 +1,44 @@
+{
+  "_id": "cD2Rp3uTVqAdH3G5",
+  "name": "Магическая накидка",
+  "type": "artifact",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "artifactType": "magicClothing",
+    "bonus": "Увеличивает продолжительность действия заклятий героя на 3 хода",
+    "level": null,
+    "equipped": false,
+    "paperdollSlot": null,
+    "targetSlots": [],
+    "modifiers": [],
+    "weaponType": "",
+    "damage": null,
+    "twoHanded": false,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 450000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!cD2Rp3uTVqAdH3G5"
+}

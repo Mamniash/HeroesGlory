@@ -1,0 +1,55 @@
+{
+  "_id": "o7SdjF8c7B4jFLKC",
+  "name": "Щит полурослика",
+  "type": "artifact",
+  "img": "icons/svg/shield.svg",
+  "system": {
+    "artifactType": "enchantedShield",
+    "bonus": "+1 к Защите, +1 к Удаче",
+    "level": null,
+    "equipped": false,
+    "paperdollSlot": null,
+    "targetSlots": [],
+    "modifiers": [
+      {
+        "stat": "defense",
+        "mode": "add",
+        "value": 1
+      },
+      {
+        "stat": "luck",
+        "mode": "add",
+        "value": 1
+      }
+    ],
+    "weaponType": "",
+    "damage": null,
+    "twoHanded": false,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 230000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!o7SdjF8c7B4jFLKC"
+}

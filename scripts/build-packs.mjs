@@ -17,11 +17,13 @@
 import { buildPack } from './lib/pack-builder.mjs';
 import { buildWeaponDocuments } from './data/weapon-compendium-data.mjs';
 import { buildSkillDocuments } from './data/skill-compendium-data.mjs';
+import { buildArtifactDocuments } from './data/artifact-compendium-data.mjs';
 
 /** @type {Record<string, () => object[]>} */
 const PACKS = {
   weapons: buildWeaponDocuments,
   skills: buildSkillDocuments,
+  artifacts: buildArtifactDocuments,
 };
 
 async function main() {

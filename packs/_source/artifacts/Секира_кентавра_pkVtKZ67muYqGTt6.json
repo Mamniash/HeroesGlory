@@ -1,0 +1,52 @@
+{
+  "_id": "pkVtKZ67muYqGTt6",
+  "name": "Секира кентавра",
+  "type": "artifact",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "artifactType": "enchantedWeapon",
+    "bonus": "+2 к Атаке",
+    "level": null,
+    "equipped": false,
+    "paperdollSlot": null,
+    "targetSlots": [
+      1
+    ],
+    "modifiers": [
+      {
+        "stat": "attack",
+        "mode": "add",
+        "value": 2
+      }
+    ],
+    "weaponType": "slashing",
+    "damage": 20,
+    "twoHanded": true,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 60000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!pkVtKZ67muYqGTt6"
+}

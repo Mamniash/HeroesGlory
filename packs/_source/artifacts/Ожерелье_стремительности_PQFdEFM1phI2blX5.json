@@ -1,0 +1,50 @@
+{
+  "_id": "PQFdEFM1phI2blX5",
+  "name": "Ожерелье стремительности",
+  "type": "artifact",
+  "img": "icons/svg/item-bag.svg",
+  "system": {
+    "artifactType": "necklace",
+    "bonus": "Увеличивает скорость на 1",
+    "level": null,
+    "equipped": false,
+    "paperdollSlot": null,
+    "targetSlots": [],
+    "modifiers": [
+      {
+        "stat": "speed",
+        "mode": "add",
+        "value": 1
+      }
+    ],
+    "weaponType": "",
+    "damage": null,
+    "twoHanded": false,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 350000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!PQFdEFM1phI2blX5"
+}

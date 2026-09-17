@@ -1,0 +1,46 @@
+{
+  "_id": "vC5ruyw98SSi3mHv",
+  "name": "Лук из вишневого дерева эльфов",
+  "type": "artifact",
+  "img": "icons/svg/sword.svg",
+  "system": {
+    "artifactType": "enchantedWeapon",
+    "bonus": "Дает дополнительную стрелковую атаку в раунд",
+    "level": null,
+    "equipped": false,
+    "paperdollSlot": null,
+    "targetSlots": [
+      16
+    ],
+    "modifiers": [],
+    "weaponType": "ranged",
+    "damage": 12,
+    "twoHanded": true,
+    "epicTable": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 40000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "coreVersion": "14.365.0",
+    "systemId": "heroes-glory",
+    "systemVersion": "0.1.0",
+    "createdTime": null,
+    "modifiedTime": null,
+    "lastModifiedBy": null
+  },
+  "_key": "!items!vC5ruyw98SSi3mHv"
+}
