@@ -124,6 +124,83 @@ export function buildItemDocument({ name, type, system, img, index, seed }) {
   };
 }
 
+/**
+ * Shared `_stats` boilerplate for both `buildItemDocument` and
+ * `buildJournalDocument`/its pages — pulled out once both existed so a
+ * future third document kind doesn't have to copy the same six fields a
+ * third time.
+ * @returns {object}
+ */
+function buildStats() {
+  return {
+    compendiumSource: null,
+    duplicateSource: null,
+    coreVersion: CORE_VERSION,
+    systemId: SYSTEM_ID,
+    systemVersion: SYSTEM_VERSION,
+    createdTime: null,
+    modifiedTime: null,
+    lastModifiedBy: null,
+  };
+}
+
+/**
+ * Builds one compendium JournalEntry document — a reference document (a
+ * GM-facing "book to read", not a game object with a `type`/`system`) — so
+ * unlike `buildItemDocument` above, this takes `pages` instead of
+ * `type`/`system`. `_key` uses the `journal` sublevel (BaseJournalEntry's
+ * own `metadata.collection`, foundry.mjs), not `items`.
+ *
+ * Each embedded page ALSO needs its own `_key` — found the hard way
+ * (LEVEL_INVALID_KEY from ClassicLevel, "Key cannot be null or undefined"):
+ * `compilePack` stores a JournalEntry's pages as SEPARATE LevelDB entries,
+ * not nested inline — `@foundryvtt/foundryvtt-cli`'s own `applyHierarchy`
+ * walks every entry in `HIERARCHY.journal.pages` and calls the same
+ * `batch.put(doc._key, ...)` on each one it finds, exactly like the parent
+ * document, using the compound key format its `extractClassicLevel` (the
+ * reverse direction) builds via `keyJoin`: `!<parentCollection>.
+ * <embeddedCollectionName>!<parentId>.<childId>` — `!journal.pages!` here,
+ * not a bare `!pages!`. No other pack this project has built needed this
+ * (weapons/skills/artifacts/spells are all flat Item docs, no embedded
+ * collection), so nothing else in this file had to deal with it before.
+ * @param {object} params
+ * @param {string} params.name                  Document name.
+ * @param {Array<{name: string, content: string}>} params.pages
+ *   One entry per JournalEntryPage — `content` is HTML (JOURNAL_ENTRY_
+ *   PAGE_FORMATS.HTML = 1, the schema default), not Markdown.
+ * @param {number} params.index                 Position in the pack — drives `sort`.
+ * @param {string} [params.seed]                Id seed; defaults to `name`.
+ * @returns {object}
+ */
+export function buildJournalDocument({ name, pages, index, seed }) {
+  const id = stableId(seed ?? name);
+  return {
+    _id: id,
+    name,
+    pages: pages.map((page, pageIndex) => {
+      const pageId = stableId(`${seed ?? name}::page::${page.name}`);
+      return {
+        _id: pageId,
+        name: page.name,
+        type: 'text',
+        title: { show: true, level: 1 },
+        text: { content: page.content, format: 1 },
+        sort: (pageIndex + 1) * 10000,
+        ownership: { default: -1 }, // INHERIT — matches the schema's own initial; the parent's `ownership` (below) is what actually gates access.
+        flags: {},
+        _stats: buildStats(),
+        _key: `!journal.pages!${id}.${pageId}`,
+      };
+    }),
+    folder: null,
+    sort: (index + 1) * 10000,
+    ownership: { default: 0 },
+    flags: {},
+    _stats: buildStats(),
+    _key: `!journal!${id}`,
+  };
+}
+
 function assertNoDuplicates(documents) {
   const seenIds = new Set();
   const seenFilenames = new Set();

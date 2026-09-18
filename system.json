@@ -100,6 +100,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "price-list",
+      "label": "HEROES_GLORY.Compendium.PriceList",
+      "path": "packs/price-list",
+      "type": "JournalEntry",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [],
