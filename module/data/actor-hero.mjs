@@ -59,11 +59,21 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     schema.level = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
     schema.experience = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
-    // §4.3: specialization from level 10 (requires expert tier in a skill
-    // or owning a spell). The book's full specialization list (p. 23)
-    // isn't reproduced in rules.md, so this is free text rather than a
-    // choices list.
-    schema.specialization = new fields.StringField({ required: true, blank: true });
+    // §4.3 p.23: specialization from level 10 (requires Expert tier in a
+    // skill, or owning a spell — helpers/specializations.mjs has the full
+    // book list). A structured reference, not free text — this used to be
+    // a plain StringField before the full list was transcribed; never
+    // exposed through the UI (see hero-sheet.mjs's own history), so
+    // repurposing it isn't a breaking change for anyone. `type`/`key` both
+    // blank together means "none chosen"; `type` picks which of `key`'s
+    // two independent namespaces applies (a secondarySkills key, or an
+    // exact spell name — spells have no stable key elsewhere in this
+    // project either, see race-granted-items.mjs's own comment on the
+    // same asymmetry).
+    schema.specialization = new fields.SchemaField({
+      type: new fields.StringField({ required: true, blank: true, initial: "" }),
+      key: new fields.StringField({ required: true, blank: true, initial: "" }),
+    });
 
     schema.gold = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 

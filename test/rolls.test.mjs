@@ -311,6 +311,15 @@ describe('resolveTargetStateMultiplier — §5.6 combat-state damage multiplier'
   test('both at once: unconscious wins, no compounding to x6', () => {
     assert.equal(resolveTargetStateMultiplier({ prone: true, unconscious: true }), 3);
   });
+
+  test('§4.3 Доспехи specialization alone: x0.5', () => {
+    assert.equal(resolveTargetStateMultiplier({ armorSpecialization: true }), 0.5);
+  });
+
+  test('Доспехи compounds with prone/unconscious (book gives no rule either way)', () => {
+    assert.equal(resolveTargetStateMultiplier({ prone: true, armorSpecialization: true }), 1);
+    assert.equal(resolveTargetStateMultiplier({ unconscious: true, armorSpecialization: true }), 1.5);
+  });
 });
 
 describe('isIncapacitated — §5.9 "ОЗ ≤ 0 → недееспособен"', () => {

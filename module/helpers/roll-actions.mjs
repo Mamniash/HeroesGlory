@@ -27,6 +27,7 @@ import {
   POST_BATTLE_RECOVERY_MANA,
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
+import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
 
 /** The flag namespace every roll-related ChatMessage flag lives under. */
 const FLAG_SCOPE = 'heroes-glory';
@@ -243,12 +244,15 @@ export async function rollAttack(actor, weapon = null) {
   const legendary = weapon ? false : !!actor.system.legendary;
   const targetDefense = targetActor?.system?.defense ?? null;
 
-  // §5.6: captured before this attack can itself apply a new state to
-  // the target (see applyLocationConsequence below) — reflects what the
-  // target was going into the attack, not a state this same hit causes.
+  // §5.6/§4.3: captured before this attack can itself apply a new state
+  // to the target (see applyLocationConsequence below) — reflects what
+  // the target was going into the attack, not a state this same hit
+  // causes. armorSpecialization reads the TARGET's own specialization
+  // (Доспехи halves damage the specialized hero TAKES, not deals).
   const stateMultiplier = resolveTargetStateMultiplier({
     prone: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.prone) ?? false,
     unconscious: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.unconscious) ?? false,
+    armorSpecialization: hasArmorSpecialization(targetActor?.system?.specialization),
   });
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
@@ -386,25 +390,31 @@ export function findSpellVariant(actor, spell) {
 }
 
 /**
- * §6.3: cast a spell — pick the variant matching the hero's school
- * mastery, and spend its Mana cost if affordable.
+ * §6.3/§4.3: cast a spell — pick the variant matching the hero's school
+ * mastery, and spend its Mana cost if affordable. The Воскрешение
+ * specialization's -4 Мана discount (specializations.mjs's
+ * `specializationManaDiscount`) is applied here, at the one place that
+ * already reads/spends `variantData.manaCost` — not a second cost
+ * computation living somewhere else.
  * @param {Actor} actor   The casting hero.
  * @param {Item} spell    The spell item.
  * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana (nothing is cast).
  */
 export async function castSpell(actor, spell) {
   const { variant, variantData } = findSpellVariant(actor, spell);
+  const discount = specializationManaDiscount(actor.system.specialization, spell.name);
+  const manaCost = Math.max(0, variantData.manaCost - discount);
 
-  if (!canAffordSpell(actor.system.mana.value, variantData.manaCost)) {
+  if (!canAffordSpell(actor.system.mana.value, manaCost)) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.NotEnoughMana', {
       spell: spell.name,
-      cost: variantData.manaCost,
+      cost: manaCost,
       mana: actor.system.mana.value,
     }));
     return null;
   }
 
-  const manaRemaining = actor.system.mana.value - variantData.manaCost;
+  const manaRemaining = actor.system.mana.value - manaCost;
   await actor.update({ 'system.mana.value': manaRemaining });
 
   const content = await foundry.applications.handlebars.renderTemplate(
@@ -414,7 +424,7 @@ export async function castSpell(actor, spell) {
       spellName: spell.name,
       variantLabelKey: SPELL_VARIANT_LABELS[variant],
       description: variantData.description,
-      manaCost: variantData.manaCost,
+      manaCost,
       manaRemaining,
     },
   );

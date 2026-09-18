@@ -305,8 +305,7 @@ $hg-tooltip-split-padding-inline: 33px; // 27px + 6px
   }
   // Body text (this box's own `p` elements — the icon/title get their own
   // rules below).
-  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
-  font-family: var(--hg-temp-font-small, #{$font-h3-small});
+  font-family: $font-h3-small;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -411,8 +410,7 @@ $hg-tooltip-split-padding-inline: 33px; // 27px + 6px
   margin: 0;
   // No --hg-pixel-scale multiplication — see the comment on .hg-tooltip's
   // own body-text font-size above, same reasoning.
-  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
-  font-family: var(--hg-temp-font-medium, #{$font-h3-medium});
+  font-family: $font-h3-medium;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -620,8 +618,7 @@ $hg-option-list-max-height: 300px;
   // No --hg-pixel-scale multiplication — see the comment on .hg-tooltip's
   // own body-text font-size above, same reasoning (this list lives inside
   // the same .hg-tooltip that now scales as a whole via transform).
-  // TEMPORARY (client demo) — see utils/_fonts.scss's own TEMPORARY block.
-  font-family: var(--hg-temp-font-small, #{$font-h3-small});
+  font-family: $font-h3-small;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -641,6 +638,25 @@ $hg-option-list-max-height: 300px;
   &[data-current='true'] {
     color: $hg-gold;
   }
+}
+
+// §4.3: the "why is this list empty" explanation (picker-app.mjs's
+// `emptyMessage`) — same text treatment as .hg-option-list__item just
+// above, minus the interactive bits (no `cursor: pointer`, no hover
+// underline, nothing to click) — this is inert body text, not a
+// zero-option button.
+.hg-option-list__empty {
+  margin: 0;
+  // No own max-width — already constrained by the parent .hg-tooltip's
+  // (line ~189 above), same as every other plain-text child of it.
+  text-align: center;
+  font-family: $font-h3-small;
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: $hg-font-h3-small-height;
+  line-height: 1.4;
+  color: $hg-parchment;
 }
 
 // §task: close to how a secondary skill's icon actually reads in its own

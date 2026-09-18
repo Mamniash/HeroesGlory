@@ -1,4 +1,15 @@
 import { isIncapacitated } from '../helpers/rolls.mjs';
+import { specializationModifiers } from '../helpers/specializations.mjs';
+import { buildEffectChanges } from '../helpers/modifiers.mjs';
+
+/**
+ * The flag namespace/key marking the ActiveEffect this system auto-manages
+ * from a hero's `system.specialization` (rules.md §4.3) — same convention
+ * as documents/item.mjs's own MODIFIER_EFFECT_FLAG for an artifact's
+ * modifiers, distinguishing this auto-managed effect from anything a GM
+ * adds by hand through Foundry's own effects UI.
+ */
+const SPECIALIZATION_EFFECT_FLAG = ['heroes-glory', 'specializationModifiers'];
 
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
@@ -31,10 +42,53 @@ export class HeroesGloryActor extends Actor {
     // Only the client that made this change drives the follow-up status
     // toggle, so it isn't attempted redundantly on every connected client.
     if (userId !== game.user.id) return;
-    if (changed.system?.health?.value === undefined) return;
-    if (!isIncapacitated(this.system.health.value)) return;
 
-    this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
+    if (changed.system?.health?.value !== undefined
+      && isIncapacitated(this.system.health.value)) {
+      this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
+    }
+
+    // §4.3: keep the specialization ActiveEffect (currently only
+    // Интеллект's +50 Mana) in sync whenever `system.specialization`
+    // changes — covers picking one, switching to a different one, and
+    // the manual "снять специализацию" clear (hero-sheet.mjs's
+    // #onUnsetSpecialization) the same way. Hero-only (`type` check)
+    // since creature actors have no such field.
+    if (this.type === 'hero' && 'specialization' in (changed.system ?? {})) {
+      this.#syncSpecializationEffect();
+    }
+  }
+
+  /**
+   * Always rebuilds the full effect data and calls `update()` rather than
+   * diffing — same reasoning as documents/item.mjs's own
+   * `#syncModifierEffect`: Foundry only writes an actual change if
+   * something differs, so this stays simple without being wasteful.
+   * `transfer` isn't set (unlike the item version) — this effect is
+   * created directly on the actor, not on an owned item, so there's
+   * nothing to transfer from.
+   * @returns {Promise<void>}
+   */
+  async #syncSpecializationEffect() {
+    const { type, key } = this.system.specialization;
+    const modifiers = specializationModifiers(type, key);
+    const existing = this.effects.find((e) => e.getFlag(...SPECIALIZATION_EFFECT_FLAG));
+
+    if (modifiers.length === 0) {
+      if (existing) await existing.delete();
+      return;
+    }
+
+    const effectData = {
+      name: game.i18n.localize('HEROES_GLORY.Hero.SpecializationEffectName'),
+      icon: 'icons/svg/aura.svg',
+      origin: this.uuid,
+      system: { changes: buildEffectChanges(modifiers) },
+      flags: { [SPECIALIZATION_EFFECT_FLAG[0]]: { [SPECIALIZATION_EFFECT_FLAG[1]]: true } },
+    };
+
+    if (existing) await existing.update(effectData);
+    else await this.createEmbeddedDocuments('ActiveEffect', [effectData]);
   }
 
   /**

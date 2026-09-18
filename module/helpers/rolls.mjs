@@ -267,21 +267,27 @@ export function resolveMoraleCheck(d6) {
 }
 
 /**
- * §5.6: the damage multiplier a target's own combat state adds on top of
- * the d6 hit-table multiplier — прone doubles it, unconscious triples it.
- * If a target somehow carries both, unconscious (the more severe state,
- * and the one that implies prone no longer matters — "неподвижна")
- * wins rather than the two compounding multiplicatively; the book gives
- * no rule for that overlap, so this is an explicit interpretation call.
+ * §5.6/§4.3: the damage multiplier a target's own combat state adds on
+ * top of the d6 hit-table multiplier — prone doubles it, unconscious
+ * triples it, the Доспехи specialization halves it. If a target somehow
+ * carries both prone and unconscious, unconscious (the more severe
+ * state, and the one that implies prone no longer matters —
+ * "неподвижна") wins rather than the two compounding multiplicatively;
+ * the book gives no rule for that overlap, so this is an explicit
+ * interpretation call. Доспехи DOES compound with whichever of those
+ * wins (×2×0.5 or ×3×0.5) — the book gives no rule for that combination
+ * either, and unlike prone-vs-unconscious there's no "one implies the
+ * other no longer applies" reading available here, so straight
+ * multiplication is the least invented option.
  * @param {object} [state]
  * @param {boolean} [state.prone=false]
  * @param {boolean} [state.unconscious=false]
- * @returns {number}   1, 2, or 3.
+ * @param {boolean} [state.armorSpecialization=false]
+ * @returns {number}   0.5, 1, 1.5, 2, or 3.
  */
-export function resolveTargetStateMultiplier({ prone = false, unconscious = false } = {}) {
-  if (unconscious) return 3;
-  if (prone) return 2;
-  return 1;
+export function resolveTargetStateMultiplier({ prone = false, unconscious = false, armorSpecialization = false } = {}) {
+  const stateMultiplier = unconscious ? 3 : prone ? 2 : 1;
+  return armorSpecialization ? stateMultiplier * 0.5 : stateMultiplier;
 }
 
 /**
