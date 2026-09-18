@@ -1,0 +1,16 @@
+// The "Справочник цен" compendium's reference tables (scripts/data/
+// price-list-compendium-data.mjs) render inside a core Foundry
+// JournalEntryPage sheet, not one of this system's own sheets — so this
+// lives at the top level of heroes-glory.scss, outside `.heroes-glory`,
+// same reasoning as chat-card.scss.
+//
+// Scoped to `.hg-price-list-table-wrap`, a class only this compendium's
+// generated HTML ever uses — never touches any other journal's tables,
+// core or otherwise. Deliberately just a horizontal scrollbar, not a
+// responsive column reflow: this is a reference a GM reads occasionally,
+// not something worked in continuously, so losing the "Пояснение" column
+// off the edge of a narrow window is the actual problem to fix, not the
+// table's fixed layout.
+.hg-price-list-table-wrap {
+  overflow-x: auto;
+}

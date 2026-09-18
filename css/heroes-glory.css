@@ -2823,3 +2823,8 @@
 .heroes-glory-chat-card__reroll-btn[hidden] {
   display: none;
 }
+
+/* The price-list compendium's journal pages, same reasoning as chat-card above */
+.hg-price-list-table-wrap {
+  overflow-x: auto;
+}

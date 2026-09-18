@@ -170,6 +170,13 @@ const PAGES = [
  * Renders one page's rows as a single HTML table — a `PriceSubheader` row
  * becomes a spanning `<tr><th colspan="4">` divider (used only inside the
  * "Простое оружие" page, for its 5 weapon-family subcategories).
+ *
+ * Wrapped in `.hg-price-list-table-wrap` (src/scss/components/
+ * _price-list.scss) so a narrow journal window scrolls the table
+ * horizontally instead of losing the "Пояснение" column off the edge —
+ * found live (below ~850px the unwrapped table overflowed its container
+ * with no way to reach it). The class is exclusive to this compendium's
+ * own generated HTML, so the rule can't reach any other journal's tables.
  * @param {Array<PriceRow|PriceSubheader>} rows
  * @returns {string}
  */
@@ -178,14 +185,16 @@ function renderTable(rows) {
     if ('header' in row) return `<tr><th colspan="4">${row.header}</th></tr>`;
     return `<tr><td>${row.name}</td><td>${row.cost}</td><td>${row.unit}</td><td>${row.note}</td></tr>`;
   }).join('\n      ');
-  return `<table>
+  return `<div class="hg-price-list-table-wrap">
+  <table>
     <thead>
       <tr><th>Наименование</th><th>Стоимость</th><th>За одну единицу измерения</th><th>Пояснение</th></tr>
     </thead>
     <tbody>
       ${body}
     </tbody>
-  </table>`;
+  </table>
+  </div>`;
 }
 
 /**
