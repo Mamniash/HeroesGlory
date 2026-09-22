@@ -200,7 +200,7 @@ HEROES_GLORY.secondarySkills = {
   interference: 'HEROES_GLORY.SecondarySkill.Interference',   // 5 Помехи
   leadership: 'HEROES_GLORY.SecondarySkill.Leadership',       // 6 Лидерство
   luck: 'HEROES_GLORY.SecondarySkill.Luck',                   // 7 Удача
-  pathfinding: 'HEROES_GLORY.SecondarySkill.Pathfinding',     // 8 Поиск пути
+  pathfinding: 'HEROES_GLORY.SecondarySkill.Pathfinding',     // 8 Поиск Пути
   airMagic: 'HEROES_GLORY.SecondarySkill.AirMagic',           // 9 Магия Воздуха
   earthMagic: 'HEROES_GLORY.SecondarySkill.EarthMagic',       // 10 Магия Земли
   waterMagic: 'HEROES_GLORY.SecondarySkill.WaterMagic',       // 11 Магия Воды
