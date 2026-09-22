@@ -35,45 +35,26 @@
   font-style: normal;
 }
 @font-face {
-  font-family: "HG TempSwitch Fira 400";
+  font-family: "HG Fira 400";
   src: url("../assets/fonts/tempswitch-fira-400.ttf") format("truetype");
   font-display: block;
   font-weight: normal;
   font-style: normal;
 }
 @font-face {
-  font-family: "HG TempSwitch Fira 500";
+  font-family: "HG Fira 500";
   src: url("../assets/fonts/tempswitch-fira-500.ttf") format("truetype");
   font-display: block;
   font-weight: normal;
   font-style: normal;
 }
 @font-face {
-  font-family: "HG TempSwitch Fira 700";
+  font-family: "HG Fira 700";
   src: url("../assets/fonts/tempswitch-fira-700.ttf") format("truetype");
   font-display: block;
   font-weight: normal;
   font-style: normal;
 }
-@font-face {
-  font-family: "HG TempSwitch Fixedsys";
-  src: url("../assets/fonts/tempswitch-fixedsys.ttf") format("truetype");
-  font-display: block;
-  font-weight: normal;
-  font-style: normal;
-}
-:root {
-  --hg-temp-font-small: 'HG TempSwitch Fira 400', Roboto, sans-serif;
-  --hg-temp-font-medium: 'HG TempSwitch Fira 500', Roboto, sans-serif;
-  --hg-temp-font-big: 'HG TempSwitch Fira 700', Roboto, sans-serif;
-}
-
-[data-hg-temp-font=fixedsys] {
-  --hg-temp-font-small: 'HG TempSwitch Fixedsys', Roboto, sans-serif;
-  --hg-temp-font-medium: 'HG TempSwitch Fixedsys', Roboto, sans-serif;
-  --hg-temp-font-big: 'HG TempSwitch Fixedsys', Roboto, sans-serif;
-}
-
 /* Global styles */
 .window-app {
   font-family: "Roboto", sans-serif;
@@ -989,17 +970,17 @@
   width: 8.6666666667%;
   height: 7.6109936575%;
 }
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor {
-  left: 77.833%;
-  top: 89.006%;
-  width: 8.6666666667%;
-  height: 7.6109936575%;
+.heroes-glory .hero-paperdoll__slot--specialization {
+  left: 63.5%;
+  top: 88.3720930233%;
+  width: 23%;
+  height: 9.3023255814%;
 }
-.heroes-glory .hero-paperdoll__slot--edit_button_tempfont {
-  left: 67.5%;
-  top: 89.006%;
-  width: 8.6666666667%;
-  height: 7.6109936575%;
+.heroes-glory .hero-paperdoll__slot--specialization_highlight {
+  left: 63.5%;
+  top: 88.3720930233%;
+  width: 23%;
+  height: 9.3023255814%;
 }
 .heroes-glory .hero-paperdoll__slot--secondary_skills_scroll {
   left: 2.1666666667%;
@@ -1361,7 +1342,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #E1CF8B;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1379,7 +1360,7 @@
 }
 .heroes-glory .hero-paperdoll__identity-block--name,
 .heroes-glory .hero-paperdoll__identity-block--level {
-  font-family: var(--hg-temp-font-big, H3 BigFont NoOutline, Roboto, sans-serif);
+  font-family: "HG Fira 700", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1463,7 +1444,7 @@
   justify-content: center;
   gap: 0.2em;
   text-align: center;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1482,7 +1463,7 @@
   border: none;
   background: transparent;
   color: inherit;
-  font-family: var(--hg-temp-font-medium, H3 MedFont NoOutline, Roboto, sans-serif);
+  font-family: "HG Fira 500", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1491,7 +1472,7 @@
   text-align: center;
 }
 .heroes-glory .hero-paperdoll__primary-value-display {
-  font-family: var(--hg-temp-font-medium, H3 MedFont NoOutline, Roboto, sans-serif);
+  font-family: "HG Fira 500", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1505,7 +1486,7 @@
   text-decoration: underline;
 }
 .heroes-glory .hero-paperdoll__primary-total {
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1530,7 +1511,7 @@
   align-items: flex-start;
   justify-content: center;
   padding-left: calc(3px * var(--hg-pixel-scale));
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1608,7 +1589,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1657,6 +1638,15 @@
   align-items: flex-start;
   gap: 1.4492753623%;
 }
+.heroes-glory .hero-paperdoll__slot--specialization {
+  background-image: url("../assets/ui/secondary_skill_rows.png");
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 203.6231884058% 545.4545454545%;
+}
+.heroes-glory .hero-paperdoll__slot--specialization[data-action] {
+  cursor: pointer;
+}
 .heroes-glory .hero-paperdoll__skill-cell-icon {
   position: relative;
   flex: 44 44 0;
@@ -1668,7 +1658,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -1777,6 +1767,12 @@
   image-rendering: pixelated;
   pointer-events: none;
 }
+.heroes-glory .hero-paperdoll__slot--specialization_highlight {
+  border: calc(1px * var(--hg-pixel-scale)) solid rgb(255, 228, 135);
+  border-right-width: calc(2px * var(--hg-pixel-scale));
+  pointer-events: none;
+  opacity: 0;
+}
 .heroes-glory .hero-paperdoll__slot--experience_highlight {
   left: calc(2.333% - 1px * var(--hg-pixel-scale));
   top: calc(47.357% - 1px * var(--hg-pixel-scale));
@@ -1787,7 +1783,8 @@
   pointer-events: none;
   opacity: 0;
 }
-.heroes-glory .hero-paperdoll__slot--experience_highlight--active {
+.heroes-glory .hero-paperdoll__slot--experience_highlight--active,
+.heroes-glory .hero-paperdoll__slot--specialization_highlight--active {
   opacity: 1;
   animation: hg-experience-highlight-pulse 2.6s ease-in-out infinite;
 }
@@ -1827,92 +1824,6 @@
 }
 .heroes-glory .hero-paperdoll__slot--edit_button_toggle:disabled {
   opacity: 0.5;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor {
-  appearance: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  outline: none;
-  background: none;
-  gap: 0;
-  padding: 0;
-  transition: none;
-  display: block;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  image-rendering: pixelated;
-  cursor: pointer;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor:disabled {
-  cursor: default;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor {
-  border: 2px solid #191813;
-  box-sizing: border-box;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=red] {
-  background-color: #731d20;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=blue] {
-  background-color: #223a73;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=tan] {
-  background-color: #735e46;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=green] {
-  background-color: #307325;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=orange] {
-  background-color: #73421d;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=purple] {
-  background-color: #562573;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=teal] {
-  background-color: #257073;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=pink] {
-  background-color: #733157;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=black] {
-  background-color: #2e2e2e;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_panelcolor[data-panel-color-swatch=white] {
-  background-color: #466773;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_tempfont {
-  appearance: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  outline: none;
-  background: none;
-  gap: 0;
-  padding: 0;
-  transition: none;
-  display: block;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  image-rendering: pixelated;
-  cursor: pointer;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_tempfont:disabled {
-  cursor: default;
-}
-.heroes-glory .hero-paperdoll__slot--edit_button_tempfont {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #191813;
-  box-sizing: border-box;
-  background-color: #191813;
-  color: #ffffff;
-  font-family: var(--hg-temp-font-medium, Roboto, sans-serif);
-  font-size: 18px;
-  line-height: 1;
 }
 .heroes-glory .hero-paperdoll__more {
   margin-top: 10px;
@@ -2061,7 +1972,7 @@
   justify-content: center;
   text-align: center;
   color: #ffffff;
-  font-family: var(--hg-temp-font-medium, H3 MedFont NoOutline, Roboto, sans-serif);
+  font-family: "HG Fira 500", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2074,7 +1985,7 @@
   justify-content: center;
   text-align: center;
   color: #ffffff;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2109,7 +2020,7 @@
   text-align: center;
   overflow: hidden;
   color: #ffffff;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2360,7 +2271,7 @@
   align-items: center;
   text-align: center;
   padding-top: calc(1px * var(--hg-pixel-scale));
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2394,7 +2305,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2470,7 +2381,7 @@
   image-rendering: pixelated;
 }
 .heroes-glory .hg-tooltip {
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2510,7 +2421,7 @@
 }
 .heroes-glory .hg-tooltip__title {
   margin: 0;
-  font-family: var(--hg-temp-font-medium, H3 MedFont NoOutline, Roboto, sans-serif);
+  font-family: "HG Fira 500", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2636,7 +2547,7 @@
   cursor: pointer;
   text-align: center;
   padding: 2px 5px;
-  font-family: var(--hg-temp-font-small, H3 SmallFont, Roboto, sans-serif);
+  font-family: "HG Fira 400", "Roboto", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-synthesis: none;
@@ -2649,6 +2560,17 @@
 }
 .heroes-glory .hg-option-list__item[data-current=true] {
   color: #C8AD63;
+}
+.heroes-glory .hg-option-list__empty {
+  margin: 0;
+  text-align: center;
+  font-family: "HG Fira 400", "Roboto", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #ffffff;
 }
 .heroes-glory .hg-option-list__item--icon {
   display: flex;
