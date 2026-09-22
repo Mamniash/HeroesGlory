@@ -1,18 +1,18 @@
 <div class="hero-paperdoll-wrapper">
 {{#if spellbookOpen}}
-<div class="hero-spellbook" data-panel-color="{{system.panelColor}}">
+<div class="hero-spellbook" data-panel-color="{{effectivePanelColor}}">
 
   {{!-- ==================== 12 spell slots (1-6 left page, 7-12 right page) ==================== --}}
   {{#each spellbookSlots}}
     <div class="hero-spellbook__slot hero-spellbook__slot--icon_{{inc @index}}">
       {{#if this}}
-        <img class="hero-spellbook__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
+        <img class="hero-spellbook__icon-img" src="{{this.iconSrc}}" data-item-id="{{this.item.id}}"
           data-action="castSpell" data-tooltip-trigger="spell-{{this.item.id}}">
         {{#if this.frame}}
           <img class="hero-spellbook__frame-img" src="{{this.frame}}" alt="">
         {{/if}}
         <template class="hg-tooltip-tpl" data-tooltip-key="spell-{{this.item.id}}">
-          <img class="hg-tooltip__icon" src="{{this.item.img}}" width="78" height="65" alt="">
+          <img class="hg-tooltip__icon" src="{{this.iconSrc}}" width="78" height="65" alt="">
           <p class="hg-tooltip__title">{{this.item.name}}</p>
           <p>{{localize 'HEROES_GLORY.Spell.Level'}}: {{this.item.system.level}}</p>
           <p>{{localize 'HEROES_GLORY.Spell.School'}}: {{localize this.schoolLabelKey}}</p>
@@ -23,23 +23,41 @@
       {{/if}}
     </div>
     <div class="hero-spellbook__slot hero-spellbook__slot--text_{{inc @index}}">
-      {{#if this}}<span>{{this.item.name}}</span>{{/if}}
+      {{!-- {{#if this.variantData.manaCost}} takes the "no cost" (—) branch for
+        BOTH an honest 0 and an unset value — deliberate, not a rendering bug:
+        rules.md has real spells with no mana cost (e.g. Стена огня), and a
+        dash reads correctly for those; nothing in this book currently has a
+        genuine 0 that should print as "0". --}}
+      {{#if this}}<span class="hero-spellbook__spell-name">{{this.item.name}}</span><span class="hero-spellbook__spell-meta">{{#if this.variantData.manaCost}}{{localize 'HEROES_GLORY.Spellbook.SpellMeta' level=this.item.system.level cost=this.variantData.manaCost}}{{else}}{{localize 'HEROES_GLORY.Spellbook.SpellMetaNoCost' level=this.item.system.level}}{{/if}}</span>{{/if}}
     </div>
   {{/each}}
 
-  {{!-- ==================== Page-turn corners (assets/ui/speltrnl.png / speltrnr.png, native aspect ratio) ==================== --}}
+  {{!-- ==================== Page-turn corners (assets/ui/speltrn{l,r}_rgba.png,
+    keyed transparent — see scripts/key_bg.py; native aspect ratio) — not
+    rendered at all when there's nowhere to turn, rather than shown disabled;
+    the slot's own box still reserves no layout space either way (both
+    corners are `position: absolute`, not part of any flex/grid flow that a
+    missing sibling could reflow). ==================== --}}
+  {{#if spellbookPage}}
   <button type="button" class="hero-spellbook__slot hero-spellbook__slot--left" data-action="spellbookPage" data-direction="prev"
-    {{#unless spellbookPage}}disabled{{/unless}} aria-label="{{localize 'HEROES_GLORY.Spellbook.PrevPageHint'}}">
-    <img src="systems/heroes-glory/assets/ui/speltrnl.png" alt="">
+    aria-label="{{localize 'HEROES_GLORY.Spellbook.PrevPageHint'}}">
+    <img src="systems/heroes-glory/assets/ui/speltrnl_rgba.png" alt="">
   </button>
+  {{/if}}
+  {{#unless (eq spellbookPage spellbookMaxPage)}}
   <button type="button" class="hero-spellbook__slot hero-spellbook__slot--right" data-action="spellbookPage" data-direction="next"
-    {{#if (eq spellbookPage spellbookMaxPage)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Spellbook.NextPageHint'}}">
-    <img src="systems/heroes-glory/assets/ui/speltrnr.png" alt="">
+    aria-label="{{localize 'HEROES_GLORY.Spellbook.NextPageHint'}}">
+    <img src="systems/heroes-glory/assets/ui/speltrnr_rgba.png" alt="">
   </button>
+  {{/unless}}
 
-  {{!-- ==================== Mana (read-only duplicate of the paperdoll's own slot) ==================== --}}
-  <div class="hero-spellbook__slot hero-spellbook__slot--mana" data-tooltip-trigger="mana" data-tooltip-click>
-    <span>{{system.mana.value}}</span><span class="hero-paperdoll__value-sep">/</span><span>{{system.mana.max}}</span>
+  {{!-- ==================== Mana (read-only duplicate of the paperdoll's own slot) ====================
+    No tooltip here on purpose — this is a bare number sitting on the book's own
+    art with nothing to disambiguate (unlike the paperdoll's own mana icon,
+    which keeps its `data-tooltip-trigger="mana"` and needs the breakdown since
+    it's the only place that value's formula shows). --}}
+  <div class="hero-spellbook__slot hero-spellbook__slot--mana">
+    <span>{{system.mana.value}}</span>
   </div>
 
   {{!-- ==================== Close (no extra chrome — the button art is already on the background) ==================== --}}
@@ -48,18 +66,78 @@
 
 </div>
 {{else}}
-<div class="hero-paperdoll" data-panel-color="{{system.panelColor}}">
+<div class="hero-paperdoll" data-panel-color="{{effectivePanelColor}}">
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--portrait" src="{{actor.img}}" alt="{{actor.name}}"
     data-action="editImage" data-edit="img" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Actor.ChangeImage'}}">
 
+  {{!-- §2.3-2.5: a single 6-column CSS Grid, not two independent flex
+    rows — Имя/Уровень each span 3 columns (half the grid each, so they're
+    exactly equal to EACH OTHER), Раса/Фракция/Класс each span 2 (a third
+    each). Sharing one grid (rather than each row picking its own widths)
+    is what makes the two rows' total widths and left/right edges match
+    automatically — see _hero-paperdoll.scss's `.hero-paperdoll__slot--name`
+    for the column/gap values this guarantees stay identical between rows. --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--name">
-    <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
-      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}" {{#unless editMode}}disabled{{/unless}}>
-    <p class="hero-paperdoll__name-line">{{localize raceLabel}} — {{localize classLabel}}</p>
-    <p class="hero-paperdoll__name-line">{{localize factionLabel}}</p>
+    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--name">
+      <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
+        placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}" {{#unless editMode}}disabled{{/unless}}>
+    </div>
+    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--level{{#if canPickLevel}} hero-paperdoll__name-pick{{/if}}"
+      {{#if canPickLevel}}data-action="pickLevel" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Hero.LevelPickHint'}}"{{/if}}>
+      <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Hero.Level'}} <span class="hero-paperdoll__level-value">{{heroLevel}}</span></span>
+    </div>
+    {{!-- §2.4/§2.5: Раса, Фракция, Класс — in THIS order, matching the
+      derivation direction (class comes from faction, so faction leads it).
+      Each is its own bordered block (not a comma-joined line, see
+      _hero-paperdoll.scss's `.hero-paperdoll__identity-block` for the
+      empty-state rules) — an empty block shows the field's own name
+      (HEROES_GLORY.Hero.Race/Faction/Class), not "Не выбрано". --}}
+    <span class="hero-paperdoll__identity-block hero-paperdoll__identity-block--race{{#if canPickIdentity.race}} hero-paperdoll__name-pick{{/if}}{{#unless raceLabel}} hero-paperdoll__identity-block--empty{{/unless}}"
+      {{#if canPickIdentity.race}}data-action="pickRace" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Hero.RacePickHint'}}"{{/if}}
+      {{#if raceLabel}}data-tooltip-trigger="race"{{/if}}>{{#if raceLabel}}{{localize raceLabel}}{{else}}{{localize 'HEROES_GLORY.Hero.Race'}}{{/if}}</span>
+    <span class="hero-paperdoll__identity-block hero-paperdoll__identity-block--faction{{#if canPickIdentity.faction}} hero-paperdoll__name-pick{{/if}}{{#unless factionLabel}} hero-paperdoll__identity-block--empty{{/unless}}"
+      {{#if canPickIdentity.faction}}data-action="pickFaction" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Hero.FactionPickHint'}}"{{/if}}>{{#if factionLabel}}{{localize factionLabel}}{{else}}{{localize 'HEROES_GLORY.Hero.Faction'}}{{/if}}</span>
+    <span class="hero-paperdoll__identity-block hero-paperdoll__identity-block--class{{#if canPickIdentity.classType}} hero-paperdoll__name-pick{{/if}}{{#unless classLabel}} hero-paperdoll__identity-block--empty{{/unless}}{{#if classLocked}} hero-paperdoll__identity-block--locked{{/if}}"
+      {{#if canPickIdentity.classType}}data-action="pickClassType" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Hero.ClassPickHint'}}"{{/if}}
+      {{#if classLocked}}aria-disabled="true" data-tooltip-trigger="class-locked"{{/if}}>{{#if classLabel}}{{localize identityClassLabel}}{{else}}{{localize 'HEROES_GLORY.Hero.Class'}}{{/if}}</span>
   </div>
+
+  {{!-- §task: Зрение/Скорость — same block style as Раса/Фракция/Класс
+    (border+SmallFont, no grid-column span since these sit outside the
+    identity grid, positioned by their own $hg-named-slots entries
+    instead), free leather strip left of the head slot. Bare value only
+    (no "Зрение:"/"Скорость:" prefix) — the field name is the hover
+    tooltip, matching every other bare-value identity block. Both are
+    edit-mode-only (no "blank field, any owner" exception — unlike Раса/
+    Фракция/Класс, these never start genuinely blank, see
+    schema.speed/vision's own `initial`).
+
+    stat_backdrop first in DOM, no z-index anywhere on this canvas (see
+    the window-frame ::after's own comment on why DOM order alone already
+    decides stacking here) — so it paints under both blocks despite
+    sharing their exact footprint. Decorative only, aria-hidden. --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--stat_backdrop hero-paperdoll__stat-backdrop" aria-hidden="true"></div>
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_speed hero-paperdoll__identity-block"
+    data-tooltip-trigger="stat-speed">
+    <input class="hero-paperdoll__name-input" type="number" name="system.speed" value="{{system.speed}}" min="0"
+      {{#unless editMode}}readonly{{/unless}}>
+  </span>
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_vision hero-paperdoll__identity-block{{#if editMode}} hero-paperdoll__name-pick{{/if}}"
+    {{#if editMode}}data-action="pickVision" role="button" tabindex="0"
+    aria-label="{{localize 'HEROES_GLORY.Hero.VisionPickHint'}}"{{/if}}
+    data-tooltip-trigger="stat-vision">{{localize visionLabel}}</span>
+  <template class="hg-tooltip-tpl" data-tooltip-key="stat-speed">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Speed'}}</p>
+  </template>
+  <template class="hg-tooltip-tpl" data-tooltip-key="stat-vision">
+    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Vision'}}</p>
+  </template>
 
   {{!-- ==================== Primary skills: labels / icons / values ==================== --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--text_1 hero-paperdoll__primary-row">
@@ -114,23 +192,49 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--health_name" src="{{icons.health}}" alt=""
     data-tooltip-trigger="health" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--health_desc">
-    <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
-    <span class="hero-paperdoll__value-sep">/</span>
-    <span class="hero-paperdoll__value-max">{{system.health.max}}</span>
+    <span class="hero-paperdoll__value-label">{{localize 'HEROES_GLORY.Hero.Health'}}</span>
+    <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.health.value}}</span><input class="hero-paperdoll__value-input" type="number" name="system.health.value" value="{{system.health.value}}" min="0"></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{system.health.max}}</span></span>
   </div>
 
+  {{!-- §4.2: a slow-pulsing highlight frame over the WHOLE Опыт block
+    (icon + label + value, not just the label) once a level-up is
+    available — placed before experience_name/experience_desc in the DOM
+    so normal stacking order paints their icon/text over it with no
+    z-index needed; see _hero-paperdoll.scss for the rest. Purely
+    decorative — not a click target, no data-action of its own; that
+    already showing frame is the only "you can click here" signal this
+    block gets (no color change, no cursor change, no animation on the
+    icon/text themselves). --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_highlight{{#if canLevelUp}} hero-paperdoll__slot--experience_highlight--active{{/if}}" aria-hidden="true"></div>
+
+  {{!-- §4.2 (click area): the icon and the label/value/max text each carry
+    their own data-action when a level-up is available, matching how
+    experience_desc alone already worked before this — clicking the star
+    icon now opens the level-up window too, exactly like clicking the
+    label/value/max already did. `.hero-paperdoll__value-input` is the one
+    exception: it's still a live editable field, isolated via its own
+    stopPropagation listener (hero-sheet.mjs's `_onRender`).
+    data-tooltip-click on the icon is suppressed while canLevelUp so a
+    left-click doesn't also pin the plain tooltip on top of opening the
+    level-up window; data-tooltip-trigger stays unconditional so
+    right-click-hold keeps working exactly as before. --}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt=""
-    data-tooltip-trigger="experience" data-tooltip-click>
-  <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc">
-    <input type="number" name="system.experience" value="{{system.experience}}" min="0">
+    data-tooltip-trigger="experience" {{#unless canLevelUp}}data-tooltip-click{{/unless}}
+    {{#if canLevelUp}}data-action="openLevelUp" role="button" tabindex="0"
+    aria-label="{{localize 'HEROES_GLORY.Hero.Experience'}}"
+    data-tooltip="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc"
+    {{#if canLevelUp}}data-action="openLevelUp" role="button" tabindex="0"
+    data-tooltip="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
+    <span class="hero-paperdoll__value-label">{{localize 'HEROES_GLORY.Hero.Experience'}}</span>
+    <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.experience}}</span><input class="hero-paperdoll__value-input" type="number" name="system.experience" value="{{system.experience}}" min="0" {{#unless editMode}}readonly{{/unless}}></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{experienceForNextLevel}}</span></span>
   </div>
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--mana_name" src="{{icons.mana}}" alt=""
     data-tooltip-trigger="mana" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--mana_desc">
-    <input type="number" name="system.mana.value" value="{{system.mana.value}}" min="0">
-    <span class="hero-paperdoll__value-sep">/</span>
-    <span class="hero-paperdoll__value-max">{{system.mana.max}}</span>
+    <span class="hero-paperdoll__value-label">{{localize 'HEROES_GLORY.Hero.Mana'}}</span>
+    <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.mana.value}}</span><input class="hero-paperdoll__value-input" type="number" name="system.mana.value" value="{{system.mana.value}}" min="0"></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{system.mana.max}}</span></span>
   </div>
 
   {{!-- ==================== Morale / Luck (read display — editable in the details fallback) ==================== --}}
@@ -139,30 +243,88 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck" data-tooltip-click>
 
-  {{!-- ==================== Secondary skills (8 slots) ==================== --}}
-  {{#each secondarySkillSlots}}
-    <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_name_{{inc @index}}">
-      {{#if this}}
-        <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
-          {{#if ../editMode}}data-action="openItem"{{/if}}
-          data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
-        {{#if ../editMode}}
-          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+  {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
+    see _hero-paperdoll.scss's own comment on
+    .hero-paperdoll__secondary-skills-scroll for why this is keyed to
+    secondarySkillsScrollable, not to Экспертная Обучаемость directly)
+    ==================== --}}
+  {{#if secondarySkillsScrollable}}
+    {{!-- Outer: the plain $hg-named-slots frame, untouched, overflow:visible
+      (no rule of its own beyond .hero-paperdoll__slot's base). Inner: the
+      actual scrolling/grid element, deliberately wider than the frame — see
+      .hero-paperdoll__secondary-skills-scroll's own comment in
+      _hero-paperdoll.scss for why (scrollbar-gutter bleed fix). --}}
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--secondary_skills_scroll">
+      <div class="hero-paperdoll__secondary-skills-scroll">
+        {{#each secondarySkillSlots}}
+          <div class="hero-paperdoll__skill-cell">
+            <div class="hero-paperdoll__skill-cell-icon">
+              {{#if this}}
+                <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
+                  {{#if ../editMode}}data-action="openItem"{{/if}}
+                  data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
+                {{#if ../editMode}}
+                  <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+                {{/if}}
+                <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
+                  <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
+                  <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
+                  <p>{{this.effectText}}</p>
+                </template>
+              {{/if}}
+            </div>
+            <div class="hero-paperdoll__skill-cell-desc">
+              {{#if this}}<span>{{localize this.tierLabel}}</span><span>{{localize this.skillLabel}}</span>{{/if}}
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    </div>
+  {{else}}
+    {{#each secondarySkillSlots}}
+      <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_name_{{inc @index}}">
+        {{#if this}}
+          <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
+            {{#if ../editMode}}data-action="openItem"{{/if}}
+            data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
+          {{#if ../editMode}}
+            <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
+              title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+          {{/if}}
+          <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
+            <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
+            <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
+            <p>{{this.effectText}}</p>
+          </template>
         {{/if}}
-        <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
-          <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
-          <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
-          <p>{{this.effectText}}</p>
-        </template>
-      {{/if}}
-    </div>
-    <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_desc_{{inc @index}}">
-      {{#if this}}<span>{{localize this.skillLabel}} — {{localize this.tierLabel}}</span>{{/if}}
-    </div>
-  {{/each}}
+      </div>
+      <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_desc_{{inc @index}}">
+        {{#if this}}<span>{{localize this.tierLabel}}</span><span>{{localize this.skillLabel}}</span>{{/if}}
+      </div>
+    {{/each}}
+  {{/if}}
 
   {{!-- ==================== Left-half tooltip content (module/helpers/tooltip.mjs) ==================== --}}
+  {{!-- §2.3: only rendered (and only triggerable — see the identity block
+    above) once a race is actually chosen. Shows the race's own feature
+    text (RaceFeature.* — previously only surfaced inside the race-change
+    confirm dialog, now also available at rest) plus, for Элементаль/
+    Минотавр, the currently chosen subchoice — the identity block itself
+    stays the bare race name regardless (fixed width, see
+    IDENTITY_SHORT_CLASS_LABELS' own comment for why nothing gets appended
+    there). --}}
+  <template class="hg-tooltip-tpl" data-tooltip-key="race">
+    <p class="hg-tooltip__title">{{localize raceLabel}}</p>
+    {{#if raceFeatureNoteKey}}<p>{{localize raceFeatureNoteKey}}</p>{{/if}}
+    {{#if raceSubchoiceLine}}<p>{{raceSubchoiceLine}}</p>{{/if}}
+  </template>
+  {{!-- §task: class block locked (no faction chosen yet) — hover-only,
+    same mechanism as "race" above, no click-to-pin (no bare
+    data-tooltip-click on the trigger). --}}
+  <template class="hg-tooltip-tpl" data-tooltip-key="class-locked">
+    <p>{{localize 'HEROES_GLORY.Hero.ClassLockedHint'}}</p>
+  </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-attack">
     <img class="hg-tooltip__icon" src="{{icons.attackLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Attack'}}</p>
@@ -277,11 +439,60 @@
     {{#if (eq backpackOffset backpackMaxOffset)}}disabled{{/if}} aria-label="{{localize 'HEROES_GLORY.Hero.BackpackNextHint'}}"></button>
 
   {{!-- ==================== Free zone below the inventory (docs/paperdoll_grid.json's
-       "edit_zone") — room reserved for 2-3 buttons, edit-mode toggle first ==================== --}}
+       "edit_zone") ==================== --}}
+  {{!-- §4.3 p.23: Специализация — unlike edit_button_toggle below, shown
+    unconditionally (not `{{#if editMode}}`-gated): it's a permanent
+    character feature, not an edit-mode workflow control, so it has to be
+    visible at rest same as any other paperdoll slot. Reuses the
+    secondary-skill cell markup verbatim (same `.hero-paperdoll__skill-
+    cell`/`-icon`/`-desc` classes, same tooltip mechanism) — combined
+    with `.hero-paperdoll__slot--specialization` for its position (see
+    that $hg-named-slots entry's own comment in _hero-paperdoll.scss for
+    where this box came from). data-action lives on the outer cell, not
+    the (conditionally-rendered) icon inside it — unlike a secondary
+    skill slot, this one must stay clickable even empty, to open the
+    picker and choose one; #onPickSpecialization is what actually gates
+    whether clicking it does anything (level 10+, edit mode or first
+    pick — see that method's own comment), same silent-no-op convention
+    every other identity picker here already uses. --}}
+  {{!-- Same highlight frame as Опыт's level-up (experience_highlight) — lit
+    only while a pick is available and nothing is chosen yet. The picker
+    opens only on click, and only when specializationPickable (something
+    to choose, level 10+); otherwise the cell has no action, so the icon's
+    own tooltip (same trigger as a secondary skill) is all a click does. --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization_highlight{{#if specializationHighlight}} hero-paperdoll__slot--specialization_highlight--active{{/if}}" aria-hidden="true"></div>
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell"
+    {{#if specializationPickable}}data-action="pickSpecialization" role="button" tabindex="0"
+    aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}>
+    <div class="hero-paperdoll__skill-cell-icon">
+      {{#if specializationSlot}}
+        <img class="hero-paperdoll__icon-img" src="{{specializationSlot.icon}}" alt=""
+          data-tooltip-trigger="specialization" data-tooltip-click>
+        {{#if editMode}}
+          <button type="button" class="hero-paperdoll__slot-delete" data-action="unsetSpecialization"
+            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+        {{/if}}
+        <template class="hg-tooltip-tpl" data-tooltip-key="specialization">
+          <img class="hg-tooltip__icon" src="{{specializationSlot.iconLarge}}" width="82" height="93" alt="">
+          <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Specialization'}} — {{specializationSlot.label}}</p>
+          {{#if specializationSlot.effectTextKey}}<p>{{localize specializationSlot.effectTextKey}}</p>{{/if}}
+        </template>
+      {{/if}}
+    </div>
+    <div class="hero-paperdoll__skill-cell-desc">
+      {{#if specializationSlot}}<span>{{localize 'HEROES_GLORY.Hero.Specialization'}}</span><span>{{specializationSlot.label}}</span>{{/if}}
+    </div>
+  </div>
+
+  {{!-- Цвет панели moved to this window's own header-control menu (the
+    "…" button in the OS titlebar, ApplicationV2's own _getHeaderControls
+    — see hero-sheet.mjs's own comment) — no button left here for it.
+    Шрифт (temporary client-demo picker) removed entirely, not relocated. --}}
   <button type="button" class="hero-paperdoll__slot hero-paperdoll__slot--edit_button_toggle" data-action="toggleEditMode"
     {{#unless isGM}}disabled{{/unless}}
     aria-pressed="{{editMode}}"
     aria-label="{{#if isGM}}{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeGmOnlyHint'}}{{/if}}"></button>
+
 
 </div>
 {{/if}}
@@ -299,15 +510,18 @@
 
   {{!-- <details class="hero-paperdoll__more"> (specialization, morale/luck
        edit fields + test buttons, wounds counter, post-battle checks,
-       Speed/Vision/Gold, base Health, race/faction/class/panelColor
-       selects, spells list with cast/delete/open) intentionally removed
-       — the hero sheet is picture-only now, toggling only to the
-       spellbook. Everything it drove is still reachable from Foundry's
-       own sidebar (each owned item's own sheet, the actor's core fields)
-       until an edit-mode UI is designed for this system; the underlying
-       context fields/calculations/actions in hero-sheet.mjs are
-       untouched and still work, just unread by this template for now —
-       see the comments next to them there. --}}
+       Speed/Vision/Gold, base Health, spells list with cast/delete/open)
+       intentionally removed — the hero sheet is picture-only now,
+       toggling only to the spellbook. Race/Faction/Class/panel-color
+       editing (the `<select>`s that used to live in this same removed
+       block) came back as the pinTooltip-based pickers above/in edit_zone
+       instead of a restored `<details>` — see hero-sheet.mjs's
+       #openOptionPicker. Everything else it drove is still reachable from
+       Foundry's own sidebar (each owned item's own sheet, the actor's
+       core fields) until a fuller edit-mode UI is designed for this
+       system; the underlying context fields/calculations/actions in
+       hero-sheet.mjs are untouched and still work, just unread by this
+       template for now — see the comments next to them there. --}}
 
 </div>
 {{! /.hero-paperdoll-wrapper }}

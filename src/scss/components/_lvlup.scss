@@ -1,0 +1,181 @@
+// §4.2/§6 rules.md: the level-up window's own canvas — module/apps/
+// level-up-app.mjs, a standalone ApplicationV2, NOT a layer inside the
+// hero sheet. An earlier iteration tried an in-sheet darkened overlay;
+// reverted (see level-up-app.mjs's own class comment for why) in favor of
+// a genuinely separate window that needs no backdrop/click-outside/Escape
+// handling of its own at all. Sets its own --hg-pixel-scale (level-up-app.mjs's
+// own #updatePixelScale, same pattern as hero-sheet.mjs) rather than
+// inheriting one from a shared ancestor, since this window has none.
+//
+// Imported into `.heroes-glory { }` (heroes-glory.scss) AFTER
+// `components/hero-paperdoll` — reuses that partial's `$hg-panel-colors`
+// list, same cross-partial var-sharing already relied on by
+// `components/tooltip`.
+//
+// Percentages below match docs/lvlup_grid.json's precomputed left/top/
+// width/height fields exactly — that file is the machine-readable source
+// of truth for coordinates, this one is the compiled consumer of them.
+
+// A plain string, not a Sass number division — same reason as
+// `$hg-canvas-ratio` in _hero-paperdoll.scss (avoids Dart Sass collapsing
+// "W / H" into a single computed decimal, which `aspect-ratio` can't use).
+$hg-lvlup-canvas-ratio: '385 / 470';
+
+// Same padding-zero trick as `.window-content:has(.hero-paperdoll-wrapper)`
+// in _hero-paperdoll.scss — the canvas fills `.window-content` edge to
+// edge instead of leaving Foundry's normal content padding around it.
+.window-content:has(.hg-lvlup) {
+  padding: 0;
+}
+
+.hg-lvlup {
+  position: relative;
+  width: 100%;
+  aspect-ratio: #{$hg-lvlup-canvas-ratio};
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+
+// The color caima is baked directly into lvlupbkg's own content bitmap
+// (see its own header comment in scripts/recolor_panel.py's output) —
+// unlike the main sheet, where the border is a separate ::after overlay
+// (window_frame_<color>.png) on top of a shared background. No overlay
+// asset exists for this window; the whole background-image is swapped.
+@each $color in $hg-panel-colors {
+  .hg-lvlup[data-panel-color='#{$color}'] {
+    background-image: url('../assets/ui/lvlupbkg_#{$color}.png');
+  }
+}
+
+.hg-lvlup__slot {
+  position: absolute;
+  box-sizing: border-box;
+  image-rendering: pixelated;
+}
+
+// x/y/w/h from the task's own layout table, expressed as % of the
+// 385x470 canvas — see docs/lvlup_grid.json for the derivation.
+$hg-lvlup-slots: (
+  text_0: (5.974, 4.681, 88.052, 4.894),
+  portrait: (43.117, 12.979, 17.662, 15.745),
+  text_1: (5.974, 32.128, 88.052, 4.894),
+  skill: (44.935, 40.426, 11.429, 9.362),
+  text_2: (5.974, 51.489, 88.052, 4.894),
+  choice_prompt: (5.974, 61.064, 88.052, 5.532),
+  choice_icon_1: (32.208, 69.574, 11.429, 9.362),
+  choice_or: (44.675, 72.553, 10.649, 3.404),
+  choice_icon_2: (56.364, 69.574, 11.429, 9.362),
+  choice_icon_solo: (44.156, 69.574, 11.429, 9.362),
+  choice_label_1: (26.234, 81.489, 23.377, 5.957),
+  choice_label_2: (50.39, 81.489, 23.377, 5.957),
+  choice_label_solo: (38.182, 81.489, 23.377, 5.957),
+  button: (76.623, 87.447, 17.143, 7.234),
+);
+
+@each $name, $box in $hg-lvlup-slots {
+  .hg-lvlup__slot--#{$name} {
+    left: nth($box, 1) * 1%;
+    top: nth($box, 2) * 1%;
+    width: nth($box, 3) * 1%;
+    height: nth($box, 4) * 1%;
+  }
+}
+
+// text_0/1/2 and choice_prompt sit inside the background art's own
+// already-drawn dark bars — no border/fill drawn here, text just centers
+// inside the slot box. Токен B ($hg-parchment) — задание's default text color.
+.hg-lvlup__text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: $hg-parchment;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+}
+
+.hg-lvlup__text-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: $hg-parchment;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+}
+
+.hg-lvlup__portrait {
+  object-fit: cover;
+}
+
+// Nested <img> inside a positioned slot div — see this file's own
+// comment in the .hbs template for why the highlight can't live directly
+// on an <img> (::after doesn't render on replaced elements).
+.hg-lvlup__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.hg-lvlup__choice-icon {
+  cursor: pointer;
+}
+
+// Same technique as .hero-paperdoll__slot--drop-target::after
+// (_hero-paperdoll.scss) — artifact_g00_f144.png, a ready-made 44x44
+// highlight frame, used as-is.
+.hg-lvlup__choice-icon--selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/artifact/artifact_g00_f144.png');
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.hg-lvlup__choice-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  color: $hg-parchment; // токен B, default
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  // §task: now clickable alongside its icon (selectChoice, or
+  // pickUpgradeCandidate when the upgrade side is pickable) — matches
+  // .hg-lvlup__choice-icon's own unconditional cursor above it, same
+  // "one visual unit" reasoning: label and icon sit flush together and
+  // must read as a single clickable thing, not two zones with different
+  // affordances.
+  cursor: pointer;
+
+  span {
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // токен E — selected variant's label only.
+  &[data-selected='true'] {
+    color: $hg-gold;
+  }
+}
+
+.hg-lvlup__confirm {
+  @include hg-image-button;
+  background-image: url('../assets/buttons/iok6432/iok6432_g00_f000.png');
+
+  &:disabled {
+    background-image: url('../assets/buttons/iok6432/iok6432_g00_f002.png');
+  }
+
+  // After :disabled, same order as .hg-tooltip__ok/hsbtns3 — a transient
+  // press must win over a (no longer applicable, button is about to
+  // close the window) disabled frame.
+  &.hg-lvlup__slot--pressed {
+    background-image: url('../assets/buttons/iok6432/iok6432_g00_f001.png');
+  }
+}

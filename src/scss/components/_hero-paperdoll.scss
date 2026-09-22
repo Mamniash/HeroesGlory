@@ -34,8 +34,6 @@
 // `aspect-ratio`, never from the wrapper's height, so there's no cycle
 // to begin with.
 
-$hg-parchment: #e8dcc0;
-
 // Both canvases render at effectively the same aspect ratio — the
 // paperdoll's native 600/473 (≈1.2685) and the book's native 610/481
 // (≈1.2682, see _spellbook.scss) already coincide to three decimal
@@ -82,6 +80,67 @@ $hg-canvas-ratio: '600 / 473';
   // the currently-shown canvas, the wrapper's only child.
 }
 
+// A DIFFERENT min-width, on the window itself rather than the wrapper above
+// (so it doesn't repeat that same overflow bug — this stops the drag before
+// the wrapper would ever need to shrink at all, rather than constraining
+// the wrapper independently of what's dragging it). Exists because the
+// pixel fonts (utils/_fonts.scss) genuinely break below this — some floor
+// is still needed even now that `--hg-pixel-scale` (hero-sheet.mjs) is a
+// continuous ratio rather than an integer step: text and boxes shrink
+// together and stay proportional ONLY while the ratio itself is still
+// shrinking. Below `PIXEL_SCALE_MIN` (hero-sheet.mjs, currently 0.6) the
+// ratio clamps and text stops shrinking while boxes, which have no floor
+// of their own, keep going — the exact same kind of break as before, just
+// pushed to a narrower width instead of eliminated.
+//
+// Recomputed for the current numbers, same method as before (real glyph
+// metrics, tightest label on the sheet: "Сила Магии",
+// `.hero-paperdoll__primary-cell`, whose smalfont advance sums to a fixed
+// 58px). That cell is one of 4 equal flex children of the `text_1` named
+// slot, which is 46.833% of canvas width — so cell width is
+// canvasWidth × 0.46833 / 4 ≈ canvasWidth × 0.11708. Above the clamp
+// (canvas ≥ 758 × 0.6 = 454.8px), both the label (58px × canvasWidth/758)
+// and its cell scale linearly with canvasWidth, so their ratio is
+// constant — confirmed to never overflow anywhere in that range, not just
+// at the one width previously checked. Below it, the label sticks at
+// 58 × 0.6 ≈ 34.8px while the cell keeps shrinking, and the two cross —
+// cell width drops under 34.8px — at canvasWidth ≈ 34.8 / 0.11708 ≈
+// 297px, i.e. a WINDOW width of ≈299px (canvas = window − 2px border, see
+// `REFERENCE_CANVAS_WIDTH_PX`'s own comment in hero-sheet.mjs). 400px
+// keeps the same ~25-30% headroom over that break point the old 600px
+// value kept over its own (495px) — comfortably clear, still a first
+// iteration alongside `PIXEL_SCALE_MIN` itself.
+//
+// The paperdoll background art's own native resolution (600×473) sits
+// above this new floor — below 600px window width the art is already
+// being downscaled — but that's a soft quality point (blurrier art, still
+// laid out correctly), not a layout break like the label overflow above,
+// so it isn't what sets the floor here.
+//
+// `.application`'s own core min-width (200px, foundry2.css) is layered;
+// this project's own compiled CSS loads into a named layer too (`@import
+// ... layer(system);`, Foundry's own doing — see hg-image-button's comment
+// in utils/_mixins.scss for the full cascade-layer-order reasoning), but
+// that layer isn't part of core's explicit ordering and so is appended
+// after core's own layers — a plain rule here still outranks the layered
+// core one regardless of selector specificity — same reasoning already
+// relied on for `.hero-paperdoll__icon-img--secskill` and the HOMM3-button
+// mixin elsewhere in this project.
+// `&`, not `.application` — this partial is `@import`ed inside
+// `.heroes-glory { }` (heroes-glory.scss), which prefixes every bare
+// selector here with `.heroes-glory ` as a DESCENDANT combinator (same as
+// `.window-content:has(...)` above, correctly, since window-content really
+// is a descendant of it). But `.application` and `.heroes-glory` are the
+// same element (both classes on the one window root), not ancestor/
+// descendant — `.heroes-glory .application:has(...)` would never match
+// anything. `&` substitutes the parent selector directly instead of
+// combining with it, compiling to `.heroes-glory:has(...)`, which is what
+// this actually needs (the `.heroes-glory`-classed application window,
+// self-tested for containing the wrapper).
+&:has(.hero-paperdoll-wrapper) {
+  min-width: 400px;
+}
+
 // Shared by both canvases.
 .hero-paperdoll,
 .hero-spellbook {
@@ -92,6 +151,13 @@ $hg-canvas-ratio: '600 / 473';
   image-rendering: pixelated;
   color: $hg-parchment;
   font-family: $font-primary;
+  // Default/fallback for the pixel fonts' shared step (utils/_mixins.scss's
+  // `hg-pixel-font`) — hero-sheet.mjs's `#updatePixelScale` overwrites this
+  // with the real value via `style.setProperty` on every render and canvas
+  // resize; this is only what's in effect for the instant before that JS
+  // has run at all (an unset custom property would make every `calc()`
+  // reading it invalid, not just wrong).
+  --hg-pixel-scale: 1;
   // Establishes containment for THIS canvas's own descendants (the
   // `__slot` font-size below), off the canvas's own true rendered width
   // — both canvases are `width: 100%` today so this coincides with the
@@ -102,6 +168,41 @@ $hg-canvas-ratio: '600 / 473';
 
 .hero-paperdoll {
   aspect-ratio: #{$hg-canvas-ratio};
+}
+
+// One window border for every window, cut once from heroscr4 (assets/ui/
+// window_frame_<color>.png, scripts/frame_build.py) instead of baked
+// separately into every background art. `::after` (not a template `<div>`):
+// no markup change needed on either canvas, and — since neither canvas ever
+// sets a `z-index` on itself or its `__slot`/`__frame-img` children below —
+// a pseudo-element with no `z-index` of its own already paints after (i.e.
+// on top of) all of them by DOM order alone (generated content behaves as
+// the LAST child for stacking purposes); `.hg-tooltip`'s own explicit
+// `z-index: 10` still wins over this regardless, so a pinned tooltip stays
+// on top of the frame too.
+//
+// Geometry lives entirely in the PNG's own alpha (see frame_build.py's
+// printed inner-window numbers) — nothing here needs to know the 9px/97%/
+// 96.195% inner rect, this is a plain full-canvas overlay, same stretch as
+// the background art it sits on. `background-size: 100% 100%` (not
+// `background-repeat`, already `no-repeat` above) is redeclared here rather
+// than inherited from the shared block above `.hero-paperdoll::after` isn't
+// itself a `.hero-paperdoll` — pseudo-elements don't inherit an ancestor's
+// OWN rule the way a real child element would from a shared class, only
+// actual CSS inheritance (which `background-*` properties aren't).
+.hero-paperdoll::after,
+.hero-spellbook::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  // Sits visually on top but must never intercept a click/hover meant for
+  // whatever `__slot` content is under it — the transparent middle isn't
+  // just cosmetic, the whole point is that everything under it stays
+  // reachable.
+  pointer-events: none;
 }
 
 .hero-paperdoll__slot {
@@ -126,9 +227,68 @@ $hg-canvas-ratio: '600 / 473';
 $hg-zone-button-width: 52 / 600 * 100;
 $hg-zone-button-height: 36 / 473 * 100;
 
+// §2.3-2.5 identity redesign — the identity zone's own box (the art's dark
+// inset field Имя/Уровень/Раса/Фракция/Класс draw inside), in NATIVE px on
+// the art's own real canvas, 600×473 — the size of the actual asset file
+// (assets/ui/heroscr4_*.png, confirmed via its PNG header, identical across
+// all 10 color variants) and the same canvas every other entry in
+// $hg-named-slots below is already expressed against. Paste a new w/h here
+// and nothing else in this section needs to change ($hg-named-slots' own
+// "name" entry below, and $hg-identity-block-height further down, both
+// derive from these instead of carrying their own separately-measured
+// copy).
+//
+// CORRECTED — an earlier pass through this section (including the two
+// "confirmed" measurements the previous version of this comment cited)
+// measured and cross-checked everything against a 672×586 frame that does
+// not correspond to any file in this repository: no asset anywhere is
+// 672×586, there is no pre-crop source for this sheet's art (unlike the
+// level-up window, which does have one — lvlupbkg.bmp — at a completely
+// different size, 385×470), and no other file references those numbers.
+// It was a bare mismeasurement introduced this session, not an
+// alternative coordinate system anything else on the sheet uses — checked
+// directly against every other $hg-named-slots entry (all plain
+// percentages of 600×473, none using any 672/586-based formula) and
+// against docs/paperdoll_grid.json (whose own canvas is declared 600×473).
+// This is the second time this exact mistake has happened in this
+// project's history — see docs/paperdoll_grid.json's own note on
+// `edit_zone`, corrected the same way once before.
+//
+// Re-measured directly on the real 600×473 canvas (ruler measurement on
+// the live sheet, not derived from any luminance/edge scan — see this
+// zone's own git history for a scan-based finding that pointed at the
+// same rough area but was ruled out as texture noise, and only agreed
+// with THIS measurement once actually expressed in the right frame):
+$hg-identity-zone-x: 76px;
+$hg-identity-zone-y: 15px;
+$hg-identity-zone-w: 218px;
+$hg-identity-zone-h: 63px;
+
 $hg-named-slots: (
   portrait: (2.333, 2.96, 9.667, 13.531),
-  name: (12.667, 3.171, 36.333, 13.319),
+  // A hard physical limit ("за который выходить нельзя") — everything the
+  // identity grid draws, including its own $hg-identity-inner-margin
+  // clearance, has to fit inside this box, not just be centered somewhere
+  // near it. Computed from $hg-identity-zone-x/-y/-w/-h above (600×473
+  // canvas -> percent of this map's own 100%-canvas convention, same
+  // canvas every other entry in this map is already expressed against)
+  // rather than hand-converted once and pasted here as a frozen
+  // percentage, the way this entry used to be written — so updating those
+  // four variables is the whole edit, this line never needs touching
+  // again.
+  //
+  // (An earlier version centered a wider box in the free space between
+  // the portrait and the paperdoll equipment column instead of matching
+  // this field, because the field measured then seemed too narrow for
+  // 3 equal-width blocks sized for "Элементалист" without truncating it.
+  // See `.hero-paperdoll__identity-block`'s own comment for how that
+  // budget was re-fit to the field's real width instead.)
+  name: (
+    $hg-identity-zone-x / 600px * 100,
+    $hg-identity-zone-y / 473px * 100,
+    $hg-identity-zone-w / 600px * 100,
+    $hg-identity-zone-h / 473px * 100
+  ),
   text_1: (2.167, 17.97, 46.833, 3.594),
   text_2: (2.167, 32.135, 46.833, 3.594),
   morale: (29.5, 37.844, 7, 8.034),
@@ -141,6 +301,14 @@ $hg-named-slots: (
   health_desc: (9.833, 37.209, 15.333, 8.879),
   experience_name: (2.333, 47.357, 7, 8.879),
   experience_desc: (9.833, 47.357, 15.333, 8.879),
+  // §4.2: the level-up-available highlight's own box — experience_name's
+  // left edge to experience_desc's right edge, same top/height as both
+  // (9.833 + 15.333 - 2.333 = 22.833 combined width) — ONE frame spanning
+  // icon+label+value, not two abutting frames with a seam down the
+  // middle. A plain decorative sibling, not a positioning parent —
+  // experience_name/experience_desc above are positioned against
+  // `.hero-paperdoll` directly, same as every other named slot.
+  experience_highlight: (2.333, 47.357, 22.833, 8.879),
   mana_name: (26.167, 47.357, 7, 8.879),
   mana_desc: (33.667, 47.357, 15.333, 8.879),
   arrow_left: (51.667, 73.996, 3.667, 9.725),
@@ -152,6 +320,66 @@ $hg-named-slots: (
   // wrong) rather than centered — leaves ~37.5% of the zone's width free
   // to its left for 2-3 more buttons later, no re-layout needed.
   edit_button_toggle: (88.167, 89.006, $hg-zone-button-width, $hg-zone-button-height),
+  // §task (Специализация): occupies the footprint the panel-color-swatch
+  // and temp-font buttons used to share (both relocated — panel color to
+  // the window's own header-control menu, temp font removed entirely) —
+  // right edge flush against edit_button_toggle's own left edge (519px =
+  // old edit_button_panelcolor's own right edge, 467+52), sized to the
+  // secondary-skill cell's own natural 138×44 native footprint
+  // ($hg-secondary-skill-column-width × $hg-secondary-skill-icon-size)
+  // so `.hero-paperdoll__skill-cell` can be reused here completely
+  // unmodified — see the template's own comment for how this box and
+  // that class combine on one element. Left edge (381px) lands well
+  // inside edit_zone's own left boundary (304px), so there's no
+  // encroachment on anything else in the zone.
+  specialization: (381 / 600 * 100, 418 / 473 * 100, 138 / 600 * 100, 44 / 473 * 100),
+  // Same box, for the shared highlight frame (see `hg-highlight-frame`).
+  specialization_highlight: (381 / 600 * 100, 418 / 473 * 100, 138 / 600 * 100, 44 / 473 * 100),
+  // §task (part 2): exactly the static 8-slot secondary-skill grid's own
+  // outer boundary — read off the already-working `skill_name_1..8`/
+  // `skill_desc_1..8` positions below (native px, confirmed against
+  // docs/paperdoll_grid.json): left 13px (skill_name_1's own left), top
+  // 271px (skill_name_1's own top), right 294px (skill_desc_2/8's own
+  // right edge, 202+92), bottom 459px (skill_name_7/8's own bottom,
+  // 415+44) → 281×188 native. NOT a new measurement — this is the same
+  // rectangle the 8 fixed slots below already occupy, just named as one
+  // box so `.hero-paperdoll__secondary-skills-scroll` (used only past 8
+  // owned skills — see that class's own comment) can sit exactly where
+  // the static grid would have, with zero visible difference at ≤8.
+  secondary_skills_scroll: (13 / 600 * 100, 271 / 473 * 100, 281 / 600 * 100, 188 / 473 * 100),
+  // §task (Зрение/Скорость): free leather strip on the right half, left
+  // of the head slot (paperdoll_3: x439/y17/w44/h44) — same height as the
+  // Имя/Уровень row (y15/h31, the top half of the identity zone:
+  // $hg-identity-zone-y / (($hg-identity-zone-h-1)/2)).
+  //
+  // CORRECTED — the first pass here (x296) anchored on the wrong feature:
+  // a small secondary highlight at x≈293-294 that turned out to be an
+  // inner shadow edge, not the seam itself. Re-scanned inside this exact
+  // y-band (y20-45, clear of paperdoll_1/2's own cell borders, which
+  // start at y56 and contaminated the original column scan taken at
+  // y90-100): the real carved-seam ridge — the brighter, more saturated
+  // highlight — sits at x≈302-303. Confirmed against the identity zone's
+  // own right edge ($hg-identity-zone-x + $hg-identity-zone-w = 294):
+  // that's 302-294 ≈ 8-9px short of the real seam, i.e. the identity
+  // block already keeps a ~9px clearance from it, not 0 — matching what
+  // this zone now mirrors on the other side.
+  //
+  // Left edge: 296 (old) + 9 (clear the seam properly) + 9 (match the
+  // identity block's own clearance) = 314. Right edge: 433 (old) − 4 =
+  // 429, a touch more clearance before the head slot's own outline.
+  // Width 115px, split into two EQUAL blocks with the same 1px
+  // $hg-identity-gap used between the identity row's own blocks:
+  // (115 − 1) / 2 = 57px each. `height` here is a placeholder (overridden
+  // by .hero-paperdoll__identity-block's own `height` rule later in this
+  // file, same specificity, later cascade order wins — see that rule's
+  // own comment for why the row height is authoritative there, not here).
+  stat_speed: (314 / 600 * 100, 15 / 473 * 100, 57 / 600 * 100, 31 / 473 * 100),
+  stat_vision: (372 / 600 * 100, 15 / 473 * 100, 57 / 600 * 100, 31 / 473 * 100),
+  // Darkened backdrop, exact same 314..429/15..46 footprint as the two
+  // blocks together (no bleed past either edge) — see
+  // $hg-stat-panel-darken's own comment for why this is a darkened copy
+  // of the underlying leather rather than a patch cut from elsewhere.
+  stat_backdrop: (314 / 600 * 100, 15 / 473 * 100, 115 / 600 * 100, 31 / 473 * 100),
 );
 
 @each $name, $box in $hg-named-slots {
@@ -161,6 +389,26 @@ $hg-named-slots: (
     width: nth($box, 3) * 1%;
     height: nth($box, 4) * 1%;
   }
+}
+
+// §task (Зрение/Скорость, take 2): a plain border on bare light leather
+// didn't read cleanly enough live — went back to a dark backing, but
+// darkening the SAME leather in place instead of transplanting a patch
+// from the left half (the first approach tried, dropped: a patch of
+// genuinely different material reads as a graft no matter how the edges
+// are treated, since the grain itself doesn't match the surrounding
+// area). A flat black overlay at this alpha, composited over this exact
+// spot's own measured leather tone (75.7, 47.4, 24.5), lands within
+// ~0.02 of the identity zone's own measured tone (52.3, 32.5, 16.5)
+// on every channel — close enough that the two read as the same field
+// sitting on two different halves of the sheet, not two different
+// darknesses. Exposed as a variable, not inlined, specifically so it can
+// be live-tuned by eye against the real render rather than re-deriving
+// the math for a small adjustment.
+$hg-stat-panel-darken: 0.32;
+
+.hero-paperdoll__stat-backdrop {
+  background: rgba(0, 0, 0, $hg-stat-panel-darken);
 }
 
 // ---------------------------------------------------------------
@@ -231,9 +479,165 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   }
 }
 
+// The shared frame overlay's own per-color source — one loop for both
+// canvases (rather than one here plus a duplicate in _spellbook.scss)
+// since it's the exact same `window_frame_#{$color}.png` set either way;
+// spelback_<color>.png's own baked-in border is what this replaces on the
+// spellbook side (see _spellbook.scss's single content background rule).
+@each $color in $hg-panel-colors {
+  .hero-paperdoll[data-panel-color='#{$color}']::after,
+  .hero-spellbook[data-panel-color='#{$color}']::after {
+    background-image: url('../assets/ui/window_frame_#{$color}.png');
+  }
+}
+
 // ---------------------------------------------------------------
 // Content styling within slots
 // ---------------------------------------------------------------
+
+// §2.3-2.5 identity blocks (Имя/Уровень/Раса/Фракция/Класс) — ONE 6-column
+// CSS Grid (`.hero-paperdoll__slot--name` below), not two independently-
+// sized flex rows. Имя/Уровень each span 3 of 6 columns (exactly half
+// each, forcing them equal to EACH OTHER); Раса/Фракция/Класс each span 2
+// (exactly a third each). Sharing one grid — rather than each row
+// resolving its own children's widths — is what makes all of these true
+// at once, by construction, not by hand-matching numbers that can drift
+// apart again:
+//   - the three bottom blocks are equal width to each other (task б)
+//   - the two top blocks are equal width to each other (task в)
+//   - both rows total the same width, so their left/right edges align
+//     (task г)
+//   - the SAME `gap` is the one inter-block distance in both rows (task в)
+// An earlier version gave each field its OWN content-sized width instead
+// (Раса/Фракция/Класс each reserving only their own longest value) —
+// exactly what produced the unequal widths and mismatched row edges this
+// replaces.
+//
+// §2.3-2.5 (re-measured): the grid's own container ($hg-named-slots'
+// `name` entry) is the task's own given outer dark-field boundary — see
+// that entry's own comment for a discrepancy found against the art's
+// actual pixel data, reported rather than silently corrected.
+//
+// The numbers below have to be compared against that boundary in the
+// SAME unit space `--hg-pixel-scale` itself uses — REFERENCE_CANVAS_WIDTH_PX
+// (758, hero-sheet.mjs) at scale 1, NOT the art's native 600×473 directly.
+// At scale 1 the boundary (36.333% × 758 = 275.44px wide) has more room
+// than the earlier pass here found, since that pass's percentage was
+// itself computed against a wrong 672×586 frame (see $hg-identity-zone-x's
+// own comment) — the corrected width is wider, not narrower, so the fit
+// below holds with more slack than originally measured:
+//   usable width  (275.44 − 2×0 margin)               = 275.44px
+//   3 × (76 content + 2×1 padding + 2×2 border)
+//     + 2 × 1 gap                                     = 248px (fits, 27.44px
+//     to spare — was 242px/33.44px before $hg-identity-line-width's own
+//     1px->2px bump, still comfortable; "76" is "Элементалист", the longest
+//     SINGLE-WORD value across every race/faction/class, measured via
+//     scripts/h3fnt.py against the real SmallFont .FNT source, not the
+//     converted webfont — same numbers either way, but this doesn't need a
+//     browser to check; trimmed to 75 below for a ~1px cushion)
+// "Рыцарь Смерти" (80px) is the one value that doesn't fit on one line —
+// given a short form in lang/ru.json instead of wrapping to 2 lines (an
+// earlier version's approach, dropped: it made that one row's height
+// data-dependent, fighting the fixed-height goal below) or shrinking the
+// font for one case. See hero-sheet.mjs's own IDENTITY_SHORT_CLASS_LABELS.
+$hg-identity-padding-inline: 1px;
+// §3 (task): one shared thickness for BOTH the outer contour of the whole
+// 5-block construction AND every internal divider between blocks — not
+// "each block's own border" any more (see .hero-paperdoll__identity-block's
+// own comment on border-color below for how doubled internal lines were
+// collapsed to one without touching this value, box height, padding, or
+// text position).
+// §3 (task, live-tuned): bumped 1px -> 2px — the collapsed single line
+// (see .hero-paperdoll__identity-block's own border-color comment) read as
+// thinner than the pre-collapse double line it replaced. Block HEIGHT
+// doesn't reference this variable at all ($hg-identity-block-height's own
+// formula below only subtracts $hg-identity-inner-margin/$hg-identity-gap,
+// not this), so the outer construction still fills the zone edge-to-edge
+// unchanged; only the text's own available width/height shrinks by twice
+// this value (border-box, both sides) — see $hg-identity-padding-inline's
+// own width-budget comment and $hg-identity-block-height's own comment for
+// the updated numbers this was checked against before bumping.
+$hg-identity-line-width: 2px;
+$hg-identity-gap: 1px;
+
+// §3 (task, corrected): NOT a real requirement — an earlier pass invented
+// this on its own ("чтобы блоки не липли к краю"), never actually asked
+// for. The zone (x76/y15/w218/h63, $hg-identity-zone-x/-y/-w/-h above) IS
+// the outer edge the construction should fill, край в край — zero margin,
+// not a small one. Kept as a variable (rather than deleted and hardcoded
+// to 0 everywhere it's used) only so a real future requirement for some
+// inset doesn't mean re-threading it back through every consumer.
+$hg-identity-inner-margin: 0px;
+
+// Native-px-at-scale-1 conversion `$hg-named-slots`' own "name" entry
+// needs — pulled into its own step so $hg-identity-block-height's own
+// formula below reads as "zone height minus margins/gap, halved" instead
+// of re-deriving the scale conversion inline. $hg-identity-zone-h is
+// already canvas px on the art's own native 600×473 resolution (see that
+// variable's own comment), and REFERENCE_CANVAS_WIDTH_PX (758,
+// hero-sheet.mjs) is a uniform scale-up of that SAME canvas — width and
+// height scale by the identical factor, so this is a plain ratio against
+// the canvas width, no separate height-based correction needed.
+$hg-identity-zone-h-native: $hg-identity-zone-h / 600px * 758px;
+
+// §3 (re-diagnosed twice now — see this variable's own git history for both
+// earlier versions, which is why this comment spells out what changed and
+// why each time): block height derives from neither H3's own declared font
+// metrics (the original version) nor the CURRENTLY active font's real
+// rendered height (verified live that two blocks in the very same row —
+// Имя/Уровень, same font-family, same declared size, one wrapping an
+// `<input>`, one a `<span>` — already render at two different heights,
+// and switching `fira` -> `fixedsys` moves the numbers again: a row height
+// computed FROM rendered content re-breaks every time the active font
+// changes, which was the actual bug both times). This third version reads
+// from the identity ZONE's own height instead ($hg-identity-zone-h-native
+// above, itself derived from $hg-identity-zone-h — see that variable's own
+// comment for why the zone box grew since the previous pass) — explicit,
+// the same for all 5 blocks regardless of row/content/active font, AND
+// now grows automatically if $hg-identity-zone-h is ever revised again,
+// with no second number to remember to update in step. Split evenly
+// between the two rows, after the outer margin on both edges and the one
+// gap between them:
+//   ($hg-identity-zone-h-native − 2×$hg-identity-inner-margin − $hg-identity-gap) / 2
+// Verify live the same way this formula's own numbers were checked
+// (getBoundingClientRect on `.hero-paperdoll__slot--name` and its identity
+// blocks) before tuning further — this file's own history is about
+// exactly that mistake.
+$hg-identity-block-height: ($hg-identity-zone-h-native - 2 * $hg-identity-inner-margin - $hg-identity-gap) / 2;
+
+// §3 (task): two separate font sizes again — NOT the same split as before
+// this whole rewrite (that one came from H3's own declared per-role
+// heights, the actual bug). This split is a live-tuned readability call:
+// 19px on Раса/Фракция/Класс started clipping content that fit at the old
+// 14px ("Некрополис", "Рыцарь См.") — the width budget
+// ($hg-identity-padding-inline's own comment) was sized against SmallFont's
+// own glyph advances, not Fira's, and never got re-checked against the
+// unified 19px. 16px is a first-pass smaller value for that row only,
+// live-tune from here. Имя/Уровень stay at 19. Neither feeds into
+// $hg-identity-block-height above — block height stays explicit and
+// font-independent regardless of which of these two is in play.
+$hg-identity-font-size-top: 19px;
+$hg-identity-font-size-bottom: 16px;
+
+// One shared vertical padding for all 5 blocks too, now that height and
+// font-size are both unified — the previous top/bottom split existed only
+// to compensate for two different font sizes inside two differently-sized
+// boxes, neither of which is true anymore.
+$hg-identity-padding-block: 1px;
+
+// Small bordered text-box frame, sourced from HOMM3's own UI (Data/
+// h3bitmap/box66x32.bmp — a generic small-label box asset from the
+// original game, used project-wide for lists/labels at native
+// resolution). The asset itself is nothing but a uniform 1px gold
+// rectangle around a cyan-keyed (fully transparent) center — no texture,
+// no corner ornament to justify pulling in border-image machinery for it
+// (contrast .hg-tooltip's own dialog_frame_*.png, a real 64px filigree
+// asset) — so its one meaningful property, this exact gold, is reproduced
+// as a plain CSS border instead, sampled directly off that file (RGB
+// 168,141,68 at the file's own border pixels) rather than reusing an
+// unrelated gold token: the filigree-derived $hg-gold family above
+// (utils/_fonts.scss) comes from a different asset entirely.
+$hg-identity-frame-color: rgb(168, 141, 68);
 
 .hero-paperdoll__slot--portrait {
   // Box size already comes from $hg-named-slots above — this element IS
@@ -245,22 +649,230 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 }
 
 .hero-paperdoll__slot--name {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.2em;
-  padding: 0 0.4em;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: center;
+  // Grid rows are `auto`-sized to their own content — if that content is
+  // shorter than this box's own fixed height (from $hg-named-slots), the
+  // leftover space needs somewhere to go. Left at the default (`normal`,
+  // which computes to `stretch` for a grid's block axis), that leftover
+  // grew the ROW TRACKS themselves, not the gap between them — same
+  // numeric `gap` value in both axes, but the vertical one LOOKED bigger
+  // because each row's own box was taller than its content, independent
+  // of `gap`. `center` keeps the two rows + one real gap as a tight
+  // block and puts any leftover height symmetrically above/below it
+  // instead — this is what makes the row-to-row gap actually equal the
+  // inter-block gap, not just equal on paper.
+  align-content: center;
+  padding: calc($hg-identity-inner-margin * var(--hg-pixel-scale));
+  gap: calc($hg-identity-gap * var(--hg-pixel-scale));
 }
 
+// DEBUG TOOL (kept, not temporary) — flip this one line to show/hide a
+// bright 1px outline drawn exactly on `.hero-paperdoll__slot--name`'s own
+// box edge (the CSS slot — $hg-named-slots' "name" entry, now driven by
+// $hg-identity-zone-x/-y/-w/-h above), to compare that edge against the
+// dark field actually painted in the art underneath. `outline`, not
+// `border` — doesn't take up box-model space, so it can't itself shift the
+// slot or its children by even a subpixel while this is on.
+//
+// Confirmed correct against the live art (the 672×586 mismeasurement this
+// caught — see $hg-identity-zone-x's own comment) — off by default now.
+// Kept in the file on purpose, not deleted: the same 672×586-style
+// coordinate-frame mistake already happened twice in this project's
+// history (see docs/paperdoll_grid.json's notes on `edit_zone` and
+// `name`), so if a similar mismatch ever turns up on another named slot,
+// copy this block (swap the selector) rather than reinventing it.
+$hg-debug-identity-zone: false;
+@if $hg-debug-identity-zone {
+  .hero-paperdoll__slot--name {
+    outline: 1px solid cyan;
+    outline-offset: 0;
+  }
+}
+
+// Shared shell for all 5 identity blocks — border+padding first (so a
+// modifier below only ever needs to add `grid-column`), text centered,
+// SmallFont caption role AND SmallFont's own font-size by default (Имя/
+// Уровень override both back up to BigFont's role/size just below — the
+// one pair that stays visually prominent). Padding is shared by all five
+// now — no more per-row override.
+//
+// `overflow: hidden` + `ellipsis` here is a defensive fallback, not a
+// sign the width budget is short — see $hg-identity-padding-inline's own
+// comment for the numbers confirming every race/faction/class value
+// (short-formed where needed, see hero-sheet.mjs) fits on one line. This is
+// also exactly why this rule can't switch to `display: flex`/`grid` for
+// vertical centering (the obvious-looking alternative to the `line-height`
+// trick below): `text-overflow: ellipsis` only applies to block CONTAINERS
+// per spec, not to a flex/grid container's own overflowed inline content —
+// Раса/Фракция/Класс are bare `<span>`s with the text as direct content, so
+// switching this rule's `display` would silently stop truncating "Рыцарь
+// Смерти"-length values instead of centering them.
+.hero-paperdoll__identity-block {
+  box-sizing: border-box;
+  // Grid items default to `min-width: auto` (their own content width),
+  // which would stop a block from ever shrinking to its column span's
+  // actual share — same reasoning as hg-canvas-input-reset's own
+  // `min-width: 0` for the name input below.
+  min-width: 0;
+  // §3 (task): explicit, font-independent — see $hg-identity-block-height's
+  // own comment for why this replaced letting the grid row auto-size from
+  // content.
+  height: calc($hg-identity-block-height * var(--hg-pixel-scale));
+  // Every side bordered, always, on every block — including the sides
+  // facing a neighbor. Which sides are actually VISIBLE (vs. transparent,
+  // same width, no-op on layout) is decided per selector further down,
+  // not here. Keeping width uniform on all four sides regardless of color
+  // is what lets that later step change only paint, never box model —
+  // height/line-height/padding math right below never has to know which
+  // sides are showing.
+  border: calc($hg-identity-line-width * var(--hg-pixel-scale)) solid $hg-identity-frame-color;
+  padding: calc($hg-identity-padding-block * var(--hg-pixel-scale)) calc($hg-identity-padding-inline * var(--hg-pixel-scale));
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: $hg-gold-pale;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  // Overrides the mixin's own `font-size: 14px`-equivalent with this row's
+  // own tuned size (see $hg-identity-font-size-bottom's own comment) — same
+  // for `line-height`: a single line of text (`white-space: nowrap` above,
+  // this is never more than one line) vertically centers inside a box
+  // taller than its own line box when the line-height itself equals that
+  // box's available content height, which is font-metric- (and, since it
+  // never references either font-size variable, font-SIZE-) independent by
+  // construction — same value for both rows, no flex/grid needed (see this
+  // rule's own header comment for why those would break ellipsis here).
+  // `2 *` accounts for the border AND the padding each contributing on
+  // both the top and bottom edge.
+  font-size: calc($hg-identity-font-size-bottom * var(--hg-pixel-scale));
+  line-height: calc(
+    ($hg-identity-block-height - 2 * $hg-identity-line-width - 2 * $hg-identity-padding-block) *
+      var(--hg-pixel-scale)
+  );
+
+  // §3 (task): "акцент на рамке, приглушённый текст" — the frame stays at
+  // full strength (already IS the accent, nothing further needed there);
+  // only the text dims, so an empty block reads as "click me" without
+  // shouting.
+  &--empty {
+    color: rgba($hg-gold-pale, 0.5);
+  }
+
+  // §task: class locked until a faction is chosen (hero-sheet.mjs's own
+  // `classLocked`/`#canPickIdentity` comments) — must NOT read as
+  // "click me" the way plain `--empty` deliberately does (this block IS
+  // empty too at that point, both classes apply together), so this dims
+  // further on top of it and overrides the cursor explicitly rather than
+  // leaving whatever the block would otherwise inherit.
+  &--locked {
+    cursor: not-allowed;
+    color: rgba($hg-gold-pale, 0.3);
+  }
+}
+
+// Имя/Уровень: keep the BigFont ROLE (still the one pair that stays
+// visually prominent by family/weight — this is still the hero's own name,
+// not a caption, while Раса/Фракция/Класс below stay at the SmallFont
+// role) but NOT the mixin's own 24px font-size — overridden right after to
+// this row's own tuned size ($hg-identity-font-size-top), same as
+// line-height, for the same reason $hg-identity-font-size-bottom's own
+// override does on the shared rule above. `grid-column: span 3` — half the
+// 6-column grid each, see this section's own opening comment for why
+// that's what makes them equal to each other.
+.hero-paperdoll__identity-block--name,
+.hero-paperdoll__identity-block--level {
+  @include hg-pixel-font($font-h3-big, $hg-font-h3-big-height);
+  font-size: calc($hg-identity-font-size-top * var(--hg-pixel-scale));
+  line-height: calc(
+    ($hg-identity-block-height - 2 * $hg-identity-line-width - 2 * $hg-identity-padding-block) *
+      var(--hg-pixel-scale)
+  );
+  grid-column: span 3;
+}
+
+// A third of the grid each (`span 2` of 6) — see $hg-identity-padding-inline's
+// own comment for the width budget this fits (confirmed live: it does,
+// once compared against the right reference frame — the one value that
+// doesn't, "Рыцарь Смерти", gets a short form instead, see
+// hero-sheet.mjs's own IDENTITY_SHORT_CLASS_LABELS). All three never
+// change width across any of their possible values. No padding/height
+// override anymore — both are shared by all five blocks now.
+.hero-paperdoll__identity-block--race,
+.hero-paperdoll__identity-block--faction,
+.hero-paperdoll__identity-block--class {
+  grid-column: span 2;
+}
+
+// §3 (task): doubled internal lines, collapsed to one — every block above
+// keeps a real border on ALL FOUR sides, same width, always (the base
+// rule's own comment on `border` explains why: so this step never has to
+// touch box model, and the height/line-height/padding math above never has
+// to know which sides end up visible). Only the COLOR of specific sides
+// drops to transparent here, on whichever side of a shared boundary
+// belongs to the "later" block in reading order — the "earlier" block
+// keeps drawing that boundary, so exactly one line survives per seam
+// instead of two 1px lines with the grid's own `gap` showing through
+// between them (the doubling this task reported). The outer contour (every
+// side that faces no neighbor) is untouched, still $hg-identity-frame-color
+// from the base rule — same thickness as every internal divider, no
+// special-casing needed for it to read as one continuous frame.
+.hero-paperdoll__identity-block--level {
+  border-left-color: transparent; // Имя already draws this boundary
+}
+.hero-paperdoll__identity-block--race {
+  border-top-color: transparent; // Имя/Уровень's row already draws this boundary
+}
+.hero-paperdoll__identity-block--faction {
+  border-top-color: transparent;
+  border-left-color: transparent; // Раса already draws this boundary
+}
+.hero-paperdoll__identity-block--class {
+  border-top-color: transparent;
+  border-left-color: transparent; // Фракция already draws this boundary
+}
+
+// §3 (task, re-diagnosed): `field-sizing: content` — the previous
+// mechanism here — sizes an <input>'s CONTENT box (inside padding/border)
+// to exactly the text's own advance width, with zero slack inside that
+// content box. A `padding-right` added on top (the earlier attempted fix)
+// sits OUTSIDE that content box entirely — confirmed live with a probe
+// element reproducing the exact box model (box-sizing/padding/border/
+// font/text-align) outside an <input>: the text run's own width matched
+// the content-box width to the pixel, meaning centered text had no room
+// on either side to absorb the last glyph's own ink overshoot (the same
+// ~2-4px overshoot documented below), and an <input>'s internal text
+// rendering clips AT the content edge rather than bleeding into padding
+// the way a plain block's `overflow` would — so the padding never did
+// anything. Confirmed the actual symptom live too, at high
+// --hg-pixel-scale: a 3-character name ("090") rendered as "09" — cut
+// regardless of length, exactly as reported, because the effect is a
+// fixed few px lost off the CONTENT box regardless of how many characters
+// are in it.
+//
+// Fixed now structurally instead: this input no longer sizes itself to
+// its own text at all. Its wrapping `.hero-paperdoll__identity-block--name`
+// has a real fixed width (half the identity grid, matching Уровень) that
+// comfortably exceeds almost any real name, so `text-align: center`
+// inside that MUCH wider box has genuine slack on both sides for the
+// overshoot to land in — no longer a knife-edge case. `overflow: hidden`
+// + `text-overflow: ellipsis` stays as the fallback for the rare name
+// that's actually long enough to fill the box: an ellipsis reads
+// correctly as "truncated", the silent missing-last-letter this section
+// used to produce did not.
 .hero-paperdoll__name-input {
-  width: 100%;
-  border: none;
-  background: transparent;
+  // Kills Foundry core's own `height: 2rem` (32px, fixed — doesn't scale
+  // with --hg-pixel-scale) and `padding: 0 0.5rem`. Must precede `color`
+  // below — see the mixin's own comment on source order.
+  @include hg-canvas-input-reset;
   color: inherit;
-  font-family: inherit;
-  font-weight: bold;
-  font-size: 1.3em;
+  font: inherit;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   // `disabled` outside edit mode (see the template) is what actually
   // blocks click/focus/typing — the UA default `:disabled` look
@@ -274,13 +886,35 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   }
 }
 
-.hero-paperdoll__name-line {
-  margin: 0;
-  font-size: 0.85em;
-  opacity: 0.85;
+// "Уровень N" — inherits BigFont + Role A color from the wrapping
+// `.hero-paperdoll__identity-block--level` above, nothing of its own to
+// set. `white-space: nowrap` since this is exactly 2 words + a number,
+// never meant to wrap even though the parent block allows it in general.
+.hero-paperdoll__level {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+// Reserves room for the worst case (two digits — level's planned 1-99
+// range) so this box's own width doesn't change between a 1- and 2-digit
+// level, which would otherwise reflow/shift the name next to it on every
+// level-up. `2ch` measures this font's own digit advance (confirmed the
+// converted webfont's digits share one advance width, scripts/h3fnt.py's
+// bitmap-per-glyph pipeline), not assumed from a generic monospace font.
+.hero-paperdoll__level-value {
+  display: inline-block;
+  min-width: 2ch;
+}
+
+// Cursor/hover affordance only — layered onto whichever identity block is
+// pickable in edit mode (Раса/Фракция/Класс; the template adds this class
+// conditionally), no positioning of its own. Keeps working unchanged
+// through the §2.3-2.5 blocks redesign since it never touched layout.
+.hero-paperdoll__name-pick {
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .hero-paperdoll__primary-row {
@@ -296,11 +930,22 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   justify-content: center;
   gap: 0.2em;
   text-align: center;
-  font-size: 0.85em;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
 }
 
 [data-action='rollAbilityCheck'].hero-paperdoll__primary-cell {
   cursor: pointer;
+  // Role C ($hg-neutral-light, utils/_fonts.scss) — but only here, not on
+  // the bare `.hero-paperdoll__primary-cell` class: that class is shared
+  // with the *value* row too (text_2's cells just wrap a `.primary-value`/
+  // `-display`, no `data-action` of their own), and
+  // `.hero-paperdoll__primary-value`'s own `color: inherit` would pick up
+  // this color right along with it — only the label words ("Атака"/
+  // "Защита"/...) get it, not the numbers.
+  // `[data-action='rollAbilityCheck']` already exists as the reliable way
+  // to reach just the label row, so reused here rather than adding a new
+  // selector.
+  color: $hg-neutral-light;
 
   &:hover {
     text-decoration: underline;
@@ -312,9 +957,7 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   border: none;
   background: transparent;
   color: inherit;
-  font-family: inherit;
-  font-weight: bold;
-  font-size: 1.1em;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
   text-align: center;
 }
 
@@ -332,8 +975,7 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 // edit mode off there's no data-action, #onEditPrimaryStat never fires,
 // and this rule simply doesn't match.
 .hero-paperdoll__primary-value-display {
-  font-weight: bold;
-  font-size: 1.1em;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
 
   &[data-action] {
     cursor: pointer;
@@ -345,8 +987,7 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 }
 
 .hero-paperdoll__primary-total {
-  font-size: 0.7em;
-  font-style: italic;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
   opacity: 0.8;
 }
 
@@ -390,32 +1031,297 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   // below.
 }
 
+// Shared by every two-line `_desc` box on the sheet (Health/Experience/Mana
+// below, the secondary-skill boxes further down) — the label-to-value-or-
+// skill-name top-to-top rhythm. 40/28 ≈ 1.4286, measured off a same-scale
+// HOMM3 screenshot as the ratio between the game's own two-line spacing and
+// this sheet's own (both read at whatever scale that screenshot happened to
+// be captured at — a `line-height` ratio carries over regardless). Defined
+// once, up here, because it now has two independent consumers below that
+// need to land on the exact same number, not because either one owns it.
+$hg-desc-line-rhythm: 1.4286;
+
+// Label stacked over value, both flush to one left edge, inside the SAME
+// 92x42 box (docs/paperdoll_grid.json: 15.333% x 8.879% of the 600x473
+// canvas) the value alone used to fill — the box itself and the icon slot
+// beside it are unchanged, only what's laid out inside this one moves.
+//
+// The value row grows rightward only as its digit count changes
+// (`.hero-paperdoll__value-input`'s own comment) — centering it here was
+// tried and reverted: Health/Experience/Mana share this same left edge
+// (see docs/paperdoll_grid.json) specifically so they read as one aligned
+// column, and centering broke exactly that — the shared left edge matters
+// more than keeping every row's "/" on one shared horizontal.
 .hero-paperdoll__slot--health_desc,
 .hero-paperdoll__slot--experience_desc,
 .hero-paperdoll__slot--mana_desc {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   justify-content: center;
-  gap: 0.2em;
-  font-size: 0.85em;
+  // No `gap` here (there used to be one, a flat native 1px) — the label-to-
+  // row spacing now comes entirely from `.hero-paperdoll__value-label`'s own
+  // `line-height: $hg-desc-line-rhythm` below, the same mechanism the
+  // secondary-skill boxes use for their own two lines. Deliberately NOT
+  // applied as this box's own `line-height` (which the secondary-skill
+  // boxes do use, since both of THEIR lines are plain text): `.hero-
+  // paperdoll__value-row` below is a flex row, not a text line, and already
+  // has its own carefully-tuned internal alignment (see that class and
+  // `.hero-paperdoll__value-sep`'s own comments) built assuming `line-
+  // height: 1` throughout — inheriting a taller line-height into it would
+  // reopen all of that. Scoping the rhythm to the label alone gets the same
+  // top-to-top spacing (confirmed live: exactly 20px at scale 1, matching
+  // the secondary-skill boxes once they're on the same native font-size)
+  // without touching the row at all.
+  padding-left: calc(3px * var(--hg-pixel-scale));
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+}
 
-  input {
-    width: 3em;
-    border: none;
-    background: transparent;
-    color: inherit;
-    font-family: inherit;
-    font-weight: bold;
-    text-align: center;
+// Role D ($hg-gold-mid, utils/_fonts.scss) — a sub-heading weight, one
+// step below the hero-name/spell-name role and one above the tooltip
+// title's own gold.
+.hero-paperdoll__value-label {
+  color: $hg-gold-mid;
+  line-height: $hg-desc-line-rhythm;
+}
+
+// `current` + `/` + `max` (Health/Mana) or just `current` (Experience — no
+// max in the data model, see the template) as ONE continuous string: no
+// `gap` here on purpose, only the glyphs themselves sit between the parts.
+//
+// §task (structural fix, replacing 4+ rounds of hand-tuned `top` shifts):
+// root cause finally isolated. `<input>` is a REPLACED element — Chromium
+// lays out its displayed text through its own internal, opaque algorithm,
+// not normal inline text flow, and NOTHING in CSS or the DOM exposes where
+// that text actually renders: `.value-input.childNodes.length` is 0 (no
+// shadow root, no accessible text node), so `Range.getClientRects()` on it
+// returns nothing — confirmed live. Every earlier fix in this file's own
+// history matched `.value-input`'s OUTER BOX to its siblings' boxes (down
+// to 0.00001px, repeatedly) and still watched the rendered digits drift by
+// 1-2px on an actual screenshot, because the box was never the thing that
+// needed to line up — box-matching can't fix a misalignment that lives
+// entirely inside a box neither CSS nor JS can see into.
+//
+// Fixed by removing the mismatch instead of compensating for it:
+// `.value-input` no longer renders the visible digits at all. It stays a
+// real, fully interactive `type="number"` field (native validation, min=0,
+// numeric keyboard on mobile, spin buttons already suppressed) — just with
+// `color: transparent` (see its own rule below) — absolutely positioned to
+// exactly fill `.hero-paperdoll__value-wrap`. The digits themselves are
+// drawn by `.hero-paperdoll__value-display`, a plain `<span>` kept in sync
+// with the input's value on every render and every `input` event
+// (hero-sheet.mjs's `#syncValueInputWidth`) — the SAME kind of element
+// `.value-sep`/`.value-max` already are, flowing through NORMAL inline
+// text layout, no replaced-element sizing algorithm involved anywhere.
+// `.value-wrap` (not `.value-input`) is the actual flex item now, and its
+// own height comes entirely from `.value-display`'s ordinary line box —
+// mechanically identical to how `.value-sep` and `.value-max` were
+// already, provably, always in step with EACH OTHER this entire time (only
+// `.value-input` was ever the outlier). `align-items: flex-end` needs
+// nothing extra to land them on the same pixel; no `top` shift, no
+// per-font retuning — see git history for the `$hg-value-row-sep-shift-
+// down` variable this replaces, tried at 0.5, 0, 1, -1 across five rounds
+// and never once landing exactly, which is what motivated finding the
+// actual cause instead of a sixth guess.
+.hero-paperdoll__value-row {
+  display: flex;
+  align-items: flex-end;
+}
+
+$hg-value-row-input-sep-gap: 2; // empty space between the current value and "/"
+$hg-value-row-sep-max-gap: 2; // empty space between "/" and the max value
+// Floor on `.hero-paperdoll__value-wrap`'s width below, in `ch` — without
+// it an empty field (level-up/roll clears it mid-edit) or a lone "0"/"1"
+// collapses toward zero width: unclickable, and a visual gap opens up
+// between the label above and the "/" that's still sitting right after it.
+$hg-value-input-min-ch: 2;
+// Ceiling on the same width, in `ch` — independent of whatever actually
+// typing/pasting into the field can reach (hero-sheet.mjs's own
+// `VALUE_INPUT_MAX_LENGTH`, which the two are meant to stay in sync with):
+// a value that arrives some OTHER way — a migration, a macro, another
+// module writing straight to `system.health.value` — never runs that JS
+// path at all, so this is the only thing stopping an arbitrarily long
+// number from stretching the field and pushing its neighbors (the label
+// above wrapping, or in Experience/Mana's case its own icon slot) out of
+// place.
+$hg-value-input-max-ch: 7;
+
+// The flex item in `.value-row` (`.value-input` used to be; see that
+// row's own header comment for why it moved here). A plain positioning
+// box, sized explicitly rather than by its own content — `.value-display`
+// inside it can be (and at the floor, always is) narrower than this.
+.hero-paperdoll__value-wrap {
+  position: relative; // containing block for `.value-input` below
+  display: inline-block;
+  // `field-sizing: content` — the CSS-native way to size an input from its
+  // own value, no JS needed — was tried on `.value-input` here first and
+  // measured DEAD on Foundry's bundled Chromium: `CSS.supports('field-
+  // sizing', 'content')` reports `true` and `getComputedStyle` echoes the
+  // property back as `content`, but a live `getBoundingClientRect()` on
+  // the actual `<input>` showed the IDENTICAL width for `value = "1"` and
+  // `value = "123456789"` — parsed, not implemented, in this build. Width
+  // is driven from JS instead: hero-sheet.mjs's `#syncValueInputWidth`
+  // writes `.value-display`'s own real rendered width, in px, into
+  // `--hg-value-content-width` below, on every render and on every
+  // `input` event, so it updates mid-keystroke, not just after
+  // blur/submit. Measured directly off `.value-display`'s own
+  // `getBoundingClientRect()` now — a real `<span>`, so this is exact by
+  // construction, not the `N * 1ch` guess (and later the input's own
+  // `scrollWidth`-probe workaround) earlier versions of this rule used.
+  //
+  // `clamp()`, not a bare `calc()`: the lower bound is `$hg-value-input-
+  // min-ch`'s own floor (see that variable's comment); the upper bound is
+  // `$hg-value-input-max-ch`, a width ceiling that holds even when the
+  // measured content width itself reports more than that — see that
+  // variable's own comment for why the length can outrun the JS-side
+  // clamp.
+  width: clamp(
+    #{$hg-value-input-min-ch}ch,
+    var(--hg-value-content-width, 1ch),
+    #{$hg-value-input-max-ch}ch
+  );
+  // Untouched reference point for the row: sep/max are positioned relative
+  // to this element's own position, not the other way round.
+}
+
+// The real, visible digits — ordinary inline text, no replaced-element
+// involved, which is the entire point (see `.value-row`'s own comment).
+// Sits flush at `.value-wrap`'s own left edge by plain inline flow (no
+// `position`/`float` needed for that); when the wrap is wider than this
+// (the floor case, short values), the leftover space is simply to its
+// right, same visual result `.value-input`'s own `text-align: left` used
+// to produce directly.
+.hero-paperdoll__value-display {
+  white-space: nowrap; // never wrap even if content briefly exceeds
+  // `.value-wrap`'s own clamped width (the ceiling case) — matches
+  // `type="number"`'s own native behavior, which never wraps either.
+  pointer-events: none; // decorative duplicate of the input's value;
+  // `.value-input` sits on top of this (position: absolute, painted after
+  // it — see that rule) and must be what actually receives clicks.
+  //
+  // §task (corrected): this used to live on `.value-input` — Fira Sans
+  // Extra Condensed's digits are PROPORTIONAL, not monospaced (measured
+  // live: "1" 5.94px vs "0" 8.09px at this font-size, a ~36% spread), so
+  // without this, digits jitter in width against each other as they're
+  // typed/deleted. Doesn't feed the width formula above any more (that's
+  // measured off this element's own real `getBoundingClientRect()` now,
+  // exact regardless of which digits are present) — purely cosmetic at
+  // this point, kept for the same reason `.value-max` already has it: a
+  // multi-digit value reads more evenly with uniform digit widths.
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-paperdoll__value-input {
+  @include hg-canvas-input-reset;
+  // §task: no longer paints the digits at all — `.value-display` does
+  // (see `.value-row`'s own header comment for the whole story). Stays a
+  // real, fully interactive control: transparent text, not `visibility:
+  // hidden`/`display: none`, so focus/typing/native validation/the mobile
+  // numeric keyboard all keep working exactly as before.
+  color: transparent;
+  // The blinking caret is the one piece of native `<input>` chrome that's
+  // still worth keeping visible — `color: transparent` above would
+  // otherwise hide it too, since browsers paint the caret in the text
+  // color by default. `caret-color` is a real, independent CSS property
+  // for exactly this split.
+  caret-color: $hg-gold-mid;
+  // Fills `.value-wrap` exactly (that element's own `position: relative`
+  // is its containing block) — sized by the wrap's own `width` above, not
+  // by this element's content, so the two are pixel-identical by
+  // construction rather than by matching two separately-computed numbers.
+  position: absolute;
+  inset: 0;
+  text-align: left; // caret still lands where a sighted user would expect
+  // it relative to `.value-display`'s own (left-aligned) digits, even
+  // though this element's own text is invisible.
+
+  // §task: Experience gets `readonly` (not `disabled`) outside edit mode —
+  // `disabled` inputs never dispatch `click` at all, which would have
+  // broken the ancestor `.hero-paperdoll__slot--experience_desc`'s own
+  // click-to-open-level-up (see hero-sheet.mjs's #onOpenLevelUp) for
+  // clicks landing exactly on the number; `readonly` blocks editing
+  // without touching that. But left at browser defaults, `readonly` still
+  // LOOKS and FEELS like a live input — blinking caret, text-select
+  // cursor, drag-to-highlight — which is exactly backwards for something
+  // that's meant to read as plain static text once it can't be edited.
+  // Every native "this is a text box" affordance is switched off here;
+  // none of this touches whether it's `readonly` in the first place (the
+  // template's own `{{#unless editMode}}`, Experience only) — Health and
+  // Mana keep no such attribute (both stay live gameplay counters a player
+  // edits mid-session — damage taken, mana spent — not a GM-only
+  // progression number the way level/experience now are), so this
+  // `:read-only` rule simply never matches either of them.
+  &:read-only {
+    caret-color: transparent; // no blinking caret with nothing to edit
+    cursor: default; // not the text I-beam — matches the plain arrow the
+    // rest of this (otherwise non-interactive-looking) block already
+    // shows; spinner buttons are already unconditionally hidden by
+    // hg-canvas-input-reset above, readonly or not.
+    user-select: none; // a drag here would otherwise highlight the
+    // (invisible) text with a visible selection background — confusing on
+    // its own, and exactly the kind of "still feels like an input" cue
+    // this state needs to NOT have. Doesn't block the click itself
+    // (`user-select` only affects text selection, not click/pointer
+    // events), so the ancestor's click-to-open-level-up keeps working.
   }
 }
 
 .hero-paperdoll__value-sep {
   opacity: 0.7;
+  // §task (corrected): the `position: relative; top: calc(...)` hand-tuned
+  // drop this rule used to need is gone along with the `<input>`-vs-`
+  // <span>` mismatch that made it necessary — see `.value-row`'s own
+  // header comment. `align-items: flex-end` alone now lands this on the
+  // same pixel as `.value-wrap`/`.value-max`, verified live via `Range.
+  // getClientRects()` on all three (see this task's own verification, not
+  // just box metrics this time).
+  //
+  // Subtracts however much WIDER `.hero-paperdoll__value-wrap`'s own
+  // (clamped) box ends up than its actual measured content — that clamp
+  // keeps the wrap at least 2ch wide for click-target reasons even when
+  // its value is a single digit (and at most 7ch regardless of content,
+  // see `$hg-value-input-max-ch`'s own comment), but this "/" sits after
+  // the WRAP'S BOX, not after `.value-display`'s actual last glyph:
+  // whenever the clamp's floor or ceiling actually bites, the box is
+  // wider than the content, and without this, that empty space would
+  // silently add itself to the gap. Re-derives the SAME `clamp(min-ch,
+  // content, max-ch)` the width rule above computes, rather than reading
+  // it back (a custom property can't reference another property's own
+  // resolved value) — both pull from the same `$hg-value-input-min-ch`/
+  // `-max-ch` variables, so they can't drift out of step. `max(0px, …)`
+  // is 0 whenever the clamp lands exactly on the measured content (the
+  // common case — no compensation needed there at all); it's only ever
+  // positive right at the floor (short values) or the ceiling (7+ digit
+  // values, if one ever reaches this field some way other than typing —
+  // see `$hg-value-input-max-ch`'s own comment).
+  margin-left: calc(
+    #{$hg-value-row-input-sep-gap} * 1px * var(--hg-pixel-scale) -
+      max(
+        0px,
+        clamp(#{$hg-value-input-min-ch}ch, var(--hg-value-content-width, 1ch), #{$hg-value-input-max-ch}ch) -
+          var(--hg-value-content-width, 1ch)
+      )
+  );
+  // Purely decorative — never steal a click meant for the input beneath:
+  // the floor-overhang compensation above can make this visually sit atop
+  // the wrap's own (empty) trailing box space for a 1-digit value.
+  pointer-events: none;
 }
 
 .hero-paperdoll__value-max {
-  font-weight: bold;
+  // Same reasoning as `.hero-paperdoll__value-display`'s own comment —
+  // consistent tabular digits on both sides of "/", not just the editable
+  // side. Doesn't feed any width formula here (this element's own width is
+  // plain content-sized, no `ch`-based clamp), purely so e.g. "1" and "0"
+  // don't render at visibly different widths next to each other digit-to-
+  // digit inside a multi-digit max value.
+  font-variant-numeric: tabular-nums;
+  // No floor-overhang term needed here (unlike `.value-sep` above): this
+  // element's own margin is measured from `.value-sep`'s box, and that
+  // box always matches its own "/" content exactly — nothing upstream of
+  // it ever forces it wider than its text.
+  margin-left: calc(#{$hg-value-row-sep-max-gap} * 1px * var(--hg-pixel-scale));
+  pointer-events: none; // same reasoning as `.value-sep` above.
 }
 
 // Same reasoning as the primary-skill icons above: morale/luck are also
@@ -456,6 +1362,23 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   object-fit: contain;
 }
 
+// Secondary-skill lines — native SmallFont height ($hg-font-h3-small-height,
+// utils/_fonts.scss), same as every other one-off `hg-pixel-font` call site
+// on the sheet now. Used to be its own hand-picked 18px (`$hg-secondary-
+// skill-font-height`, checked against this same 92x42 box for headroom) —
+// dropped in favor of the shared native constant once the sheet-wide pass
+// to put every text block on one common size (14px) reached this one; kept
+// as its own variable only as long as its value actually differed from the
+// native height, per this project's own rule against a hand-picked number
+// hiding among the real `.FNT`-derived ones.
+//
+// Fit at the native size, checked against the widest REAL strings (not
+// guessed) — "Магия Воздуха" (skill) and "Продвинутый" (tier) — measured
+// live: 74px / 70px against this box's own 116.2px width at the reference
+// canvas width, i.e. 63.7% / 60.2% fill, and two stacked lines at
+// `$hg-desc-line-rhythm` below are 40px against the box's own 53.1px
+// height, i.e. 75.4% — comfortably looser on both axes than the old 18px
+// size ever was (81.9% width / 97%+ height), not tighter.
 .hero-paperdoll__slot--skill_desc_1,
 .hero-paperdoll__slot--skill_desc_2,
 .hero-paperdoll__slot--skill_desc_3,
@@ -465,16 +1388,318 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
 .hero-paperdoll__slot--skill_desc_7,
 .hero-paperdoll__slot--skill_desc_8 {
   display: flex;
-  align-items: center;
-  font-size: 0.75em;
-  line-height: 1.1;
+  flex-direction: column;
+  justify-content: center;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
   overflow: hidden;
+  // Same inset as every other `_desc` box (Health/Experience/Mana, above) —
+  // this one had none, so its text sat flush on the cell's left edge while
+  // everything else on the sheet shared one common indent. Reusing that
+  // existing 3px literal, not a new number.
+  padding-left: calc(3px * var(--hg-pixel-scale));
+  // Overrides the mixin's own `line-height: 1` for these 8 classes only,
+  // not the shared mixin itself, since none of `hg-pixel-font`'s other 14
+  // call sites are two-line text that wants this — see `$hg-desc-line-
+  // rhythm`'s own comment (above, by the Health/Experience/Mana boxes) for
+  // where the ratio comes from; both of THIS box's lines are plain text
+  // spans, so (unlike those boxes) applying it here at the box level
+  // directly sizes both lines, no separate per-line override needed.
+  //
+  // Fits the box at every width EXCEPT one narrow sliver — verified live
+  // across the full 400-2350px window range: comfortable margin everywhere
+  // from window ≈456px up (grows further past the scale-3 ceiling; 24.6% at
+  // the reference width now that the font itself is smaller, up from ~3% at
+  // the old 18px size), but at the exact 400px min-width floor the two
+  // lines' natural height still slightly exceeds the box — font-size is
+  // already pinned at the `0.6` scale floor there while the box's own
+  // raw-percentage height keeps shrinking underneath it (the same zone
+  // `min-width: 400px`'s own comment above already documents). Nothing
+  // overflows or clips there either way: these `span`s are flex items with
+  // the default `flex-shrink: 1`, so the browser compresses the line boxes
+  // down to exactly fit rather than spilling past the box, and the
+  // compressed ratio still clears the font's own 1.0 floor so glyphs stay
+  // fully visible — the only real cost is the spacing improvement itself
+  // fading back toward roughly the old tightness for that one sliver of
+  // window width. Not chased further: `$hg-desc-line-rhythm` is the
+  // measured game ratio for the 97%+ of the range where it applies cleanly;
+  // if a future pass wants the narrow end to keep the full ratio too, the
+  // fix is raising min-width past ~457px, not shrinking that number.
+  line-height: $hg-desc-line-rhythm;
+
+  // Two genuinely separate strings (tier, then skill name — see the
+  // template) instead of one dash-joined string relying on
+  // `-webkit-line-clamp` to wrap wherever it happened to fit. Each line
+  // clips/ellipsises on its own now, so one can't steal the other's row.
+  span {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// §task (part 2): the scrollable secondary-skill grid — only ever
+// rendered past 8 owned skills (`context.secondarySkillsScrollable`,
+// hero-sheet.mjs; see that flag's own comment for why it's keyed to the
+// owned count and not to whether Экспертная Обучаемость is active this
+// instant). At ≤8 owned, the template renders `.hero-paperdoll__slot--
+// skill_name_1..8`/`skill_desc_1..8` above unchanged instead — this rule
+// and its own children never reach the DOM in that case, so the common
+// case is provably untouched by anything below.
+//
+// All four numbers below come from the ALREADY-WORKING static slots
+// above, not a fresh measurement — see `secondary_skills_scroll`'s own
+// comment ($hg-named-slots) for the outer box those slots hand this
+// container. Same source for the inner geometry: skill_name_N is 44×44,
+// skill_desc_N is 92×42, `skill_desc_1.left (59) − skill_name_1.right
+// (13+44=57) = 2` is the icon-to-desc gap within one cell, `skill_name_2.
+// left (156) − column 1's own right edge (13+44+2+92=151) = 5` is the
+// column-to-column gap, and consecutive rows' own top (271, 319, 367,
+// 415) step by a constant 48 — icon height (44) plus a 4px row gap,
+// which is also exactly `assets/ui/secondary_skill_row_tile.png`'s own
+// height (see that file's own comment below for where it was cut from).
+$hg-secondary-skill-icon-size: 44px;
+$hg-secondary-skill-desc-width: 92px;
+$hg-secondary-skill-desc-height: 42px;
+$hg-secondary-skill-cell-gap: 2px; // icon-to-desc, within one cell
+$hg-secondary-skill-column-gap: 5px; // column 1 to column 2
+$hg-secondary-skill-row-gap: 4px; // row to row — icon height (44) + this (4) = one row's own 48px pitch in the background art
+// This branch only ever renders once owned skills > 8 (rules.md §3, с.39
+// slot cap 8/10 — see `secondarySkillSlotCount` in rolls.mjs), at which
+// point the slot count is `max(owned, cap)` = 9 or 10 — ceil(9/2) or
+// ceil(10/2), both 5. Not a general "however many rows fit" value; fixed
+// at 5 for as long as the cap itself is capped at 10, matching the 5-row
+// background asset built by `scripts/build_secondary_skill_rows.py`.
+$hg-secondary-skill-scroll-rows: 5;
+// Same 281×188 box `secondary_skills_scroll` ($hg-named-slots above) is
+// built from — repeated here as plain numbers (not a map lookup) so the
+// `%` formulas below read as ordinary division.
+$hg-secondary-skill-box-width: 281px;
+$hg-secondary-skill-box-height: 188px;
+// icon(44) + cell-gap(2) + desc(92) — one column's own full span, derived
+// so `$hg-secondary-skill-cell-gap`'s own % below has the right base.
+$hg-secondary-skill-column-width: $hg-secondary-skill-icon-size + $hg-secondary-skill-cell-gap + $hg-secondary-skill-desc-width;
+
+// Real, fixed gutter `scrollbar-width: thin` reserves inside an
+// `overflow-y: auto` element's own content box, measured live in this
+// Chromium build (`offsetWidth - clientWidth` on a throwaway test element):
+// 10px for `thin`, 15px for the `auto` default we deliberately don't use.
+// This is a real CSS px the UA carves out of whatever width it's given —
+// NOT a fraction of anything, so unlike every other size in this file it
+// must NOT be scaled by `--hg-pixel-scale` or by `%` of the native canvas:
+// doing either would over/under-compensate at window sizes away from
+// whatever size the ratio was tuned at. Flat `10px`, added once below.
+$hg-secondary-skill-scrollbar-gutter: 10px;
+
+// §task (scrollbar-bleed fix): split into an OUTER frame (`.hero-paperdoll__
+// slot--secondary_skills_scroll`, the plain $hg-named-slots box, untouched,
+// `overflow: visible` by default — nothing here clips its child) and this
+// INNER scrolling element, absolutely positioned inside it but
+// `$hg-secondary-skill-scrollbar-gutter` WIDER than the frame, anchored to
+// its left edge so the extra width sticks out to the right. `overflow-y:
+// auto` then reserves exactly that same gutter back out of THIS element's
+// own content box, leaving the content box — where the grid/background
+// below actually live — back at the frame's original width. Net effect:
+// the scrollbar's own track paints in the bled-out strip to the right of
+// the frame; the icon/text content area never moves or shrinks whether the
+// scrollbar is showing or not. (Before this split, `overflow-y: auto` was
+// declared directly on the framed, `$hg-named-slots`-sized box, so its own
+// gutter reservation ate into the content area instead — the "scrollbar
+// shrinks content" bug.)
+.hero-paperdoll__secondary-skills-scroll {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: calc(100% + #{$hg-secondary-skill-scrollbar-gutter});
+  overflow-y: auto;
+  overflow-x: hidden;
+  // §task (real rows, not a repeated tile) — this used to be ONE row cut
+  // from the sheet's own art, tiled 5× via `repeat-y`. The 4 rows in the
+  // original 4×2 grid differ slightly from each other (wood-grain texture
+  // isn't identical row to row), so repeating one of them 5 times reads
+  // visibly poorer than the source. `assets/ui/secondary_skill_rows.png`
+  // (281×240, built by `scripts/build_secondary_skill_rows.py`, run it
+  // to reproduce) is rows 1-4 as-is plus a copy of row 1 as row 5 (there
+  // is no real 5th row in the source — the grid this art was drawn for
+  // only ever had 4). Cross-color identity (all 4 real rows, all 10
+  // panels, `maxDiff` per channel) and the single synthetic seam (row 4
+  // to the row-1 copy — rows 1-4 are adjacent pixels of the same source
+  // crop and need no seam check at all) are both verified by that script
+  // before it writes the file.
+  background-image: url('../assets/ui/secondary_skill_rows.png');
+  background-repeat: no-repeat;
+  // Without this, the background stays pinned to the element's own border
+  // box (the default, `scroll`) while the grid content inside scrolls
+  // past it — the "фон не движется вместе с контентом" bug: border art and
+  // texture stayed put, only icons/text moved. `local` ties the background
+  // to the element's own scrolled CONTENT instead, same as the grid cells,
+  // so both move together as one piece at every scroll position.
+  background-attachment: local;
+  // CORRECTED — this used to be `percentage(icon-size/box-height + row-gap/
+  // box-height)`, i.e. a PERCENTAGE OF THIS ELEMENT'S OWN HEIGHT. That's
+  // wrong for a `local`-attachment, `overflow-y: auto` element: measured
+  // live (isolated test divs, `local` vs `scroll` attachment, identical
+  // clientHeight/scrollHeight, `background-repeat: no-repeat` + a red
+  // fill behind so the image's own bottom edge is a single sharp line) —
+  // this Chromium build resolves `background-size` percentages against
+  // `clientHeight` either way, so the earlier live check (row 1/2 boundary
+  // landing within 0.07px of the grid's own row 2) genuinely passed. But
+  // per-engine handling of `local` + percentage `background-size` is a
+  // known cross-browser soft spot (CSS Backgrounds §3.9 leaves the exact
+  // resolution behavior under scrolling underspecified enough that engines
+  // have disagreed on it historically) — a percentage here is gambling on
+  // one engine's interpretation holding on every client that opens this
+  // sheet, not a value with one unambiguous meaning. Root cause either way:
+  // a PERCENTAGE OF A SCROLLING ELEMENT'S OWN HEIGHT is the wrong kind of
+  // value for a length that must stay exactly 48 native px regardless of
+  // how tall the scrollable content grows — it should never have been
+  // asking "what %" in the first place.
+  //
+  // Fixed length instead, in `cqw` against `.hero-paperdoll`'s own query
+  // container (`container-type: inline-size`, `font-size: 2.1cqw` above
+  // already leans on the same container) — NOT `--hg-pixel-scale`
+  // (`calc(Npx * var(--hg-pixel-scale))`, the convention every font-size/
+  // spacing value in this file otherwise uses): that variable tracks
+  // REFERENCE_CANVAS_WIDTH_PX(758), a DIFFERENT number from this container's
+  // own real canvas scale (`.hero-paperdoll`'s rendered width ÷ 600) that
+  // this grid's own `grid-auto-rows`/`row-gap`/`column-gap` above already
+  // had to move OFF of `--hg-pixel-scale` and onto real-canvas percentages
+  // for this exact reason (see `column-gap`'s own comment on that bug).
+  // `cqw` resolves against `.hero-paperdoll`'s real rendered WIDTH, and its
+  // fixed `aspect-ratio: 600/473` above makes height a constant multiple of
+  // that width, so a height expressed as a WIDTH fraction is exact: 48
+  // native px on the 600-wide canvas = 8% of that width = `8cqw` per row.
+  // Anchored to the same real-canvas scale the grid's own geometry already
+  // uses, and — unlike the percentage it replaces — never asks the browser
+  // to resolve against the scrolling box's own (possibly ambiguous, possibly
+  // content-dependent) height at all.
+  //
+  // Whole asset now, not one repeated row (see `background-image` above) —
+  // its full height is $hg-secondary-skill-scroll-rows rows, so the size
+  // here scales by that count instead of covering a single row.
+  background-size: 100% #{($hg-secondary-skill-icon-size + $hg-secondary-skill-row-gap) * $hg-secondary-skill-scroll-rows / 600px * 100}cqw;
+  // §task: `::-webkit-scrollbar-thumb` alone does NOT reach the screen
+  // here — confirmed live (`getComputedStyle(el).scrollbarColor` read a
+  // dark maroon, rgb(93,20,43), never declared anywhere in this
+  // stylesheet, so it's inherited from somewhere in Foundry core's own
+  // CSS). Per spec, once `scrollbar-color` resolves to anything but
+  // `auto` on an element — including by inheritance — the UA uses IT for
+  // that scrollbar and ignores `::-webkit-scrollbar-*` entirely; no
+  // specificity or `!important` on the webkit side wins that back (tried
+  // both live, neither changed the rendered color). Styling through
+  // `scrollbar-color` itself, which this element sets directly rather
+  // than inheriting, is what actually reaches the screen.
+  scrollbar-width: thin;
+  scrollbar-color: rgba($hg-gold-pale, 0.65) transparent;
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  // §task (corrected): every number on this rule is now a PERCENTAGE of
+  // this element's own box, not `calc(Npx * var(--hg-pixel-scale))` — an
+  // earlier version used the pixel-scale calc() (the convention every
+  // FONT-SIZE/spacing value in this file already uses) and it looked
+  // right at a glance but was live-measured wrong: this element's own
+  // width/height come from `secondary_skills_scroll`'s `%` sizing
+  // ($hg-named-slots above), which tracks the canvas's own real render
+  // scale (`.hero-paperdoll`'s actual px size ÷ 600×473) — a DIFFERENT
+  // number from `--hg-pixel-scale` (tracks REFERENCE_CANVAS_WIDTH_PX=758
+  // instead, deliberately clamped 0.6-3 for text legibility). The two
+  // happen to sit close at some window sizes and diverge at others —
+  // caught live at one specific size where 5 rows of pixel-scale-based
+  // content (`--hg-pixel-scale` ≈1.186 that time) fit inside a
+  // percentage-sized box that should only ever hold 4 (real canvas scale
+  // ≈1.498 that time) without needing to scroll AT ALL — the exact
+  // opposite of this feature's whole point. `%` here instead keeps this
+  // grid's own geometry on the SAME scale its own container already is,
+  // by construction, at every window size — 1fr columns already were
+  // (relative to the container's own real width automatically); rows/
+  // gaps below are the ones that needed converting.
+  column-gap: percentage($hg-secondary-skill-column-gap / $hg-secondary-skill-box-width);
+  row-gap: percentage($hg-secondary-skill-row-gap / $hg-secondary-skill-box-height);
+  grid-auto-rows: percentage($hg-secondary-skill-icon-size / $hg-secondary-skill-box-height);
+  // Rows pack from the top and stay their own explicit height — without
+  // this, an incomplete last row (9 owned skills = 4 full rows + 1 lone
+  // cell) would stretch to fill any leftover cross-axis space in a grid
+  // taller than its own content, same reasoning as `.hero-paperdoll__
+  // slot--name`'s own `align-content` comment elsewhere in this file.
+  align-content: start;
+}
+
+// One owned-skill (or empty-placeholder) cell inside the scrollable grid
+// above — icon and description side by side, matching the static slots'
+// own layout exactly (see that rule's own sourcing comment), just as a
+// normal grid item instead of two independently `$hg-named-slots`-
+// positioned boxes (there's no way to hand-place a 9th/10th slot that
+// way — the art only has 8 fixed cells to position against).
+.hero-paperdoll__skill-cell {
+  display: flex;
+  align-items: flex-start; // icon (44 tall) and desc (42 tall) share the
+  // same top edge, same as skill_name_N/skill_desc_N already do (both
+  // start at the same $hg-named-slots top) — flex-start reproduces that
+  // without needing to know either one's exact height up front.
+  //
+  // % of this flex row's own width, same "stay on the container's real
+  // scale" reasoning as `.hero-paperdoll__secondary-skills-scroll`'s own
+  // `column-gap` comment above — this row's own width is one grid column
+  // (a real, definite 138-native-px-equivalent box by construction, see
+  // that rule's own comment), so the base for this percentage is
+  // `$hg-secondary-skill-column-width`, not the outer 281px box.
+  gap: percentage($hg-secondary-skill-cell-gap / $hg-secondary-skill-column-width);
+}
+
+// The Специализация cell's own backdrop: the first cell (top-left 138×44)
+// of the same row strip the scrolling secondary-skill grid uses
+// (secondary_skill_rows.png, 281×240) — background-size is that whole
+// image expressed against this one cell's box, position 0 0 lands on
+// row 1 / column 1. Drawn always, so an empty cell reads as an empty slot.
+.hero-paperdoll__slot--specialization {
+  background-image: url('../assets/ui/secondary_skill_rows.png');
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: percentage(281px / $hg-secondary-skill-column-width) percentage(240px / $hg-secondary-skill-icon-size);
+
+  &[data-action] {
+    cursor: pointer;
+  }
+}
+
+.hero-paperdoll__skill-cell-icon {
+  position: relative; // containing block for .hero-paperdoll__slot-delete
+  // below — the static slots get this for free from .hero-paperdoll__slot's
+  // own `position: absolute`; this cell isn't independently positioned,
+  // so it needs the declaration explicitly.
+  //
+  // `flex: 44 44 0` / desc's own `flex: 92 92 0` below split the row's
+  // available width (column width minus the one real `gap` between them)
+  // in a 44:92 ratio — exactly icon:desc's own native-px split, and
+  // proportional rather than percentage-based specifically because the
+  // available width already had the gap subtracted for it (a flex
+  // basis of 0 with matching grow ratios reproduces "44px and 92px out of
+  // 136px" at ANY real rendered scale, without re-deriving a percentage
+  // against a base that's it self derived from a subtraction).
+  flex: 44 44 0;
+  height: 100%; // = grid-auto-rows above, i.e. the icon's own 44px, exactly
+}
+
+.hero-paperdoll__skill-cell-desc {
+  flex: 92 92 0; // see `.hero-paperdoll__skill-cell-icon`'s own comment
+  // % of this cell's own height (= grid-auto-rows, the icon's 44px) —
+  // 42/44, matching skill_desc_N's own shorter height against skill_name_N.
+  height: percentage($hg-secondary-skill-desc-height / $hg-secondary-skill-icon-size);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  overflow: hidden;
+  padding-left: calc(3px * var(--hg-pixel-scale)); // same inset as skill_desc_N's own — see that rule's own comment
+  line-height: $hg-desc-line-rhythm;
 
   span {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    display: block;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -610,6 +1835,146 @@ $hg-panel-colors: red, blue, tan, green, orange, purple, teal, pink, black, whit
   background-size: 100% 100%;
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+// §4.2: a real element (not ::after) since it needs its own class toggle
+// (canLevelUp, actor-hero-sheet.hbs) independent of any drag/hover state,
+// sized to the combined experience_name+experience_desc box (see that
+// named-slot's own comment) so ONE frame wraps the whole block rather
+// than the icon and the label/value getting two abutting frames with a
+// seam between them. Purely decorative — a plain sibling of
+// experience_name/experience_desc, `pointer-events: none` always, no
+// interactive role of its own. The click area that opens the level-up
+// window lives on experience_name/experience_desc directly (see those
+// rules' own template attributes), not on this element — a round that put
+// them inside this box (to route every click through one shared
+// data-action) also, as a side effect neither asked for nor wanted,
+// dragged them along with this element's own opacity pulse (opacity
+// applies to a whole subtree, not just the element it's set on — the icon
+// and text visibly blinked with the border) and shifted their pixel
+// position slightly (their native-px coordinates now resolved against a
+// different, slightly differently-rounded parent box). Reverted for
+// exactly those two reasons — not a geometry disagreement, an
+// unrequested side effect of the restructuring itself.
+//
+// §4.2 (re-diagnosed): this used to reuse artifact_g00_f144.png the same
+// way drop-target above does — but that sprite (confirmed by dumping its
+// full alpha channel) is a perfectly uniform, hard-edged 1px-thick square
+// outline, 44×44 native, no gradient or corner art. drop-target's own box
+// is close to square, so stretching it there barely distorts anything;
+// THIS box is 22.833% × 8.879% of the canvas — ~2.57:1 wide — and
+// `background-size: 100% 100%` stretches that uniform 1px border
+// non-uniformly: confirmed live via Canvas2D pixel-sampling of the actual
+// rendered box that the left/right edges thin out to ~2px of a 128px-wide
+// box (barely there) while top/bottom stay close to full strength (the
+// vertical dimension barely shrinks, 44px source to ~39px rendered) —
+// exactly why the left edge read as open, not a 1px position error. A
+// zoomed screenshot confirmed no visible left connector at all.
+//
+// Reproduced as a plain CSS border instead — same call as
+// `.hero-paperdoll__identity-block`'s own frame further up this file, for
+// the identical reason (a flat, undecorated 1px asset stretched outside
+// the aspect ratio it was drawn for). A border's thickness doesn't depend
+// on the box's own aspect ratio, and it's closed on all 4 sides by
+// construction — no separate "draw a segment" step needed. Color sampled
+// directly off this same asset's own opaque pixels (255,228,135) rather
+// than reused from an unrelated token. drop-target above is untouched —
+// its own box shape doesn't have this problem.
+$hg-experience-highlight-color: rgb(255, 228, 135);
+$hg-experience-highlight-border: 1px;
+// §4.2 (task): the right side alone is thicker, growing INWARD — the
+// outer (right) edge is `box-sizing: border-box`'s whole point: a wider
+// border eats into the box's own content area, it never pushes the box's
+// own right edge (= left+width, untouched) further right. Not sure if
+// this used to be 2 or 3 — starting at 2, tune here.
+$hg-experience-highlight-right-border: 2px;
+
+// §4.2 (task, re-diagnosed again): re-verified this IS a closed rectangle
+// right now, geometrically — swapped the border for an opaque high-
+// contrast color (lime) and screenshotted at high zoom: all 4 sides
+// connect at all 4 corners, no gap. Also walked the FULL ancestor chain
+// (`.hero-paperdoll` up through `.window-content`, `body`) checking
+// `overflow` on each — `.window-content` IS `overflow: hidden` (a real,
+// separately-confirmed fact about this project's window chrome), but in
+// every window size tested `.hero-paperdoll` exactly filled
+// `.window-content`'s own box with zero margin, so nothing here was ever
+// actually being clipped by it. If the rectangle still reads as broken on
+// a real screen: the likely cause is CONTRAST, not geometry — this
+// border is only ~1-2 real screen px at typical window widths, in a
+// fairly desaturated gold, over a busy leather texture, at 0.3 opacity
+// during the dim half of its own pulse — not something a coordinate
+// fix resolves. Flagged, not changed here (border weight/color wasn't
+// asked for).
+//
+// The shift below is expressed as NEW edge positions relative to the
+// $hg-named-slots loop's own original percentages (2.333/47.357/22.833/
+// 8.879) — not as a further increment on top of the previous round's
+// already-shifted numbers, so this can't silently compound across
+// rounds. Right and bottom are the fixed reference points (right was
+// never touched by either round; bottom is last round's +1px, held
+// here): left moves further left by $hg-experience-highlight-left-expand
+// (net of this round's -2px and last round's +1px inset), top moves up
+// by $hg-experience-highlight-top-expand — both widen/heighten the box
+// rather than sliding it, since the opposite edge stays put.
+$hg-experience-highlight-top-expand: 1px;
+$hg-experience-highlight-left-expand: 1px;
+$hg-experience-highlight-bottom-grow: 1px;
+
+// The frame's look (border, thicker right side, hidden until `--active`) —
+// shared by every "available action" highlight (Опыт's level-up, and the
+// Специализация cell's pick prompt) so there's exactly one definition of
+// what "highlighted" looks like. Geometry stays per-slot.
+@mixin hg-highlight-frame {
+  border: calc($hg-experience-highlight-border * var(--hg-pixel-scale)) solid $hg-experience-highlight-color;
+  // Right side only, thicker, growing inward — see
+  // $hg-experience-highlight-right-border's own comment. Longhand after
+  // the `border` shorthand above so it wins for just this one side
+  // (source order, same specificity).
+  border-right-width: calc($hg-experience-highlight-right-border * var(--hg-pixel-scale));
+  pointer-events: none;
+  opacity: 0;
+}
+
+.hero-paperdoll__slot--specialization_highlight {
+  @include hg-highlight-frame;
+}
+
+.hero-paperdoll__slot--experience_highlight {
+  // Overrides the plain-percentage left/top/width/height the
+  // $hg-named-slots loop (top of this file) already generated for this
+  // slot. Right edge = 2.333% + 22.833% (original left+width, untouched);
+  // bottom edge = 47.357% + 8.879% + bottom-grow (untouched from last
+  // round). left/top move outward from the ORIGINAL percentages and
+  // width/height absorb exactly that movement, so the right/bottom sums
+  // above stay fixed to the pixel.
+  left: calc(2.333% - $hg-experience-highlight-left-expand * var(--hg-pixel-scale));
+  top: calc(47.357% - $hg-experience-highlight-top-expand * var(--hg-pixel-scale));
+  width: calc(22.833% + $hg-experience-highlight-left-expand * var(--hg-pixel-scale));
+  height: calc(8.879% + $hg-experience-highlight-top-expand * var(--hg-pixel-scale) + $hg-experience-highlight-bottom-grow * var(--hg-pixel-scale));
+  @include hg-highlight-frame;
+}
+
+// Slow breathing fade, not a blink — dips to a still-visible 0.3 rather
+// than 0, so the frame never visually "switches off" mid-cycle, only
+// dims. Duration split into its own variable per the task's own
+// requirement, so it can be retuned without hunting through the
+// keyframes.
+$hg-experience-highlight-pulse-duration: 2.6s;
+
+.hero-paperdoll__slot--experience_highlight--active,
+.hero-paperdoll__slot--specialization_highlight--active {
+  opacity: 1;
+  animation: hg-experience-highlight-pulse $hg-experience-highlight-pulse-duration ease-in-out infinite;
+}
+
+@keyframes hg-experience-highlight-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 // edit-1.png/edit-2.png (assets/buttons/edit/) — a 2-state toggle (off/on),

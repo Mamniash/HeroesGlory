@@ -25,9 +25,15 @@ import {
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
+  resolvePrimarySkillRoll,
+  resolveSecondarySkillRoll,
+  nextTier,
+  secondarySkillSlotCount,
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
 import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
+import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
+import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
 
 /** The flag namespace every roll-related ChatMessage flag lives under. */
 const FLAG_SCOPE = 'heroes-glory';
@@ -42,12 +48,15 @@ export const SPELL_VARIANT_LABELS = {
   expert: 'HEROES_GLORY.Spell.VariantExpert',
 };
 
-const PRIMARY_SKILL_LABELS = {
+export const PRIMARY_SKILL_LABELS = {
   attack: 'HEROES_GLORY.Hero.Attack',
   defense: 'HEROES_GLORY.Hero.Defense',
   magicPower: 'HEROES_GLORY.Hero.MagicPower',
   knowledge: 'HEROES_GLORY.Hero.Knowledge',
 };
+
+/** §6: max reroll attempts before giving up on finding a not-yet-owned secondary skill (§6.2). */
+const NEW_SECONDARY_SKILL_MAX_ATTEMPTS = 20;
 
 const HIT_LABELS = {
   miss: 'HEROES_GLORY.Roll.Hit.Miss',
@@ -624,5 +633,448 @@ export async function helpIncapacitatedActor(actor) {
   );
 
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+}
+
+/**
+ * §6.1/§task: roll the primary skill that grows on level-up, by the
+ * hero's class's own d20 range table — or an equal-quarters fallback if
+ * the class isn't determined yet (empty faction/classType). Split out
+ * from {@link rollLevelUp} because it's never re-rolled on its own — kept
+ * as its own function anyway for symmetry with the new-skill roll below,
+ * and so `rollLevelUp` reads as a plain composition of the three.
+ *
+ * Posts its own chat card (§task — was silent before, "внутренним кодом";
+ * now the same Roll -> renderTemplate -> ChatMessage.create shape every
+ * other roll in this file uses, e.g. {@link rollAbilityCheck}) so the
+ * table lookup that decides what grows is visible, not just its result on
+ * the sheet. Runs exactly once per level-up (called only from
+ * `rollLevelUp`, itself only invoked by level-up-app.mjs's
+ * `ensurePendingLevelUp` when actually rolling fresh — see that function's
+ * own comment for why a reopened window never re-rolls or re-posts this).
+ * @param {Actor} actor
+ * @returns {Promise<"attack"|"defense"|"magicPower"|"knowledge">}
+ */
+async function rollPrimarySkillKey(actor) {
+  const system = actor.system;
+  const classKey = concreteClassKey(system.faction, system.classType);
+  const ranges = PRIMARY_SKILL_ROLL_RANGES[classKey] ?? PRIMARY_SKILL_ROLL_RANGES_FALLBACK;
+  const roll = new Roll('1d20');
+  await roll.evaluate();
+  const skillKey = resolvePrimarySkillRoll(roll.dice[0].total, ranges);
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/levelup-primary-skill.hbs',
+    { actorName: actor.name, die: roll.dice[0].total, skillLabelKey: PRIMARY_SKILL_LABELS[skillKey] },
+  );
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
+
+  return skillKey;
+}
+
+/**
+ * §6.3/§7: every owned secondary skill still below Expert tier — the pool
+ * both {@link rollUpgradeCandidateItemId} and the level-up window's own
+ * "pick a different skill" list (level-up-app.mjs) draw from, so the two
+ * can never disagree about what's eligible. Excludes a skill Item whose
+ * own skillKey is still unset ("" — the schema's default; see
+ * item-skill-sheet.hbs's own comment on how that state can persist
+ * invisibly) — such an item has no real identity to show an icon/label
+ * for or to upgrade.
+ * @param {Actor} actor
+ * @returns {Item[]}
+ */
+export function eligibleUpgradeSkillItems(actor) {
+  return actor.items.filter((i) => i.type === 'skill' && i.system.tier !== 'expert' && i.system.skillKey);
+}
+
+/**
+ * §6.3/§7/§task: resolve the upgrade candidate's initial pre-selection —
+ * NOT a roll any more (§task: "случайный бросок кандидата... теперь не
+ * нужен вовсе — убери его"). With exactly one eligible skill there's
+ * nothing to choose between, so that one is set directly, same as always
+ * (deterministic, never random — this branch never rolled dice either,
+ * even before this task). With zero, there's nothing to offer. With two
+ * or more, this deliberately returns `null` and leaves it there: the
+ * level-up window shows a neutral "choose a skill" placeholder instead of
+ * silently pre-picking one for the player (see
+ * `buildUpgradePlaceholderSlot`'s own comment) — a real id only gets
+ * written once the player actually picks one, through the window's own
+ * list (level-up-app.mjs's `#onPickUpgradeCandidate`).
+ *
+ * Exported on its own (not just inlined into {@link rollLevelUp}) for the
+ * same revalidation reason as before — level-up-app.mjs's
+ * `ensurePendingLevelUp` calls this directly to resolve a fresh default
+ * when the persisted one goes stale, rather than re-running all of
+ * `rollLevelUp` and disturbing the primary-skill/new-candidate rolls that
+ * are still valid.
+ * @param {Actor} actor
+ * @returns {string|null}
+ */
+export function rollUpgradeCandidateItemId(actor) {
+  const pool = eligibleUpgradeSkillItems(actor);
+  return pool.length === 1 ? pool[0].id : null;
+}
+
+/**
+ * §6.2/§task: roll a new secondary skill to offer, only if a slot is
+ * free. Rerolls on a duplicate (a skill the hero already owns, at any
+ * tier), capped so a near-full skill list can't loop forever; exhausting
+ * the cap just means no new-skill candidate this level-up (§6.2's own
+ * "при исчерпании — нового варианта нет").
+ *
+ * Posts one chat card for the FINAL result only (§task: "в чат не надо
+ * сыпать все промежуточные попытки — это замусорит журнал") — the
+ * discarded reroll attempts are still real, individually-evaluated
+ * `Roll`s (same as before this task; the "внутренним кодом" gap this task
+ * closes was the missing chat output, not the dice mechanism, which
+ * already used Foundry's own `Roll` throughout), just not each posted to
+ * chat on their own. The card DOES say how many were discarded
+ * (`rerollCount`) when at least one was — a bare final result with no
+ * explanation would look like the very first roll always lands clean,
+ * which isn't true and isn't especially interesting to hide; a whole
+ * transcript of every discarded attempt would be noise for a fact nobody
+ * needs to double-check. No card at all when no candidate is found (slot
+ * full, or the 20-attempt cap exhausted) — nothing was granted, so
+ * there's nothing to announce.
+ * @param {Actor} actor
+ * @returns {Promise<string|null>}
+ */
+async function rollNewCandidateSkillKey(actor) {
+  const config = CONFIG.HEROES_GLORY;
+  const ownedSkills = actor.items.filter((i) => i.type === 'skill');
+  // §3 стр.39: 8, or 10 with Экспертная Обучаемость — see that function's
+  // own comment for why this is re-derived here rather than cached.
+  const slotCount = secondarySkillSlotCount(ownedSkills.map((i) => i.system), config.secondarySkillSlotCount);
+  if (ownedSkills.length >= slotCount) return null;
+  const ownedKeys = new Set(ownedSkills.map((i) => i.system.skillKey));
+  let finalRoll = null;
+  let candidate = null;
+  let rerollCount = 0;
+  for (let attempt = 0; attempt < NEW_SECONDARY_SKILL_MAX_ATTEMPTS; attempt += 1) {
+    const roll = new Roll('1d20');
+    await roll.evaluate();
+    const rolled = resolveSecondarySkillRoll(roll.dice[0].total, { faction: actor.system.faction });
+    if (!ownedKeys.has(rolled)) {
+      finalRoll = roll;
+      candidate = rolled;
+      break;
+    }
+    rerollCount += 1;
+  }
+  if (!candidate) return null;
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/levelup-secondary-skill.hbs',
+    { actorName: actor.name, die: finalRoll.dice[0].total, skillLabelKey: config.secondarySkills[candidate], rerollCount },
+  );
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [finalRoll], content });
+
+  return candidate;
+}
+
+/**
+ * §4.2/§6/§task: roll everything a fresh level-up needs, once. Nothing is
+ * written to `system.pendingLevelUp` here — the caller (level-up-app.mjs's
+ * `ensurePendingLevelUp`) persists the result itself, since these dice
+ * must survive the level-up window closing (close button/Escape/click
+ * elsewhere) rather than being held only in memory — see that field's own
+ * schema comment (actor-hero.mjs) for why, and that same function's own
+ * comment for why this only ever runs once per target level (never
+ * re-rolled, and so never re-posted to chat, just by reopening the
+ * window).
+ *
+ * `rollPrimarySkillKey`/`rollNewCandidateSkillKey` now post their OWN chat
+ * cards each (§task) — this function itself still posts nothing extra;
+ * `upgradeCandidateItemId` never rolls dice at all any more either (see
+ * that function's own comment), so there is nothing left here to report
+ * beyond what those two already announce on their own.
+ * @param {Actor} actor
+ * @returns {Promise<{
+ *   primarySkillKey: "attack"|"defense"|"magicPower"|"knowledge",
+ *   upgradeCandidateItemId: string|null,
+ *   newCandidateSkillKey: string|null,
+ * }>}
+ */
+export async function rollLevelUp(actor) {
+  const primarySkillKey = await rollPrimarySkillKey(actor);
+  const newCandidateSkillKey = await rollNewCandidateSkillKey(actor);
+  const upgradeCandidateItemId = rollUpgradeCandidateItemId(actor);
+  return { primarySkillKey, upgradeCandidateItemId, newCandidateSkillKey };
+}
+
+/**
+ * §6.3/§7: build one upgrade-candidate slot's display data from an owned
+ * skill Item id — always shown at its TARGET tier (icon, label, prompt
+ * text alike), i.e. what the skill will become if chosen, not what it
+ * currently is. Returns null if the id no longer resolves to an item
+ * (defensive — `ensurePendingLevelUp` is supposed to keep this from ever
+ * persisting, but the view layer shouldn't crash if it somehow does).
+ *
+ * `pickable` is NOT set here — it depends on how many total eligible
+ * skills exist actor-wide, which `resolveLevelUpChoiceSlots` (the only
+ * caller) already computes once for its own branching; exported
+ * separately (not folded into this function) so the level-up window's own
+ * "open the picker" handler (level-up-app.mjs) can build the exact same
+ * per-item display data for every row of that picker's list, not just the
+ * one currently offered.
+ * @param {Actor} actor
+ * @param {string} itemId
+ * @returns {{kind:"upgrade", itemId:string, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:string|null}|null}
+ */
+export function buildUpgradeCandidateSlot(actor, itemId) {
+  const item = actor.items.get(itemId);
+  if (!item) return null;
+  const config = CONFIG.HEROES_GLORY;
+  const targetTier = nextTier(item.system.tier);
+  return {
+    kind: 'upgrade',
+    itemId,
+    icon: secondarySkillIconPath(item.system.skillKey, targetTier),
+    iconLarge: secondarySkillIconPath(item.system.skillKey, targetTier, { large: true }),
+    tierLabel: game.i18n.localize(config.skillTiers[targetTier]),
+    skillLabel: game.i18n.localize(config.secondarySkills[item.system.skillKey]),
+    effectText: item.system.effects[targetTier] || null,
+  };
+}
+
+/**
+ * §6.2: build the "learn new" slot's display data. Always Базовый — no
+ * owned Item exists yet for this candidate, so unlike an upgrade slot
+ * there's no effects text anywhere to show — omitted rather than faked.
+ * @param {string} skillKey
+ * @returns {{kind:"new", skillKey:string, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:null}}
+ */
+function buildNewCandidateSlot(skillKey) {
+  const config = CONFIG.HEROES_GLORY;
+  return {
+    kind: 'new',
+    skillKey,
+    icon: secondarySkillIconPath(skillKey, 'base'),
+    iconLarge: secondarySkillIconPath(skillKey, 'base', { large: true }),
+    tierLabel: game.i18n.localize(config.skillTiers.base),
+    skillLabel: game.i18n.localize(config.secondarySkills[skillKey]),
+    effectText: null,
+  };
+}
+
+/**
+ * §task: the upgrade side when more than one eligible skill exists and
+ * none has been picked yet — a neutral placeholder ("Выбрать навык", the
+ * empty-slot frame from `secondarySkillEmptyIconPath`) instead of
+ * silently defaulting to a random owned skill the player never chose.
+ * `itemId: null` is load-bearing: it's what keeps `resolveInitialSelection`
+ * from auto-selecting this slot the way a real solo candidate would (see
+ * that function's own comment). `pickable` is NOT set here any more — see
+ * `resolveLevelUpChoiceSlots`'s own comment for why it's computed once,
+ * uniformly, for whichever kind of upgrade slot (placeholder or already-
+ * picked-real) ends up built.
+ * @returns {{kind:"upgrade", itemId:null, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:null, isPlaceholder:true}}
+ */
+function buildUpgradePlaceholderSlot() {
+  return {
+    kind: 'upgrade',
+    itemId: null,
+    icon: secondarySkillEmptyIconPath(),
+    iconLarge: secondarySkillEmptyIconPath({ large: true }),
+    tierLabel: '',
+    skillLabel: game.i18n.localize('HEROES_GLORY.LevelUp.UpgradePlaceholderLabel'),
+    effectText: null,
+    isPlaceholder: true,
+  };
+}
+
+/**
+ * §7 (task, simplified from a 5-mode matrix to 4 outcomes): resolve the
+ * ordered list of secondary-skill choice slots to show — the SAME
+ * resolution is used both to render the window (`buildLevelUpViewContext`)
+ * and to decide the solo auto-selection (`resolveInitialSelection`), so
+ * the two can never disagree about what "the" candidate is.
+ *
+ * - free slot + an upgrade candidate/placeholder exists -> [upgrade, new] (two-way)
+ * - free slot, no upgrade candidate at all -> [new] (solo)
+ * - no free slot, an upgrade candidate/placeholder exists -> [upgrade] (solo)
+ * - no free slot, nothing eligible to upgrade -> [] (nothing to grant)
+ *
+ * The old two-upgrade-candidates-competing mode is gone: once the upgrade
+ * side became a full picker over every {@link eligibleUpgradeSkillItems}
+ * entry (book p.16 — "raise ANY already-owned skill", not "pick between
+ * these two random ones"), offering two independently-random candidates
+ * to choose between had nothing left to do.
+ *
+ * §task (corrected): `pendingLevelUp.upgradeCandidateItemId` used to be
+ * non-null ONLY when exactly one skill was eligible, making a real slot
+ * never `pickable`. That stopped being true once picking from the list
+ * itself started persisting a real id (level-up-app.mjs's
+ * `#onPickUpgradeCandidate`) — a player can now have already picked one
+ * of several eligible skills, and that pick must stay reconsiderable, not
+ * freeze the slot the instant it's no longer a placeholder ("выбор
+ * зафиксирован навсегда" was the bug this fixes). `pickable` is therefore
+ * computed the same way regardless of which branch built the slot: true
+ * whenever more than one skill is eligible at all, full stop — matching
+ * the standing rule "пикер открывается, когда повышаемых навыков больше
+ * одного", independent of whether one of them happens to be selected
+ * right now.
+ * @param {Actor} actor
+ * @param {{upgradeCandidateItemId:string|null, newCandidateSkillKey:string|null}} pendingLevelUp
+ * @returns {Array<ReturnType<typeof buildUpgradeCandidateSlot>|ReturnType<typeof buildNewCandidateSlot>|ReturnType<typeof buildUpgradePlaceholderSlot>>}
+ */
+export function resolveLevelUpChoiceSlots(actor, pendingLevelUp) {
+  const eligibleCount = eligibleUpgradeSkillItems(actor).length;
+  let upgradeSlot = null;
+  if (pendingLevelUp.upgradeCandidateItemId) {
+    upgradeSlot = buildUpgradeCandidateSlot(actor, pendingLevelUp.upgradeCandidateItemId);
+  } else if (eligibleCount > 1) {
+    upgradeSlot = buildUpgradePlaceholderSlot();
+  }
+  if (upgradeSlot) upgradeSlot.pickable = eligibleCount > 1;
+  const newSlot = pendingLevelUp.newCandidateSkillKey ? buildNewCandidateSlot(pendingLevelUp.newCandidateSkillKey) : null;
+
+  if (newSlot && upgradeSlot) return [upgradeSlot, newSlot];
+  if (newSlot) return [newSlot];
+  if (upgradeSlot) return [upgradeSlot];
+  return [];
+}
+
+/**
+ * The persisted-selection shape for a given slot — `{kind:'upgrade',
+ * itemId}` or `{kind:'new', skillKey}`. Both `resolveInitialSelection`
+ * and the template's `selectChoice`/`pickUpgradeCandidate` actions produce
+ * exactly this shape, so `applyLevelUp` (level-up-app.mjs) never needs to
+ * know which of `resolveLevelUpChoiceSlots`'s outcomes produced it.
+ * @param {ReturnType<typeof resolveLevelUpChoiceSlots>[number]} slot
+ * @returns {{kind:"upgrade", itemId:string}|{kind:"new", skillKey:string}}
+ */
+export function selectionForSlot(slot) {
+  return slot.kind === 'upgrade' ? { kind: 'upgrade', itemId: slot.itemId } : { kind: 'new', skillKey: slot.skillKey };
+}
+
+/**
+ * §7/§task: the level-up app's own `#selectedChoice` needs a value the
+ * instant a solo slot is the only REAL option — not a second, independent
+ * "what's effectively chosen" computation for display purposes only (that
+ * split IS the bug this originally fixed: the window looked pre-selected
+ * in solo mode but the app's real selection state stayed null, so
+ * confirming applied nothing). Called from level-up-app.mjs's
+ * `_prepareContext`, before building the render context, so the very
+ * first paint and the value `applyLevelUp` eventually reads are the same
+ * call's result.
+ *
+ * §task: a solo PLACEHOLDER (`isPlaceholder`, `buildUpgradePlaceholderSlot`)
+ * is deliberately excluded from this auto-select — it exists precisely
+ * because nothing has been chosen yet among 2+ eligible skills, so
+ * treating "it's the only slot shown" as "it's chosen" would silently
+ * pick nothing-in-particular the same way the removed random pre-select
+ * used to. `canConfirm` (buildLevelUpViewContext) stays blocked until the
+ * player actually picks something through the window's own list.
+ * @param {Actor} actor
+ * @param {{upgradeCandidateItemId:string|null, newCandidateSkillKey:string|null}} pendingLevelUp
+ * @param {{kind:"upgrade", itemId:string}|{kind:"new", skillKey:string}|null} current
+ * @returns {{kind:"upgrade", itemId:string}|{kind:"new", skillKey:string}|null}
+ */
+export function resolveInitialSelection(actor, pendingLevelUp, current) {
+  if (current) return current;
+  const slots = resolveLevelUpChoiceSlots(actor, pendingLevelUp);
+  return slots.length === 1 && !slots[0].isPlaceholder ? selectionForSlot(slots[0]) : null;
+}
+
+/**
+ * @param {{kind:"upgrade", itemId:string}|{kind:"new", skillKey:string}|null} selection
+ * @param {ReturnType<typeof resolveLevelUpChoiceSlots>[number]} slot
+ * @returns {boolean}
+ */
+function selectionMatchesSlot(selection, slot) {
+  if (!selection || selection.kind !== slot.kind) return false;
+  return selection.kind === 'upgrade' ? selection.itemId === slot.itemId : selection.skillKey === slot.skillKey;
+}
+
+/**
+ * §4.2/§6/§7: build the level-up window's render context from a persisted
+ * `pendingLevelUp` roll and the app's actual selection state — called
+ * from module/apps/level-up-app.mjs's own `_prepareContext`. Purely reads
+ * `selectedChoice`; does not recompute an "effective" selection of its
+ * own (see `resolveInitialSelection`'s own comment for why that split was
+ * the bug).
+ * @param {Actor} actor
+ * @param {{targetLevel:number, primarySkillKey:string, upgradeCandidateItemId:string|null, newCandidateSkillKey:string|null}} pendingLevelUp
+ * @param {{kind:"upgrade", itemId:string}|{kind:"new", skillKey:string}|null} selectedChoice
+ * @returns {object} Template-ready context for the level-up window's template.
+ */
+export function buildLevelUpViewContext(actor, pendingLevelUp, selectedChoice) {
+  const config = CONFIG.HEROES_GLORY;
+  const system = actor.system;
+  const context = {};
+
+  context.portraitSrc = actor.img;
+  context.primarySkillIcon = primarySkillIconPath(pendingLevelUp.primarySkillKey);
+  context.primarySkillIconLarge = primarySkillIconPath(pendingLevelUp.primarySkillKey, { large: true });
+  context.primarySkillBaseValue = actor._source.system[pendingLevelUp.primarySkillKey];
+  context.primarySkillEffectiveValue = system[pendingLevelUp.primarySkillKey];
+
+  const classKey = concreteClassKey(system.faction, system.classType);
+  const classLabelKey = classKey ? config.classes[classKey] : config.classTypes[system.classType];
+  const classLabel = classLabelKey ? game.i18n.localize(classLabelKey) : '';
+  const primarySkillLabel = game.i18n.localize(PRIMARY_SKILL_LABELS[pendingLevelUp.primarySkillKey]);
+
+  context.text0 = game.i18n.format('HEROES_GLORY.LevelUp.LevelsUp', { name: actor.name });
+  context.text1 = classLabel
+    ? game.i18n.format('HEROES_GLORY.LevelUp.NowLevel', { name: actor.name, level: pendingLevelUp.targetLevel, class: classLabel })
+    : game.i18n.format('HEROES_GLORY.LevelUp.NowLevelNoClass', { name: actor.name, level: pendingLevelUp.targetLevel });
+  context.text2 = game.i18n.format('HEROES_GLORY.LevelUp.PrimarySkillGain', { skill: primarySkillLabel });
+  context.primarySkillLabel = primarySkillLabel;
+
+  const slots = resolveLevelUpChoiceSlots(actor, pendingLevelUp);
+  const soloChoice = slots.length === 1;
+  const bothChoices = slots.length === 2;
+
+  context.soloChoice = soloChoice;
+  context.bothChoices = bothChoices;
+  context.soloChoiceData = soloChoice ? slots[0] : null;
+  context.choice1 = bothChoices ? { ...slots[0], selected: selectionMatchesSlot(selectedChoice, slots[0]) } : null;
+  context.choice2 = bothChoices ? { ...slots[1], selected: selectionMatchesSlot(selectedChoice, slots[1]) } : null;
+  // §task: generalizes the old "both available, nothing picked yet blocks
+  // confirm" rule to also cover a solo PLACEHOLDER (resolveInitialSelection
+  // deliberately leaves `selectedChoice` null for that case too, unlike a
+  // real solo candidate) — confirm is blocked exactly when there's
+  // something shown (`slots.length > 0`) and nothing picked; with nothing
+  // shown at all (nothing to grant) there's nothing to block on.
+  context.canConfirm = slots.length === 0 || Boolean(selectedChoice);
+
+  if (bothChoices) {
+    // §task (corrected): keyed off `pickable` now, not `isPlaceholder` —
+    // `pickable` stays the same for as long as the window is open (it
+    // only depends on how many skills are eligible, which picking one
+    // doesn't change), while `isPlaceholder` flips the instant a pick is
+    // made. Keying the prompt off `isPlaceholder` meant this text got
+    // REPLACED the moment the player picked a skill (and again on every
+    // subsequent re-pick) — different length, so the fixed-height
+    // `choice_prompt` box (`_lvlup.scss`, a plain `position: absolute`
+    // percentage box, not sized to its own content) would overflow
+    // differently each time, reading as the window's content jumping.
+    // With a picker available, the text never names a specific skill at
+    // all now — the icon + label underneath already show the current
+    // pick, see this string's own comment for why saying it twice adds
+    // nothing. Only the picker-less case (exactly one eligible skill, so
+    // nothing to ever repick) still names the one skill there is —
+    // nothing to keep stable there since it can't change after this
+    // prompt is built anyway.
+    context.choicePromptText = slots[0].pickable
+      ? game.i18n.format('HEROES_GLORY.LevelUp.ChoicePromptBothPending', {
+        tier: slots[1].tierLabel, skill: slots[1].skillLabel,
+      })
+      : game.i18n.format('HEROES_GLORY.LevelUp.ChoicePromptBoth', {
+        tier1: slots[0].tierLabel, skill1: slots[0].skillLabel,
+        tier2: slots[1].tierLabel, skill2: slots[1].skillLabel,
+      });
+  } else if (soloChoice) {
+    context.choicePromptText = slots[0].pickable
+      ? game.i18n.localize('HEROES_GLORY.LevelUp.ChoicePromptUpgradePending')
+      : game.i18n.format('HEROES_GLORY.LevelUp.ChoicePromptOne', {
+        tier: slots[0].tierLabel, skill: slots[0].skillLabel,
+      });
+  } else {
+    context.choicePromptText = game.i18n.localize('HEROES_GLORY.LevelUp.ChoicePromptNone');
+  }
+
+  return context;
 }
 

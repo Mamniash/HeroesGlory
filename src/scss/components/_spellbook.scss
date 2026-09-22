@@ -1,11 +1,24 @@
-// The spellbook overlay — pixel-positioned over assets/ui/spelback_<color>.png
-// (610x481 — the bottom decorative edge was trimmed off after this grid
-// was first authored at 610x564; pixel coordinates didn't change, only
-// the canvas height, so every top/height percentage below is recomputed
-// against 481, not 564). Every left/top/width/height below matches
-// docs/spellbook_grid.json's
-// precomputed percentage fields (px / canvas-dimension * 100) — that file is
-// the machine-readable source of truth for coordinates, not this one.
+// The spellbook overlay — pixel-positioned over assets/ui/spellbook_content.png
+// (600x473, scripts/build_spellbook_content.py — see that script's own
+// header for how it replaced the old per-color spelback_<color>.png set,
+// and _hero-paperdoll.scss's frame `::after` rule for the border that used
+// to be baked into each of those, now the shared window_frame_<color>.png
+// layer instead). Every left/top/width/height below matches
+// docs/spellbook_grid.json's precomputed percentage fields (px / canvas-
+// dimension * 100) — that file is the machine-readable source of truth for
+// coordinates, not this one. Its own canvas shrank from the old spelback's
+// 610x481 to 600x473 alongside that asset swap (matching window_frame's
+// own reference exactly, see that file's own "_note") — every coordinate
+// here was recomputed against the new canvas, not just copied over; see
+// the task this shipped with for the derivation (a fixed 5px/4px shift
+// from spellbook_content.png's own crop-vs-paste offset, then reprojected
+// onto the narrower 600x473 total).
+//
+// Recalibrated a second time when spellbook_content.png itself was rebuilt
+// from a different vertical slice of the source BMP (file's own dimensions
+// unchanged, 600x473) — the book art rose 12 native px within the frame,
+// so every book-relative top/y here moved by that same -12px. Left/width
+// untouched both times — neither crop shift was horizontal.
 // Toggled in/out of the DOM by module/sheets/actor/hero-sheet.mjs's
 // #spellbookOpen — see _hero-paperdoll.scss's header comment for how it
 // shares its wrapper/canvas layout rules (.hero-paperdoll-wrapper, the
@@ -19,16 +32,17 @@
   // the wrapper, same as .hero-paperdoll) — deliberately matches the
   // sheet's own width so the book's top edge sits flush with where the
   // sheet's own top edge would be, not centered/inscribed smaller.
-  // Height is derived from $hg-canvas-ratio (_hero-paperdoll.scss) —
-  // the book's own true ratio (610/481 ≈ 1.2682, its background art
-  // assets/ui/spelback_*.png confirmed 610×481 via PNG header) is close
-  // enough to that shared constant (≈1.2685) that using the exact same
-  // number here as .hero-paperdoll costs no visible stretch (well under
-  // a pixel at any real window width) and, unlike "close enough",
-  // guarantees the ApplicationV2 window is byte-for-byte the same size
-  // on both sides of the paperdoll/spellbook toggle — see
-  // _hero-paperdoll.scss's own comment on $hg-canvas-ratio and
-  // hero-sheet.mjs's `_prePosition` override, which depends on that.
+  // Height is derived from $hg-canvas-ratio (_hero-paperdoll.scss) — now
+  // an EXACT match rather than "close enough": spellbook_content.png and
+  // window_frame_<color>.png both share the literal 600x473 reference
+  // canvas $hg-canvas-ratio already encodes, so there's no longer even
+  // the old sub-pixel skew between this book's own true ratio and the
+  // shared constant (see git history if the old 610/481 ≈ 1.2682 vs
+  // ≈1.2685 reasoning is ever needed again). Still the same shared
+  // constant either way, not a book-specific one — the ApplicationV2
+  // window still needs to come out byte-for-byte the same size on both
+  // sides of the paperdoll/spellbook toggle, see hero-sheet.mjs's
+  // `_prePosition` override, which depends on that.
   // The wrapper still has no aspect-ratio of its own — height is left to
   // whichever canvas is showing, same as .hero-paperdoll.
   aspect-ratio: #{$hg-canvas-ratio};
@@ -47,11 +61,15 @@
 // Named, uniquely-positioned slots
 // ---------------------------------------------------------------
 
+// Ordinary left/top-anchored boxes — `left`/`right` (the page-turn corners)
+// used to both live here until `right` needed its own rule (below): it's
+// anchored by its own RIGHT edge, not left, so it grows toward the page's
+// center as its size changes instead of off the canvas's own right edge —
+// see docs/spellbook_grid.json's own "_note" for the full reasoning.
 $hg-spellbook-named-slots: (
-  left: (15.082, 15.385, 1.803, 2.703),
-  right: (81.967, 14.345, 1.639, 2.287),
-  mana: (67.541, 83.16, 5.738, 6.445),
-  back: (77.213, 83.16, 6.393, 9.356),
+  left: (14.5, 11.839, 3.667, 5.497),
+  mana: (67.833, 81.184, 5.833, 6.554),
+  back: (77.667, 81.184, 6.5, 9.514),
 );
 
 @each $name, $box in $hg-spellbook-named-slots {
@@ -63,54 +81,89 @@ $hg-spellbook-named-slots: (
   }
 }
 
+// Top-RIGHT anchored (docs/spellbook_grid.json's "right_edge_px"/"right_pct",
+// currently 505px / 15.833% — the true top-right corner of the right page):
+// `right`, not `left`, so enlarging this corner grows it toward the page's
+// center, keeping its outer corner planted on the page edge, matching how
+// `left` above already behaves for its own (left) edge by ordinary box
+// semantics.
+.hero-spellbook__slot--right {
+  right: 15.833%;
+  top: 10.782%;
+  width: 3.167%;
+  height: 4.44%;
+}
+
 // ---------------------------------------------------------------
 // 12 spell slots: 1-6 left page, 7-12 right page, row-major within each
 // page. Only left/top vary per index — width/height are fixed per the grid.
 // ---------------------------------------------------------------
 
-$hg-spellbook-icon-positions: (17.049 17.672), (32.623 17.672), (17.049 39.085), (32.623 39.085),
-  (17.049 60.499), (32.623 60.499), (53.443 17.672), (69.016 17.672), (53.443 39.085),
-  (69.016 39.085), (53.443 60.499), (69.016 60.499);
+$hg-spellbook-icon-positions: (16.5 14.588), (32.333 14.588), (16.5 36.364), (32.333 36.364),
+  (16.5 58.14), (32.333 58.14), (53.5 14.588), (69.333 14.588), (53.5 36.364),
+  (69.333 36.364), (53.5 58.14), (69.333 58.14);
 
-$hg-spellbook-text-positions: (16.393 31.809), (31.967 31.809), (16.393 53.222), (31.967 53.222),
-  (16.393 74.636), (31.967 74.636), (52.787 31.809), (68.361 31.809), (52.787 53.222),
-  (68.361 53.222), (52.787 74.636), (68.361 74.636);
+$hg-spellbook-text-positions: (15.833 28.964), (31.667 28.964), (15.833 50.74), (31.667 50.74),
+  (15.833 72.516), (31.667 72.516), (52.833 28.964), (68.667 28.964), (52.833 50.74),
+  (68.667 50.74), (52.833 72.516), (68.667 72.516);
 
 @for $i from 1 through 12 {
   $icon-pos: nth($hg-spellbook-icon-positions, $i);
   .hero-spellbook__slot--icon_#{$i} {
     left: nth($icon-pos, 1) * 1%;
     top: nth($icon-pos, 2) * 1%;
-    width: 12.787%;
-    height: 13.514%;
+    width: 13%;
+    height: 13.742%;
   }
   $text-pos: nth($hg-spellbook-text-positions, $i);
   .hero-spellbook__slot--text_#{$i} {
     left: nth($text-pos, 1) * 1%;
     top: nth($text-pos, 2) * 1%;
-    width: 14.098%;
-    height: 5.405%;
+    width: 14.333%;
+    height: 5.497%;
   }
 }
 
 // ---------------------------------------------------------------
-// Panel color: all 10 assets/ui/spelback_<color>.png files exist on disk.
-// ---------------------------------------------------------------
-
-@each $color in $hg-panel-colors {
-  .hero-spellbook[data-panel-color='#{$color}'] {
-    background-image: url('../assets/ui/spelback_#{$color}.png');
-  }
+// Background art: one colorless file instead of ten. Diffed directly
+// (frame_probe.py): only 16 of 11145 colored pixels anywhere in
+// spelback_<color>.png sit outside its own border/corner ornament — noise,
+// not real per-faction color — so nothing here needs to vary by
+// data-panel-color the way heroscr4/window_frame do.
+//
+// assets/ui/spellbook_content.png (scripts/build_spellbook_content.py) is
+// spelback_red.png's own content with its border and corner ornament
+// cropped away entirely (own border would otherwise show through, at a
+// different drawing, from under the new shared window_frame overlay just
+// above `.hero-spellbook__slot` below) — cropped, not rescaled, so it lands
+// pixel-for-pixel at the frame's own inner window when both are stretched
+// by the same `background-size: 100% 100%` the shared canvas rule already
+// gives every one of these `background-image`s.
+//
+// Old spelback_<color>.png files are unused as of this rule but kept on
+// disk, not deleted — see the task this shipped with for why.
+.hero-spellbook {
+  background-image: url('../assets/ui/spellbook_content.png');
 }
 
 // ---------------------------------------------------------------
 // Content styling
 // ---------------------------------------------------------------
 
+// `object-fit: fill`, not `contain` — deliberate: `item.img` is user
+// content, any size/proportion, and the twelve icons on a spread must all
+// read as the same size. `contain` would letterbox a mismatched image
+// (empty margin inside its own slot, breaking the grid); `cover` would crop
+// it (losing part of the art). `fill` stretches non-uniformly to the slot's
+// exact 78x65 box instead — the only one of the three that neither adds
+// padding nor cuts anything, at the cost of distorting an off-ratio image.
+// Every stock asset already ships at 78x65 (this slot's own native size,
+// docs/spellbook_grid.json), so `fill` is a no-op for those; only a
+// non-standard `item.img` actually gets stretched.
 .hero-spellbook__icon-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
   cursor: pointer;
 }
 
@@ -131,36 +184,81 @@ $hg-spellbook-text-positions: (16.393 31.809), (31.967 31.809), (16.393 53.222),
 .hero-spellbook__slot--text_7, .hero-spellbook__slot--text_8, .hero-spellbook__slot--text_9,
 .hero-spellbook__slot--text_10, .hero-spellbook__slot--text_11, .hero-spellbook__slot--text_12 {
   display: flex;
+  flex-direction: column;
+  // Column flex: `justify-content` is the vertical axis here. The name has
+  // to hug the icon above it, not float centered in its own box — the old
+  // row layout's `align-items: center` did the latter.
+  justify-content: flex-start;
   align-items: center;
-  justify-content: center;
   text-align: center;
-  font-size: 0.75em;
-  line-height: 1.1;
+  // A hairline, scaled like everything else on the canvas, never a fixed
+  // px (which would grow relatively huge as the sheet shrinks).
+  padding-top: calc(1px * var(--hg-pixel-scale));
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  // Role A ($hg-gold-pale, utils/_fonts.scss) — the same token as the
+  // hero's own name; the tooltip title keeps the deeper $hg-gold, so these
+  // are no longer literally the same color as that.
+  color: $hg-gold-pale;
   overflow: hidden;
 
-  span {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+  // One line each, ellipsised — a two-line clamp for the name alone no
+  // longer fits once the meta line (level/mana, see the template) sits
+  // under it in the same box: 2 lines of name (28px @ reference width) +
+  // the new meta line (14px) + padding already exceeds this box's own
+  // 32.3px height (14.098% x 5.405% of the 600x473 canvas), while name +
+  // meta at one line each (29px) fits with room to spare. The spell's full
+  // name is still available on hover/pin via the tooltip (hbs), so nothing
+  // becomes unreachable, just not fully spelled out in this compact slot.
+  .hero-spellbook__spell-name,
+  .hero-spellbook__spell-meta {
+    max-width: 100%; // needed for ellipsis: `align-items: center` above
+    // makes these shrink-to-fit rather than full-width by default
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
+
+// §task: the current-mana number sat too high against its own art —
+// native-px nudge (× --hg-pixel-scale, same convention as every other
+// fixed offset in this file) so it stays the same 4 ART pixels down at
+// any window size, not 4 screen px that would drift relative to the art
+// as the sheet scales.
+//
+// CORRECTED — a first pass put this as `padding-top` on the flex
+// container instead of on the number itself: measured live (getBoundingClientRect
+// of the box vs. the `<span>` before/after), that only moved the text
+// HALF the padding value — `align-items: center` re-centers within
+// whatever content box padding leaves, so padding-top P shifts the
+// centered item by P/2, not P. Moved to the `<span>` itself instead, via
+// `position: relative; top:` — a relative offset isn't subject to the
+// parent's own centering math, so this value IS the on-screen shift,
+// confirmed live: 4px × --hg-pixel-scale computed to 2.4px at 0.6 scale,
+// and the number's own box moved down by that same 2.4px, not 1.2px.
+$hg-spellbook-mana-value-shift-down: 4px;
 
 .hero-spellbook__slot--mana {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.2em;
-  font-size: 0.85em;
-  font-weight: bold;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
   cursor: default;
+
+  span {
+    position: relative;
+    top: calc($hg-spellbook-mana-value-shift-down * var(--hg-pixel-scale));
+  }
 }
 
-// speltrnl.png/speltrnr.png ARE the corner-turn art — real <img>s at
-// their own native aspect ratio (slot boxes above are that same ratio,
-// scaled down exactly ⅓ — see docs/spellbook_grid.json), not CSS
-// triangles like the paperdoll's own arrow_left/arrow_right (which have
-// no dedicated asset). Same disabled = inert + faded convention as those.
+// speltrnl_rgba.png/speltrnr_rgba.png (scripts/key_bg.py — keyed out of the
+// original speltrn{l,r}.png's flat cyan background, kept alongside those
+// untouched) ARE the corner-turn art — real <img>s, not CSS triangles like
+// the paperdoll's own arrow_left/arrow_right (which have no dedicated
+// asset). Unlike those, there's no disabled/faded state here at all: the
+// template only renders a corner when there actually IS a page in that
+// direction (see the template's own comment) — a missing sibling costs
+// nothing here since both are `position: absolute`, not part of any flow
+// a gap could reshuffle.
 .hero-spellbook__slot--left,
 .hero-spellbook__slot--right {
   display: flex;
@@ -170,17 +268,30 @@ $hg-spellbook-text-positions: (16.393 31.809), (31.967 31.809), (16.393 53.222),
   background: transparent;
   padding: 0;
   cursor: pointer;
+  // Foundry core (`@layer elements.forms`, foundry2.css): `button:focus,
+  // button.active { outline: 1px solid ...; box-shadow: 0 0 4px ...; }` — a
+  // rectangular ring drawn straight over the sprite regardless of its actual
+  // (non-rectangular, mostly-transparent) shape. Same fix `hg-image-button`
+  // (utils/_mixins.scss) already applies elsewhere: a flat, unconditional
+  // `outline`/`box-shadow: none` here, not scoped to `:focus`/`:focus-
+  // visible`/`.active` individually — this project's own compiled CSS does
+  // load into a named layer (`layer(system)`, see hg-image-button's own
+  // comment for the full reasoning), but that layer is appended after all
+  // of core's own named layers in the actual cascade order, so a plain
+  // declaration here still outranks every layered state variant of the
+  // same property regardless of which one Foundry happens to be using.
+  // `hg-image-button` itself doesn't fit these two buttons (it assumes a
+  // CSS `background-image`, not a real `<img>` child, and would fight the
+  // `flex` centering above), so this is the same two lines applied
+  // directly instead of pulling in the rest of that mixin.
+  outline: none;
+  box-shadow: none;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: contain;
     image-rendering: pixelated;
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
   }
 }
 
@@ -191,4 +302,10 @@ $hg-spellbook-text-positions: (16.393 31.809), (31.967 31.809), (16.393 53.222),
   background: transparent;
   padding: 0;
   cursor: pointer;
+  // Same Foundry core focus/active ring as .hero-spellbook__slot--left/
+  // --right above — see that rule's own comment for why a flat,
+  // unconditional reset here (not a `:focus` override) is what actually
+  // beats it.
+  outline: none;
+  box-shadow: none;
 }

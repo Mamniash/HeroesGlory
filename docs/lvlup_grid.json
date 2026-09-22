@@ -1,0 +1,165 @@
+{
+  "_note": "Слоты левел-ап окна (module/apps/level-up-app.mjs, templates/apps/level-up.hbs, src/scss/components/_lvlup.scss), из задания на реализацию (docs/rules.md §4.2 progression + постановка задачи). px — исходные координаты из задания, canvas 385x470 (assets/ui/lvlupbkg.bmp). left/top/width/height — round(px / canvas_dim * 100, 3), это то, что реально читает SCSS ($hg-lvlup-slots). choice_icon_solo/choice_label_solo — альтернативные позиции для режима «только один вариант вторичного навыка» (§7 задания), используются вместо choice_icon_1/2 и choice_label_1/2 когда доступен только один из upgrade/new, не оба сразу.",
+  "canvas": {
+    "w": 385,
+    "h": 470
+  },
+  "slots": [
+    {
+      "name": "text_0",
+      "x": 23,
+      "y": 22,
+      "w": 339,
+      "h": 23,
+      "left": 5.974,
+      "top": 4.681,
+      "width": 88.052,
+      "height": 4.894
+    },
+    {
+      "name": "portrait",
+      "x": 166,
+      "y": 61,
+      "w": 68,
+      "h": 74,
+      "left": 43.117,
+      "top": 12.979,
+      "width": 17.662,
+      "height": 15.745
+    },
+    {
+      "name": "text_1",
+      "x": 23,
+      "y": 151,
+      "w": 339,
+      "h": 23,
+      "left": 5.974,
+      "top": 32.128,
+      "width": 88.052,
+      "height": 4.894
+    },
+    {
+      "name": "skill",
+      "x": 173,
+      "y": 190,
+      "w": 44,
+      "h": 44,
+      "left": 44.935,
+      "top": 40.426,
+      "width": 11.429,
+      "height": 9.362
+    },
+    {
+      "name": "text_2",
+      "x": 23,
+      "y": 242,
+      "w": 339,
+      "h": 23,
+      "left": 5.974,
+      "top": 51.489,
+      "width": 88.052,
+      "height": 4.894
+    },
+    {
+      "name": "choice_prompt",
+      "x": 23,
+      "y": 287,
+      "w": 339,
+      "h": 26,
+      "left": 5.974,
+      "top": 61.064,
+      "width": 88.052,
+      "height": 5.532
+    },
+    {
+      "name": "choice_icon_1",
+      "x": 124,
+      "y": 327,
+      "w": 44,
+      "h": 44,
+      "left": 32.208,
+      "top": 69.574,
+      "width": 11.429,
+      "height": 9.362
+    },
+    {
+      "name": "choice_or",
+      "x": 172,
+      "y": 341,
+      "w": 41,
+      "h": 16,
+      "left": 44.675,
+      "top": 72.553,
+      "width": 10.649,
+      "height": 3.404
+    },
+    {
+      "name": "choice_icon_2",
+      "x": 217,
+      "y": 327,
+      "w": 44,
+      "h": 44,
+      "left": 56.364,
+      "top": 69.574,
+      "width": 11.429,
+      "height": 9.362
+    },
+    {
+      "name": "choice_icon_solo",
+      "_note": "режим «только один вариант» — заменяет choice_icon_1/choice_icon_2, choice_or скрыт",
+      "x": 170,
+      "y": 327,
+      "w": 44,
+      "h": 44,
+      "left": 44.156,
+      "top": 69.574,
+      "width": 11.429,
+      "height": 9.362
+    },
+    {
+      "name": "choice_label_1",
+      "x": 101,
+      "y": 383,
+      "w": 90,
+      "h": 28,
+      "left": 26.234,
+      "top": 81.489,
+      "width": 23.377,
+      "height": 5.957
+    },
+    {
+      "name": "choice_label_2",
+      "x": 194,
+      "y": 383,
+      "w": 90,
+      "h": 28,
+      "left": 50.39,
+      "top": 81.489,
+      "width": 23.377,
+      "height": 5.957
+    },
+    {
+      "name": "choice_label_solo",
+      "_note": "режим «только один вариант» — заменяет choice_label_1/choice_label_2",
+      "x": 147,
+      "y": 383,
+      "w": 90,
+      "h": 28,
+      "left": 38.182,
+      "top": 81.489,
+      "width": 23.377,
+      "height": 5.957
+    },
+    {
+      "name": "button",
+      "x": 295,
+      "y": 411,
+      "w": 66,
+      "h": 34,
+      "left": 76.623,
+      "top": 87.447,
+      "width": 17.143,
+      "height": 7.234
+    }
+  ]
+}

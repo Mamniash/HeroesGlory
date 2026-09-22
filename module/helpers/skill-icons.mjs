@@ -99,6 +99,28 @@ export function secondarySkillIconPath(skillKey, tier, { large = false } = {}) {
 }
 
 /**
+ * §task: the level-up window's "pick a skill" placeholder — shown instead
+ * of a real skill icon while more than one eligible skill exists and none
+ * has been chosen yet (roll-actions.mjs's `buildUpgradePlaceholderSlot`).
+ * Frame 0 of both sprite sheets, confirmed by direct visual inspection:
+ * plain leather/parchment texture, no icon artwork at all — same as
+ * frames 1-2, none of which `SECONDARY_SKILL_FRAMES` maps to any real
+ * skill either (contrast frame 3, a real painted icon — pathfinding's own
+ * base tier).
+ */
+const SECONDARY_SKILL_EMPTY_FRAME = 0;
+
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.large]   82×93 version instead of the 44×44 slot icon.
+ * @returns {string}
+ */
+export function secondarySkillEmptyIconPath({ large = false } = {}) {
+  const set = large ? 'secsk82' : 'secskill';
+  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(SECONDARY_SKILL_EMPTY_FRAME)}.png`;
+}
+
+/**
  * Morale/Luck sprite sheets only cover the -3..+3 range (rules.md §2.2)
  * with 7 frames; clamped defensively since artifacts/effects can in
  * practice push the stored value outside that range (schema only enforces

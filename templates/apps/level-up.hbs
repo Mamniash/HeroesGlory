@@ -1,0 +1,133 @@
+{{!-- §4.2/§6 rules.md: the level-up window's own PARTS.body — a standalone
+  ApplicationV2 (module/apps/level-up-app.mjs), not a layer inside the hero
+  sheet. text0/1/2/choicePromptText below are already fully localized
+  strings built in roll-actions.mjs's buildLevelUpViewContext
+  (game.i18n.format), not raw i18n keys — rendered as plain text, no
+  {{localize}}. Percentage slot positions match docs/lvlup_grid.json
+  exactly. --}}
+<div class="hg-lvlup" data-panel-color="{{effectivePanelColor}}">
+
+  <div class="hg-lvlup__slot hg-lvlup__slot--text_0 hg-lvlup__text">{{text0}}</div>
+
+  <img class="hg-lvlup__slot hg-lvlup__slot--portrait hg-lvlup__portrait" src="{{portraitSrc}}" alt="">
+
+  <div class="hg-lvlup__slot hg-lvlup__slot--text_1 hg-lvlup__text">{{text1}}</div>
+
+  {{!-- §3 (task): both triggers, same as the sheet's own skill-<key>
+    tooltips — its left click isn't otherwise spoken for here. --}}
+  <img class="hg-lvlup__slot hg-lvlup__slot--skill" src="{{primarySkillIcon}}" alt=""
+    data-tooltip-trigger="lvlup-skill" data-tooltip-click>
+
+  <div class="hg-lvlup__slot hg-lvlup__slot--text_2 hg-lvlup__text">{{text2}}</div>
+
+  <div class="hg-lvlup__slot hg-lvlup__slot--choice_prompt hg-lvlup__text">{{choicePromptText}}</div>
+
+  {{!-- Each choice icon IS its own slot (a positioned div, not the <img>
+    directly) — the selected-state highlight is a ::after overlay
+    (artifact_g00_f144.png, same technique as the paperdoll's own
+    drop-target highlight), and ::after doesn't render on a replaced
+    element like <img> in Chromium. The <img> inside is sized 100%/100% of
+    that slot, same pattern as .hero-paperdoll__icon-img. choice_icon_*
+    deliberately have NO data-tooltip-click (§3, task) — left click already
+    selects the variant, so the tooltip on these is right-click-hold only. --}}
+  {{!-- choice1/choice2 are mostly mode-agnostic: in the two-way case the
+    left slot is always the upgrade candidate and the right always "learn
+    new" — the markup/selection logic don't distinguish which, only the
+    data (kind, itemId vs skillKey) does. See roll-actions.mjs's
+    resolveLevelUpChoiceSlots for how the pair is picked.
+
+    §task (book p.16 — "raise ANY already-owned skill", not whichever was
+    rolled): an upgrade slot whose `pickable` is true (more than one
+    eligible skill exists — see resolveLevelUpChoiceSlots's own comment)
+    opens the picker (`pickUpgradeCandidate`) on click INSTEAD of
+    `selectChoice` — on both the icon and its label below, so the whole
+    visual unit behaves the same wherever it's clicked, no split zones.
+    Picking FROM that list is itself what selects this side (see
+    #onPickUpgradeCandidate's own comment) — there is deliberately no
+    separate "select without opening the list" gesture any more. A
+    non-pickable upgrade slot (exactly one eligible skill, or none) keeps
+    `selectChoice` exactly as before — nothing to open a list for. The
+    "learn new" slot (choice2, and choice1 in the rare case
+    resolveLevelUpChoiceSlots ever changes which side is which) never has
+    `pickable` set at all, so it's always plain `selectChoice` — unchanged. --}}
+  {{#if soloChoice}}
+    {{!-- The only slot shown — but §task: NOT necessarily pre-selected any
+      more. A real candidate (or "learn new") is the forced/only option,
+      auto-selected (resolveInitialSelection), no click at all needed or
+      offered. A PLACEHOLDER (`isPlaceholder` — 2+ eligible skills, none
+      picked yet) is the one exception: shown but deliberately NOT
+      selected until the player actually opens the list and picks
+      something (see resolveInitialSelection's own comment) — confirm
+      stays disabled (canConfirm) until then. No tooltip on a placeholder
+      either (data-tooltip-trigger omitted) — there's no real skill/tier
+      to describe yet, only "Выбрать навык", which the visible label
+      already says. --}}
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_icon_solo hg-lvlup__choice-icon{{#unless soloChoiceData.isPlaceholder}} hg-lvlup__choice-icon--selected{{/unless}}"
+      {{#if soloChoiceData.pickable}}role="button" tabindex="0" data-action="pickUpgradeCandidate"
+      aria-label="{{localize 'HEROES_GLORY.LevelUp.UpgradePickerHint'}}"{{/if}}
+      {{#unless soloChoiceData.isPlaceholder}}data-tooltip-trigger="lvlup-choice-solo"{{/unless}}>
+      <img class="hg-lvlup__icon-img" src="{{soloChoiceData.icon}}" alt="">
+    </div>
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_label_solo hg-lvlup__choice-label" data-selected="{{#unless soloChoiceData.isPlaceholder}}true{{/unless}}"
+      {{#if soloChoiceData.pickable}}role="button" tabindex="0" data-action="pickUpgradeCandidate"
+      aria-label="{{localize 'HEROES_GLORY.LevelUp.UpgradePickerHint'}}"{{/if}}>
+      <span>{{soloChoiceData.tierLabel}}</span><span>{{soloChoiceData.skillLabel}}</span>
+    </div>
+    {{#unless soloChoiceData.isPlaceholder}}
+      <template class="hg-tooltip-tpl" data-tooltip-key="lvlup-choice-solo">
+        <img class="hg-tooltip__icon" src="{{soloChoiceData.iconLarge}}" width="82" height="93" alt="">
+        <p class="hg-tooltip__title">{{soloChoiceData.skillLabel}} — {{soloChoiceData.tierLabel}}</p>
+        {{#if soloChoiceData.effectText}}<p>{{soloChoiceData.effectText}}</p>{{/if}}
+      </template>
+    {{/unless}}
+  {{else if bothChoices}}
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_icon_1 hg-lvlup__choice-icon{{#if choice1.selected}} hg-lvlup__choice-icon--selected{{/if}}"
+      role="button" tabindex="0"
+      {{#if choice1.pickable}}data-action="pickUpgradeCandidate" aria-label="{{localize 'HEROES_GLORY.LevelUp.UpgradePickerHint'}}"
+      {{else}}data-action="selectChoice"{{/if}}
+      data-kind="{{choice1.kind}}" data-item-id="{{choice1.itemId}}" data-skill-key="{{choice1.skillKey}}"
+      {{#unless choice1.isPlaceholder}}data-tooltip-trigger="lvlup-choice-1"{{/unless}}>
+      <img class="hg-lvlup__icon-img" src="{{choice1.icon}}" alt="">
+    </div>
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_or hg-lvlup__text-small">{{localize 'HEROES_GLORY.LevelUp.Or'}}</div>
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_icon_2 hg-lvlup__choice-icon{{#if choice2.selected}} hg-lvlup__choice-icon--selected{{/if}}"
+      role="button" tabindex="0" data-action="selectChoice"
+      data-kind="{{choice2.kind}}" data-item-id="{{choice2.itemId}}" data-skill-key="{{choice2.skillKey}}"
+      data-tooltip-trigger="lvlup-choice-2">
+      <img class="hg-lvlup__icon-img" src="{{choice2.icon}}" alt="">
+    </div>
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_label_1 hg-lvlup__choice-label" data-selected="{{choice1.selected}}"
+      role="button" tabindex="0"
+      {{#if choice1.pickable}}data-action="pickUpgradeCandidate"{{else}}data-action="selectChoice"{{/if}}
+      data-kind="{{choice1.kind}}" data-item-id="{{choice1.itemId}}" data-skill-key="{{choice1.skillKey}}">
+      <span>{{choice1.tierLabel}}</span><span>{{choice1.skillLabel}}</span>
+    </div>
+    <div class="hg-lvlup__slot hg-lvlup__slot--choice_label_2 hg-lvlup__choice-label" data-selected="{{choice2.selected}}">
+      <span>{{choice2.tierLabel}}</span><span>{{choice2.skillLabel}}</span>
+    </div>
+    {{#unless choice1.isPlaceholder}}
+      <template class="hg-tooltip-tpl" data-tooltip-key="lvlup-choice-1">
+        <img class="hg-tooltip__icon" src="{{choice1.iconLarge}}" width="82" height="93" alt="">
+        <p class="hg-tooltip__title">{{choice1.skillLabel}} — {{choice1.tierLabel}}</p>
+        {{#if choice1.effectText}}<p>{{choice1.effectText}}</p>{{/if}}
+      </template>
+    {{/unless}}
+    <template class="hg-tooltip-tpl" data-tooltip-key="lvlup-choice-2">
+      <img class="hg-tooltip__icon" src="{{choice2.iconLarge}}" width="82" height="93" alt="">
+      <p class="hg-tooltip__title">{{choice2.skillLabel}} — {{choice2.tierLabel}}</p>
+      {{#if choice2.effectText}}<p>{{choice2.effectText}}</p>{{/if}}
+    </template>
+  {{/if}}
+
+  <template class="hg-tooltip-tpl" data-tooltip-key="lvlup-skill">
+    <img class="hg-tooltip__icon" src="{{primarySkillIconLarge}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{primarySkillLabel}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=primarySkillBaseValue}}</p>
+    <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=primarySkillEffectiveValue}}</p>
+  </template>
+
+  <button type="button" class="hg-lvlup__slot hg-lvlup__slot--button hg-lvlup__confirm"
+    data-action="confirm" {{#unless canConfirm}}disabled{{/unless}}
+    aria-label="{{localize 'HEROES_GLORY.LevelUp.ConfirmHint'}}"></button>
+
+</div>
