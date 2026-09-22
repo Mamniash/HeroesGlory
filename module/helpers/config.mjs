@@ -64,6 +64,49 @@ HEROES_GLORY.classes = {
 };
 
 /**
+ * The two generic class types every hero picks between (rules.md §2.5) —
+ * the concrete class name is derived from (faction, classType) at read
+ * time via classByFactionAndType below, never stored directly.
+ * @type {Object}
+ */
+HEROES_GLORY.classTypes = {
+  warrior: 'HEROES_GLORY.ClassType.Warrior',
+  mage: 'HEROES_GLORY.ClassType.Mage',
+};
+
+/**
+ * faction key -> classType -> concrete class key (same 20 keys as
+ * HEROES_GLORY.classes above) — the single source of truth for deriving a
+ * hero's concrete class from (faction, classType).
+ * @type {Record<string, {warrior: string, mage: string}>}
+ */
+HEROES_GLORY.classByFactionAndType = {
+  castle: { warrior: 'knight', mage: 'cleric' },
+  stronghold: { warrior: 'ranger', mage: 'druid' },
+  tower: { warrior: 'alchemist', mage: 'mage' },
+  fortress: { warrior: 'beastmaster', mage: 'witch' },
+  dungeon: { warrior: 'lord', mage: 'warlock' },
+  inferno: { warrior: 'possessed', mage: 'heretic' },
+  necropolis: { warrior: 'deathKnight', mage: 'necromancer' },
+  citadel: { warrior: 'barbarian', mage: 'battlemage' },
+  nexus: { warrior: 'wanderer', mage: 'elementalist' },
+  haven: { warrior: 'captain', mage: 'navigator' },
+};
+
+/**
+ * Inverse of classByFactionAndType (concrete class key -> classType),
+ * computed rather than hand-duplicated so it can never drift out of sync —
+ * used only by actor-hero.mjs's migrateData to translate a legacy flat
+ * `heroClass` value.
+ * @type {Record<string, string>}
+ */
+HEROES_GLORY.classTypeByLegacyClassKey = Object.fromEntries(
+  Object.entries(HEROES_GLORY.classByFactionAndType).flatMap(
+    ([, byType]) => Object.entries(byType).map(([type, classKey]) => [classKey, type]),
+  ),
+);
+
+/**
  * The 5 schools of magic (rules.md §6.2): the 4 elements plus
  * "Универсальные" (str. 62 — spells not tied to an element, e.g.
  * Волшебная Стрела and Призыв Элементаля).
@@ -222,6 +265,7 @@ HEROES_GLORY.artifactModifierModes = {
  * @type {Object}
  */
 HEROES_GLORY.panelColors = {
+  auto: 'HEROES_GLORY.PanelColor.Auto',
   red: 'HEROES_GLORY.PanelColor.Red',
   blue: 'HEROES_GLORY.PanelColor.Blue',
   tan: 'HEROES_GLORY.PanelColor.Tan',
@@ -232,6 +276,25 @@ HEROES_GLORY.panelColors = {
   pink: 'HEROES_GLORY.PanelColor.Pink',
   black: 'HEROES_GLORY.PanelColor.Black',
   white: 'HEROES_GLORY.PanelColor.White',
+};
+
+/**
+ * Which of the 10 concrete panel colors "auto" resolves to per faction —
+ * purely cosmetic, no faction chosen falls back to the pre-existing
+ * default color ('red').
+ * @type {Object}
+ */
+HEROES_GLORY.panelColorByFaction = {
+  castle: 'blue',
+  stronghold: 'green',
+  tower: 'white',
+  fortress: 'tan',
+  dungeon: 'purple',
+  inferno: 'red',
+  necropolis: 'black',
+  citadel: 'orange',
+  nexus: 'pink',
+  haven: 'teal',
 };
 
 /**

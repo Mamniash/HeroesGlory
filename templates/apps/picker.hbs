@@ -1,0 +1,76 @@
+{{!-- module/apps/picker-app.mjs's own PARTS.body — a standalone ApplicationV2
+  window replacing the old pinTooltip/pinConfirm floating-layer chain for
+  Раса/Фракция/Класс/Цвет панели. `.hg-tooltip`/`.hg-confirm`/`.hg-option-list`
+  markup and classes are unchanged from that layer — only the wrapper (a real
+  window instead of a canvas-anchored floating div) and this template's own
+  root are new. `screen` is whichever step (module/apps/picker-app.mjs's
+  ScreenDescriptor) currently sits on top of the app's own step stack.
+
+  `hg-picker` alongside `hg-tooltip` — a marker distinct from the content
+  class, which also floats transiently inside OTHER windows' own
+  window-content whenever tooltip.mjs shows a hover tooltip there. This one
+  is what `.window-content:has(.hg-picker)` in _tooltip.scss keys off of to
+  zero out Foundry's own default window-content padding (same
+  "`.window-content:has(<content wrapper>)`" trick `.hero-paperdoll-wrapper`/
+  `.hg-lvlup` already use) — `.hg-tooltip` alone would ALSO have matched
+  there, but only by accident (it's always this window's own root today,
+  but it's shared content styling, not an identity for this window), so it
+  gets its own class instead of overloading that one.
+
+  `data-color`, not `data-panel-color` (this template's own naming mistake,
+  since fixed) — `.hg-tooltip[data-color='#{$color}']::after` in
+  _tooltip.scss's per-color loop is what actually sets the frame's
+  `border-image-source`; it's keyed to tooltip.mjs's own
+  `showTooltip`/`pinTooltip` attribute name (`layer.dataset.color`), not to
+  `data-panel-color` (used by `.hero-paperdoll`/`.hg-lvlup` for a completely
+  different purpose — swapping their own background art per faction color).
+  Confirmed live: `getComputedStyle(.hg-tooltip, '::after').borderImageSource`
+  was `"none"` with `data-panel-color` set and no `data-color` present at
+  all — the frame's `::after` existed, right size, right z-index, just
+  drawing a transparent border because it had no image to slice. --}}
+<div class="hg-tooltip hg-picker" data-color="{{panelColor}}">
+  {{#if (eq screen.type "list")}}
+    {{#if screen.options.length}}
+      <div class="hg-option-list">
+        {{#each screen.options}}
+          <button type="button" class="hg-option-list__item" data-action="pick" data-key="{{this.key}}"
+            {{#if this.current}}data-current="true"{{/if}}>{{this.label}}</button>
+        {{/each}}
+      </div>
+    {{else}}
+      {{!-- §4.3: e.g. Специализация at level 10+ with nothing eligible yet
+        — explains the empty list rather than showing a bare, silent
+        blank panel. --}}
+      <p class="hg-option-list__empty">{{screen.emptyMessage}}</p>
+    {{/if}}
+  {{else}}
+    {{!-- Confirm screen — screen.bodyHtml is already-built HTML (the exact
+      same #buildRecomputeDialogContent output the old pinConfirm flow used),
+      not re-templated here. screen.iconPath present -> two-column split
+      (race/faction confirms with a portrait); absent -> single column
+      (classType confirms, and any race with no art). --}}
+    <div class="hg-confirm">
+      <p class="hg-tooltip__title">{{screen.title}}</p>
+      {{#if screen.iconPath}}
+        {{!-- Text column first, portrait second — matches the pre-migration
+          DOM order (#buildConfirmContent's own `split.append(textColumn,
+          portraitFrame)`), which this template got backwards on first pass. --}}
+        <div class="hg-confirm__split">
+          <div class="hg-confirm__text">{{{screen.bodyHtml}}}</div>
+          <div class="hg-confirm__portrait-frame">
+            <img class="hg-confirm__portrait{{#if screen.pixelated}} hg-confirm__portrait--pixelated{{/if}}"
+              src="{{screen.iconPath}}" alt="">
+          </div>
+        </div>
+      {{else}}
+        {{{screen.bodyHtml}}}
+      {{/if}}
+      <div class="hg-confirm__buttons">
+        <button type="button" class="hg-confirm__yes" data-action="confirmYes"
+          aria-label="{{localize 'HEROES_GLORY.Tooltip.ConfirmYesHint'}}"></button>
+        <button type="button" class="hg-confirm__no" data-action="confirmNo"
+          aria-label="{{localize 'HEROES_GLORY.Tooltip.ConfirmNoHint'}}"></button>
+      </div>
+    </div>
+  {{/if}}
+</div>

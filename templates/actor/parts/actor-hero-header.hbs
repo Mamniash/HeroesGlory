@@ -5,11 +5,14 @@
   <div class="actor-sheet__title">
     <input class="actor-sheet__name" type="text" name="name" value="{{actor.name}}"
       placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">
-    <p class="actor-sheet__subtitle">
-      {{localize 'HEROES_GLORY.Hero.Level'}} {{system.level}}, {{localize classLabel}}
-    </p>
+    {{!-- §2.4/§2.5: Раса — Фракция before Класс, matching the paperdoll's
+      own name-line order (actor-hero-sheet.hbs) — Класс is derived FROM
+      Фракция, so it reads after it, not before. --}}
     <p class="actor-sheet__subtitle">
       {{localize raceLabel}} — {{localize factionLabel}}
+    </p>
+    <p class="actor-sheet__subtitle">
+      {{localize 'HEROES_GLORY.Hero.Level'}} {{system.level}}, {{localize classLabel}}
     </p>
   </div>
 </header>

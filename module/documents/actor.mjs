@@ -1,13 +1,22 @@
 import { isIncapacitated } from '../helpers/rolls.mjs';
+import { subchoiceModifiersFor } from '../helpers/race-stats.mjs';
 import { specializationModifiers } from '../helpers/specializations.mjs';
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
- * from a hero's `system.specialization` (rules.md §4.3) — same convention
- * as documents/item.mjs's own MODIFIER_EFFECT_FLAG for an artifact's
- * modifiers, distinguishing this auto-managed effect from anything a GM
- * adds by hand through Foundry's own effects UI.
+ * from a hero's `system.raceSubchoice` (rules.md §2.3, Элементаль/Минотавр)
+ * — same convention as documents/item.mjs's own MODIFIER_EFFECT_FLAG for
+ * an artifact's modifiers, distinguishing this auto-managed effect from
+ * anything a GM adds by hand through Foundry's own effects UI.
+ */
+const RACE_SUBCHOICE_EFFECT_FLAG = ['heroes-glory', 'raceSubchoiceModifiers'];
+
+/**
+ * Same convention as RACE_SUBCHOICE_EFFECT_FLAG above, for the
+ * specialization ActiveEffect (§4.3 — currently only Интеллект's +50
+ * Mana carries one; every other specialization has nothing numeric to
+ * apply, see specializations.mjs's own comment).
  */
 const SPECIALIZATION_EFFECT_FLAG = ['heroes-glory', 'specializationModifiers'];
 
@@ -41,20 +50,30 @@ export class HeroesGloryActor extends Actor {
 
     // Only the client that made this change drives the follow-up status
     // toggle, so it isn't attempted redundantly on every connected client.
-    if (userId !== game.user.id) return;
-
-    if (changed.system?.health?.value !== undefined
+    if (userId === game.user.id && changed.system?.health?.value !== undefined
       && isIncapacitated(this.system.health.value)) {
       this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
+    }
+
+    // §2.3: keep the race-subchoice ActiveEffect (Элементаль/Минотавр
+    // numeric bonus) in sync whenever race or the subchoice itself changes
+    // — covers a race change away (subchoice cleared -> effect removed),
+    // a race change into a subchoice race, and picking a different
+    // subchoice for the same race. Same "only the driving client acts"
+    // guard as above, and hero-only (`type` check) since creature actors
+    // have neither field.
+    if (userId === game.user.id && this.type === 'hero'
+      && ('race' in (changed.system ?? {}) || 'raceSubchoice' in (changed.system ?? {}))) {
+      this.#syncRaceSubchoiceEffect();
     }
 
     // §4.3: keep the specialization ActiveEffect (currently only
     // Интеллект's +50 Mana) in sync whenever `system.specialization`
     // changes — covers picking one, switching to a different one, and
     // the manual "снять специализацию" clear (hero-sheet.mjs's
-    // #onUnsetSpecialization) the same way. Hero-only (`type` check)
-    // since creature actors have no such field.
-    if (this.type === 'hero' && 'specialization' in (changed.system ?? {})) {
+    // #onUnsetSpecialization) the same way. Same guards as the
+    // race-subchoice sync just above.
+    if (userId === game.user.id && this.type === 'hero' && 'specialization' in (changed.system ?? {})) {
       this.#syncSpecializationEffect();
     }
   }
@@ -67,6 +86,36 @@ export class HeroesGloryActor extends Actor {
    * `transfer` isn't set (unlike the item version) — this effect is
    * created directly on the actor, not on an owned item, so there's
    * nothing to transfer from.
+   * @returns {Promise<void>}
+   */
+  async #syncRaceSubchoiceEffect() {
+    const modifiers = subchoiceModifiersFor(this.system.race, this.system.raceSubchoice);
+    const existing = this.effects.find((e) => e.getFlag(...RACE_SUBCHOICE_EFFECT_FLAG));
+
+    if (modifiers.length === 0) {
+      if (existing) await existing.delete();
+      return;
+    }
+
+    const effectData = {
+      name: game.i18n.localize('HEROES_GLORY.Hero.RaceSubchoiceEffectName'),
+      icon: 'icons/svg/aura.svg',
+      origin: this.uuid,
+      system: { changes: buildEffectChanges(modifiers) },
+      flags: { [RACE_SUBCHOICE_EFFECT_FLAG[0]]: { [RACE_SUBCHOICE_EFFECT_FLAG[1]]: true } },
+    };
+
+    if (existing) await existing.update(effectData);
+    else await this.createEmbeddedDocuments('ActiveEffect', [effectData]);
+  }
+
+  /**
+   * Same shape as `#syncRaceSubchoiceEffect` above (rebuild-and-update
+   * rather than diff, no `transfer`, same reasoning both times) — kept as
+   * its own method rather than folded into that one since it watches a
+   * different field and has nothing else in common structurally (a
+   * specialization's `modifiers` come from `specializations.mjs`, keyed
+   * on `{type, key}`, not race-stats.mjs's `{race, subchoice}`).
    * @returns {Promise<void>}
    */
   async #syncSpecializationEffect() {
