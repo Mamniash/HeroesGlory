@@ -1,5 +1,9 @@
 node_modules/
 *.log
+# Python bytecode cache from scripts/*.py.
+scripts/__pycache__/
+# Scratch output from scripts/book_recrop.py — not source, regenerate on demand.
+recrop_out/
 # Scratch dir a pack build stages into before the atomic rename into
 # packs/_source/<name> and packs/<name> (scripts/lib/pack-builder.mjs) —
 # only survives on disk if the process was killed mid-build.
