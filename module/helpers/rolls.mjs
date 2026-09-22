@@ -321,3 +321,120 @@ export function resolvePostBattleCheck(d20) {
   }
   return { die: d20, survived: d20 > 10 };
 }
+
+/**
+ * §4.2/§6.1: resolve a d20 roll against an increasing, contiguous range
+ * table (class-stats.mjs's `PRIMARY_SKILL_ROLL_RANGES`/`_FALLBACK`) —
+ * which primary skill grows on level-up.
+ * @param {number} d20
+ * @param {Array<{max:number, key:string}>} ranges   Increasing by `max`,
+ *   last entry's `max` must be 20.
+ * @returns {string}
+ */
+export function resolvePrimarySkillRoll(d20, ranges) {
+  if (!Number.isInteger(d20) || d20 < 1 || d20 > 20) {
+    throw new RangeError(`resolvePrimarySkillRoll: d20 must be an integer 1-20, got ${d20}`);
+  }
+  const row = ranges.find((r) => d20 <= r.max);
+  return row.key;
+}
+
+/**
+ * §3/§4.2 rules.md: the secondary-skill d20 table, in order — index 1-19
+ * map straight to `CONFIG.HEROES_GLORY.secondarySkills` keys. Index 20 is
+ * "Лечение / Некромантия", handled separately (see
+ * {@link LEVEL_UP_SKILL_20_BY_FACTION}/{@link resolveSecondarySkillRoll})
+ * since its outcome depends on faction, not a fixed key. Index 0 unused so
+ * `SECONDARY_SKILL_ROLL_ORDER[d20]` reads naturally.
+ * @type {(string|null)[]}
+ */
+export const SECONDARY_SKILL_ROLL_ORDER = [
+  null,
+  'assault', 'armor', 'archery', 'tactics', 'interference', 'leadership', 'luck', 'pathfinding',
+  'airMagic', 'earthMagic', 'waterMagic', 'fireMagic', 'wisdom', 'intellect', 'mysticism', 'sorcery',
+  'diplomacy', 'scouting', 'aptitude',
+];
+
+/**
+ * §4.2/§6.2 rules.md: row 20 of the secondary-skill table ("Лечение /
+ * Некромантия") — every faction resolves to Лечение except Некрополис,
+ * which gets Некромантия. An explicit map over all 10 factions (rather
+ * than a ternary singling out `necropolis`) so a future faction with a
+ * different outcome is a one-line change here, not a logic change.
+ * @type {Record<string, string>}
+ */
+export const LEVEL_UP_SKILL_20_BY_FACTION = {
+  castle: 'healing',
+  stronghold: 'healing',
+  tower: 'healing',
+  fortress: 'healing',
+  dungeon: 'healing',
+  inferno: 'healing',
+  necropolis: 'necromancy',
+  citadel: 'healing',
+  nexus: 'healing',
+  haven: 'healing',
+};
+
+/**
+ * §6.2: resolve a d20 roll against the secondary-skill table. `faction` is
+ * only consulted for a roll of 20 (empty/unknown faction falls back to
+ * "healing", same as every faction but Некрополис).
+ * @param {number} d20
+ * @param {object} [params]
+ * @param {string} [params.faction]
+ * @returns {string}
+ */
+export function resolveSecondarySkillRoll(d20, { faction } = {}) {
+  if (!Number.isInteger(d20) || d20 < 1 || d20 > 20) {
+    throw new RangeError(`resolveSecondarySkillRoll: d20 must be an integer 1-20, got ${d20}`);
+  }
+  if (d20 === 20) return LEVEL_UP_SKILL_20_BY_FACTION[faction] ?? 'healing';
+  return SECONDARY_SKILL_ROLL_ORDER[d20];
+}
+
+/**
+ * §3: secondary-skill tiers, base -> advanced -> expert, clamped at the
+ * top (an already-expert skill has nothing further to gain).
+ * @type {string[]}
+ */
+const SKILL_TIER_ORDER = ['base', 'advanced', 'expert'];
+
+/**
+ * @param {string} tier   "base" | "advanced" | "expert".
+ * @returns {string}   The next tier up, or `tier` unchanged if already
+ *   "expert" (or not a recognized tier).
+ */
+export function nextTier(tier) {
+  const idx = SKILL_TIER_ORDER.indexOf(tier);
+  if (idx === -1 || idx === SKILL_TIER_ORDER.length - 1) return tier;
+  return SKILL_TIER_ORDER[idx + 1];
+}
+
+/**
+ * §3 стр.39: Экспертная Обучаемость raises the secondary-skill slot cap
+ * from the base 8 to 10. Pure — takes the owned skills as plain
+ * `{skillKey, tier}` shapes (an actor's `items.filter(i => i.type ===
+ * 'skill').map(i => i.system)`, not real Foundry Items) and the base cap
+ * as a parameter, not read from `CONFIG.HEROES_GLORY` directly, so this
+ * stays testable without Foundry — see this file's own header comment.
+ * `10` is hardcoded here rather than threaded through as a second
+ * parameter: it's exactly as fixed a rule number as the base 8 is (same
+ * rules.md page), not a config a caller would ever want to vary —
+ * matches how e.g. `resolveMoraleCheck`'s own "4+" threshold is written
+ * directly in this file rather than passed in.
+ *
+ * Deliberately re-evaluated from the owned-skills list every time, not
+ * cached anywhere: the cap can legitimately drop back to 8 if Экспертная
+ * Обучаемость is lost (tier lowered, item deleted) while the hero still
+ * owns 9-10 skills — every caller of this function already treats that
+ * as "stop offering new ones", not "the old ones vanish", so there's
+ * nothing to invalidate.
+ * @param {Array<{skillKey: string, tier: string}>} ownedSkills
+ * @param {number} baseCount   `CONFIG.HEROES_GLORY.secondarySkillSlotCount` (8).
+ * @returns {number}
+ */
+export function secondarySkillSlotCount(ownedSkills, baseCount) {
+  const hasExpertAptitude = ownedSkills.some((s) => s.skillKey === 'aptitude' && s.tier === 'expert');
+  return hasExpertAptitude ? 10 : baseCount;
+}

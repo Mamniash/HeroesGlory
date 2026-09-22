@@ -59,6 +59,40 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     schema.level = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
     schema.experience = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
+    // §4.2/§6: the level-up dice, persisted rather than held in memory —
+    // the level-up window (module/apps/level-up-app.mjs) is a normal
+    // closeable ApplicationV2 (close button, Escape, click elsewhere all
+    // just close it), and without this the hero could exploit that to
+    // reroll for a better outcome (close, reopen, repeat) until the
+    // desired result comes up. `null` whenever no level-up is pending;
+    // set once when the window first opens for a given targetLevel,
+    // cleared back to `null` the moment it's applied. Re-validated (not
+    // blindly trusted) on every open — see level-up-app.mjs's own
+    // ensurePendingLevelUp.
+    schema.pendingLevelUp = new fields.SchemaField({
+      // The level this roll is FOR (system.level + 1 at roll time) — lets
+      // a stale pending roll (banked from a previous, already-applied
+      // level) be detected and discarded rather than reused for the wrong
+      // level.
+      targetLevel: new fields.NumberField({ ...requiredInteger, min: 1 }),
+      primarySkillKey: new fields.StringField({ required: true, blank: false }),
+      // §task (was upgradeCandidateItemIds, an array of 0-2): the owned
+      // skill (§6.3, book p.16 — "raise ANY already-owned skill by one
+      // tier") offered/pre-selected as the upgrade candidate, or null if
+      // none is owned below Expert tier. A single field, not an array, now
+      // that the level-up window's own picker (roll-actions.mjs's
+      // eligibleUpgradeSkillItems) lets the player choose ANY eligible
+      // skill directly — the old array's second slot only ever existed to
+      // offer a consolation "pick between these two random candidates"
+      // when no free skill slot made a real upgrade-vs-new choice possible
+      // (§7's old mode 3); once any eligible skill is directly pickable,
+      // that second random candidate has nothing left to do.
+      upgradeCandidateItemId: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
+      // A CONFIG.HEROES_GLORY.secondarySkills key, or null if no free
+      // slot / no un-owned skill was found (§6.2).
+      newCandidateSkillKey: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
+    }, { required: true, nullable: true, initial: null });
+
     // §4.3 p.23: specialization from level 10 (requires Expert tier in a
     // skill, or owning a spell — helpers/specializations.mjs has the full
     // book list). A structured reference, not free text — this used to be
@@ -84,21 +118,73 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     schema.faction = new fields.StringField({
       required: true, blank: true, initial: "", choices: CONFIG.HEROES_GLORY.factions,
     });
-    // Named `heroClass`, not `class` — `class` is a reserved word in JS.
-    schema.heroClass = new fields.StringField({
-      required: true, blank: true, initial: "", choices: CONFIG.HEROES_GLORY.classes,
+    // §2.5: race+faction+classType uniquely determine a concrete class —
+    // the concrete class name itself is never stored, only derived at read
+    // time from (faction, classType) via config.mjs's classByFactionAndType
+    // — this makes an invalid combination (e.g. a Necromancer from Замок)
+    // structurally impossible, and gives a clean fallback ("Воин"/
+    // "Волшебник") for a hero without a faction yet. Replaces the old flat
+    // `heroClass` field (20 concrete keys) — see migrateData below.
+    schema.classType = new fields.StringField({
+      required: true, blank: true, initial: "", choices: CONFIG.HEROES_GLORY.classTypes,
     });
 
+    // §2.3 p. 12: a handful of races have an internal fork the player picks
+    // at creation (Элементаль's стихия, Минотавр's Атака/Сила Магии) — see
+    // helpers/race-stats.mjs's RACE_SUBCHOICES for the current race's valid
+    // keys. No `choices` here: a StringField's choices can't depend on a
+    // sibling field's value (which race is even active), so — like
+    // `classType`'s validity against `faction` — this is enforced by the
+    // hero-sheet picker flow, not the schema. Blank whenever the current
+    // race has no subchoice, or none has been picked yet.
+    schema.raceSubchoice = new fields.StringField({ required: true, blank: true, initial: "" });
+
     // Cosmetic only — which of the 10 assets/ui/heroscr4_<color>.png
-    // backgrounds the hero sheet renders over.
+    // backgrounds the hero sheet renders over. "auto" resolves through the
+    // hero's faction (helpers/panel-color.mjs) — any other value is a
+    // manual GM override that a later faction change never silently undoes.
     schema.panelColor = new fields.StringField({
-      required: true, blank: false, initial: "red", choices: CONFIG.HEROES_GLORY.panelColors,
+      required: true, blank: false, initial: "auto", choices: CONFIG.HEROES_GLORY.panelColors,
     });
+
+    // §8.1: "без оружия урон = 1, если не сказано иного" — race-specific
+    // override (Вампир/Джинн/Элементал/Минотавр — see helpers/race-stats.mjs),
+    // every other race uses this default as-is.
+    schema.unarmedDamage = new fields.NumberField({ ...requiredInteger, initial: 1, min: 0 });
 
     // Not present in rules.md — generic free-text notes field for the sheet.
     schema.biography = new fields.StringField({ required: true, blank: true });
 
     return schema;
+  }
+
+  /**
+   * Legacy `heroClass` (20 concrete class keys) -> `classType`
+   * ('warrior'|'mage'). Standard Foundry v14 mechanism for a field
+   * rename/reshape — runs on every data-cleaning pass (construction,
+   * update), so an actor "self-heals" the next time it's opened/saved,
+   * without a separate one-time world-migration script. Deletes the
+   * legacy key only once mapping actually succeeds — an unrecognized
+   * value is left in `source` (harmless: it's outside the schema, so it
+   * never reaches `this.system` and Foundry doesn't warn about it) so a
+   * human can fix it manually instead of the data silently vanishing.
+   * @override
+   */
+  static migrateData(source) {
+    if (typeof source.heroClass === "string" && source.heroClass && !source.classType) {
+      const mappedType = CONFIG.HEROES_GLORY.classTypeByLegacyClassKey[source.heroClass];
+      if (mappedType) {
+        source.classType = mappedType;
+        delete source.heroClass;
+      } else {
+        console.warn(
+          `HeroesGloryHero.migrateData: unrecognized legacy heroClass "${source.heroClass}" ` +
+          `on actor ${source._id ?? "(unknown id)"} — leaving heroClass in source, classType ` +
+          `left unset. Set this hero's class manually via the identity picker.`,
+        );
+      }
+    }
+    return super.migrateData(source);
   }
 
   prepareDerivedData() {
