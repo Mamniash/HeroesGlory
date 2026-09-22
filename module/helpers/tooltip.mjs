@@ -18,10 +18,11 @@
  * click one" capability, not a resurrection of whatever `hero-sheet.mjs`'s
  * old (now fully deleted) `#openOptionPicker` used to build inline — that
  * code is gone, this is a new implementation of the same idea, built on
- * the same `pinTooltip`/`.hg-option-list` foundation `pinConfirm` already
- * demonstrates working (see this file's own history if the exact old
- * shape ever matters again). Positions by living inside whichever
- * `boundsEl` the caller passes — the level-up window's own `.hg-lvlup`
+ * the same `pinTooltip`/`.hg-option-list` foundation this file's own
+ * Yes/No confirm dialog used to demonstrate working, before that moved to
+ * `picker-app.mjs` and was deleted from here (see this file's own history
+ * if the exact old shape ever matters again). Positions by living inside
+ * whichever `boundsEl` the caller passes — the level-up window's own `.hg-lvlup`
  * canvas, so `_tooltip.scss`'s `top/left: 50%; transform: translate(-50%,
  * -50%)` centers it on THAT window, not the viewport (see this file's own
  * "Lives as a child of..." paragraph below for why that's automatic).
@@ -56,16 +57,6 @@
  *    tooltip stays open until the OK button is clicked or the user
  *    clicks anywhere outside it — that outside click is swallowed (it
  *    only closes the tooltip, never also fires whatever it landed on).
- *
- * `pinConfirm` (below `pinTooltip`) is the Yes/No variant — this project's
- * own replacement for `DialogV2.confirm`, styled through this same layer
- * instead of Foundry's plain dialog chrome. Same single-layer/single-slot
- * rules apply: opening one discards whatever was pinned before it (in
- * practice, always the option-list picker it's opened FROM — see
- * `hero-sheet.mjs`'s `#confirmRaceChange`/`#confirmClassEffectiveChange`,
- * whose option-list button already calls `hideTooltip()` before invoking
- * the callback that opens the confirm, so the two are never both showing
- * at once, not a stacked pair of layers).
  *
  * Lives as a child of whichever canvas (.hero-paperdoll/.hero-spellbook)
  * is currently showing — NOT appended to document.body — so it falls
@@ -229,9 +220,9 @@ export function showTooltip(content, { boundsEl, mode = 'tooltip', color = 'red'
  *   whatever the caller's own content does on selection, already run
  *   their own logic before/instead of relying on this). Lets a caller
  *   distinguish "closed by clicking outside" from "closed by an explicit
- *   choice" — `pinConfirm` below is the reason this exists: it needs to
- *   resolve its promise `false` on an outside click, not leave it hanging
- *   forever.
+ *   choice" — a caller with its own pending state (a promise, a picker
+ *   waiting for a selection) needs to settle that state on an outside
+ *   click too, not leave it hanging forever.
  */
 export function pinTooltip(content, options = {}) {
   showTooltip(content, options);
@@ -273,10 +264,8 @@ export function pinTooltip(content, options = {}) {
       options.onDismiss?.();
     };
     document.addEventListener('click', pinOutsideClickHandler, true);
-    // Escape always closes the whole layer, never just "one step back"
-    // (a confirm dialog opened from an option list doesn't reopen the
-    // list on Escape, only on the No button — see pinConfirm/hero-sheet.mjs's
-    // #confirmRaceChange) — this project's and Foundry's own universal
+    // Escape always closes the whole layer, never just "one step back" —
+    // this project's and Foundry's own universal
     // "get me out of here" gesture, same as the level-up window's close
     // and every native Foundry dialog. Shares `onDismiss` with the
     // outside-click handler above rather than a separate signal — both
@@ -295,9 +284,9 @@ export function pinTooltip(content, options = {}) {
  * §task: a pinned list of clickable text (optionally icon+text) rows —
  * the level-up window's "which skill to upgrade" picker
  * (module/apps/level-up-app.mjs's `#onPickUpgradeCandidate`). Built on
- * `pinTooltip` exactly the way `pinConfirm` already is (a pinned layer
- * holding whatever interactive content the caller needs, `okButton:
- * false` since picking a row already closes it) — see this file's own
+ * `pinTooltip` the same way this layer's other pinned content already is
+ * (a pinned layer holding whatever interactive content the caller needs,
+ * `okButton: false` since picking a row already closes it) — see this file's own
  * header comment for why this is a fresh implementation of "list of
  * options, click one" rather than a revived copy of the deleted
  * `hero-sheet.mjs` code that used to do this for a different (now
@@ -359,85 +348,6 @@ export function pinOptionList(options, onPick, pinOptions = {}) {
     list.appendChild(item);
   }
   pinTooltip(list, { ...pinOptions, okButton: false });
-}
-
-/**
- * The pixel-art counterpart to Foundry's own `DialogV2.confirm` — a
- * pinned tooltip holding the caller's content plus a Yes/No button row,
- * resolving a promise with the user's choice instead of applying anything
- * itself (callers still decide what Yes/No each mean). Built on `pinTooltip`
- * rather than a new layer: this project already treats the option pickers
- * (race/faction/classType/panelColor, `hero-sheet.mjs`'s `#openOptionPicker`)
- * as "the same pinned layer, different content", and a confirm dialog is
- * the same shape again — content plus interactive controls that close it.
- *
- * Closing any way at all — Yes, No, clicking outside, or Escape — settles
- * the promise exactly once; there's no third "still open, unresolved"
- * state a caller has to guard against, and no way for the returned
- * promise to hang forever. Three distinct outcomes, not a boolean:
- * `'yes'` and `'no'` are the two buttons; `'dismiss'` is outside-click or
- * Escape — a caller that wants "No" and "dismiss" to mean the same thing
- * (apply nothing) can still treat them the same, but `hero-sheet.mjs`'s
- * `#confirmRaceChange`/`#confirmClassEffectiveChange` treat them
- * differently on purpose (`'no'` reopens the option list this was opened
- * from, `'dismiss'` closes everything) — collapsing them back into one
- * boolean would lose that distinction.
- * @param {Node} content   Shown above the Yes/No row.
- * @param {object} [options]   Same shape as `pinTooltip`'s own `options`
- *   (`boundsEl`, `color`) — `okButton`/`onDismiss` are set by this function
- *   itself, passing either here has no effect.
- * @returns {Promise<'yes'|'no'|'dismiss'>}
- */
-export function pinConfirm(content, options = {}) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = (outcome) => {
-      if (settled) return;
-      settled = true;
-      resolve(outcome);
-    };
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'hg-confirm';
-    wrapper.appendChild(content);
-
-    const row = document.createElement('div');
-    row.className = 'hg-confirm__buttons';
-    const yesButton = document.createElement('button');
-    yesButton.type = 'button';
-    yesButton.className = 'hg-confirm__yes';
-    yesButton.setAttribute('aria-label', game.i18n.localize('HEROES_GLORY.Tooltip.ConfirmYesHint'));
-    const noButton = document.createElement('button');
-    noButton.type = 'button';
-    noButton.className = 'hg-confirm__no';
-    noButton.setAttribute('aria-label', game.i18n.localize('HEROES_GLORY.Tooltip.ConfirmNoHint'));
-
-    // Same press-then-release pattern as .hg-tooltip__ok above: the pressed
-    // frame is added synchronously, before either button is disabled and
-    // the whole tooltip torn down a beat later — otherwise there'd be
-    // nothing left in the DOM for a real `:active` state to paint onto.
-    const pressAndSettle = (pressedButton, pressedClass, outcome) => {
-      pressedButton.classList.add(pressedClass);
-      yesButton.disabled = true;
-      noButton.disabled = true;
-      setTimeout(() => { hideTooltip(); settle(outcome); }, PRESS_HOLD_MS);
-    };
-    yesButton.addEventListener('click', () => pressAndSettle(yesButton, 'hg-confirm__yes--pressed', 'yes'));
-    noButton.addEventListener('click', () => pressAndSettle(noButton, 'hg-confirm__no--pressed', 'no'));
-    row.append(yesButton, noButton);
-
-    // Always a direct child of `wrapper`, never inside a caller's own
-    // `.hg-confirm__text` split column (race confirm's two-column layout,
-    // see hero-sheet.mjs's #confirmRaceChange) — `wrapper` itself is a
-    // centered column flex (`.hg-confirm`), so the row ends up centered
-    // under BOTH columns, not tucked into the left one. An earlier version
-    // appended into `.hg-confirm__text` when present, which also crushed
-    // that column's own width fighting the portrait for space — reverted
-    // together with that layout fix.
-    wrapper.appendChild(row);
-
-    pinTooltip(wrapper, { ...options, okButton: false, onDismiss: () => settle('dismiss') });
-  });
 }
 
 /**
