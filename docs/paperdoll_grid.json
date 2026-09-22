@@ -1,5 +1,5 @@
 {
-  "_note": "Реконструировано из процентов, уже закоммиченных в src/scss/components/_hero-paperdoll.scss ($hg-named-slots и повторяющиеся группы). Оригинальный исходник разметки (упомянутый в шапке того файла) в репозиторий не попал — px здесь получены обратным счётом round(percent * canvas_dim / 100), не из исходных пиксельных координат.",
+  "_note": "Реконструировано из процентов, уже закоммиченных в src/scss/components/_hero-paperdoll.scss ($hg-named-slots и повторяющиеся группы). Оригинальный исходник разметки (упомянутый в шапке того файла) в репозиторий не попал — px здесь получены обратным счётом round(percent * canvas_dim / 100), не из исходных пиксельных координат. Единственная верная система координат для этого листа — 600x473, реальный размер самого арта (assets/ui/heroscr4_*.png, подтверждено по PNG-заголовку файла). Любые числа, снятые в другом холсте (например, встречавшийся дважды в истории проекта 672x586 — см. заметки при slot'ах edit_zone и name ниже), являются ошибкой измерения и не должны использоваться.",
   "canvas": {
     "w": 600,
     "h": 473
@@ -17,6 +17,7 @@
       "height": 13.531
     },
     {
+      "_note": "Corrected coordinates — an earlier version of this entry was measured on a 672x586 reference (a size that doesn't correspond to any file in this repository) and was wrong; these are measured directly on this file's own 600x473 canvas. Same mistake, same fix, as edit_zone below — the second time it's happened in this project's history.",
       "name": "name",
       "x": 76,
       "y": 15,
@@ -654,6 +655,18 @@
       "top": 88.372,
       "width": 46.667,
       "height": 8.879
+    },
+    {
+      "_note": "Second edit_zone button, stepped left by 62px (52 width + 10 gap) from edit_button_toggle — see that entry's own note about room for 2-3 more, same size.",
+      "name": "edit_button_panelcolor",
+      "x": 467,
+      "y": 421,
+      "w": 52,
+      "h": 36,
+      "left": 77.833,
+      "top": 89.006,
+      "width": 8.667,
+      "height": 7.611
     },
     {
       "_note": "Standard button size for the edit_zone (52x36 px on this canvas) is $hg-zone-button-width/$hg-zone-button-height in _hero-paperdoll.scss — reused by any future button added to this zone.",
