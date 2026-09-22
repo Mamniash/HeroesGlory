@@ -455,12 +455,6 @@
     whether clicking it does anything (level 10+, edit mode or first
     pick — see that method's own comment), same silent-no-op convention
     every other identity picker here already uses. --}}
-  {{!-- Same highlight frame as Опыт's level-up (experience_highlight) — lit
-    only while a pick is available and nothing is chosen yet. The picker
-    opens only on click, and only when specializationPickable (something
-    to choose, level 10+); otherwise the cell has no action, so the icon's
-    own tooltip (same trigger as a secondary skill) is all a click does. --}}
-  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization_highlight{{#if specializationHighlight}} hero-paperdoll__slot--specialization_highlight--active{{/if}}" aria-hidden="true"></div>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell"
     {{#if specializationPickable}}data-action="pickSpecialization" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}>
@@ -483,6 +477,19 @@
       {{#if specializationSlot}}<span>{{localize 'HEROES_GLORY.Hero.Specialization'}}</span><span>{{specializationSlot.label}}</span>{{/if}}
     </div>
   </div>
+  {{!-- Same highlight frame as Опыт's level-up (experience_highlight) — lit
+    only while a pick is available and nothing is chosen yet. Comes AFTER
+    the cell in the DOM (unlike experience_highlight, which comes before
+    experience_name/_desc) so it paints on top: Опыт's icon+desc are
+    smaller than its highlight box (deliberately expanded past them, see
+    that box's own $hg-experience-highlight-*-expand comment), leaving a
+    blank margin the border shows through in either paint order — this
+    cell's own background (secondary_skill_rows.png) covers its box edge
+    to edge with no such margin, so painting first left the border fully
+    covered every time, confirmed live via elementsFromPoint before this
+    change. `pointer-events: none` (already on the shared frame) means
+    sitting on top doesn't block clicks through to the cell below. --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization_highlight{{#if specializationHighlight}} hero-paperdoll__slot--specialization_highlight--active{{/if}}" aria-hidden="true"></div>
 
   {{!-- Цвет панели moved to this window's own header-control menu (the
     "…" button in the OS titlebar, ApplicationV2's own _getHeaderControls
