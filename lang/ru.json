@@ -304,6 +304,7 @@
       "LevelPickHint": "Выбрать уровень",
       "SpecializationPickHint": "Выбрать специализацию",
       "SpecializationEmptyHint": "Нет доступных специализаций: нужна экспертная ступень в одном из навыков специализации, либо одно из заклинаний специализации.",
+      "SkillGrantFallbackWarning": "Навык «{skill}» не найден в компендиуме heroes-glory.skills — выдан без текстов эффектов.",
       "LevelPickerOption": "Уровень {level} — {xp} опыта",
       "LevelChangeConfirmTitle": "Изменить уровень?",
       "LevelChangeLine": "Уровень: {before} -> {after}",

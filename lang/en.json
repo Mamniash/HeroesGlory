@@ -147,7 +147,8 @@
       "BackpackNextHint": "Scroll backpack right",
       "EditModeEnableHint": "Enable edit mode",
       "EditModeDisableHint": "Disable edit mode",
-      "EditModeGmOnlyHint": "Game Master only"
+      "EditModeGmOnlyHint": "Game Master only",
+      "SkillGrantFallbackWarning": "Skill \"{skill}\" not found in the heroes-glory.skills compendium — granted without effect text."
     },
     "Item": {
       "Spell": {
