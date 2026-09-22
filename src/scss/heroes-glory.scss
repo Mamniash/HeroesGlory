@@ -6,6 +6,12 @@
 @import 'utils/colors';
 @import 'utils/mixins';
 @import 'utils/variables';
+// @font-face rules — top-level, NOT inside the `.heroes-glory {}` wrapper
+// below: Sass nests `@font-face` literally if it's written inside a
+// selector block, which produces invalid CSS (browsers ignore a @font-face
+// nested inside another rule) — this has to sit alongside the other
+// selector-less imports above.
+@import 'utils/fonts';
 
 /* Global styles */
 @import 'global/window';

@@ -44,12 +44,151 @@
 // is used on, sets `border-box` there once for all of them.)
 //
 // It also doesn't need `:hover`/`:focus`/`.active` variants of its own:
-// this system's compiled stylesheet has no `@layer` of its own, and an
-// unlayered declaration always wins over a layered one for the same
-// property regardless of which pseudo-class/specificity matched it — so
-// a single unconditional `background: none` etc. here already outranks
-// Foundry's layered `:hover`/`:focus`/`.active` rules for those same
-// properties too, without needing to restate them per state.
+// Foundry loads this system's compiled CSS via `@import
+// "systems/heroes-glory/css/heroes-glory.css" layer(system);` — a REAL
+// named layer, not unlayered as this comment used to claim. But `system`
+// isn't part of core's own explicit layer order (`@layer reset, variables,
+// elements, blocks, applications, compatibility, layouts, exceptions;`,
+// foundry2.css) — an unlisted layer name is appended after all the listed
+// ones the first time it's used, so `system` still sits after `elements`
+// (which holds `elements.forms`, where Foundry's own button `:hover`/
+// `:focus`/`.active` rules live) in the actual cascade order. A plain
+// declaration here therefore still outranks those rules regardless of
+// which pseudo-class/specificity matched them — same practical result as
+// "unlayered wins", just via layer order rather than the absence of a
+// layer — so a single unconditional `background: none` etc. here still
+// doesn't need per-state variants of its own.
+// Applies one of the HOMM3 pixel fonts (utils/_fonts.scss) at
+// `$native-height * --hg-pixel-scale` — one shared ratio for the whole
+// canvas (see hero-sheet.mjs's own --hg-pixel-scale comment), not
+// independent per-font rounding. `--hg-pixel-scale` is a continuous ratio,
+// not an integer step. Two separate attempts at snapping it (or a second,
+// font-only variant of it) to an integer step for crispness were both
+// built and reverted — see helpers/pixel-scale.mjs's own header comment
+// for the full writeup, including the arithmetic on why a CSS-only fix
+// is unreachable for most real devicePixelRatio values. Continuous is
+// the settled answer here, not a placeholder: text scales smoothly with
+// every resize tick, no frozen-then-jumping feel, no snap that can render
+// larger than the (continuously-shrinking) box it sits in.
+// font-weight/font-style are pinned to normal here as a defensive backstop
+// alongside `font-synthesis: none` — the actual bold/italic overrides this
+// is replacing were removed at each call site, not overridden here, but
+// this catches it either way if one gets missed or re-added later.
+// Deliberately NOT forcing `-webkit-font-smoothing: none`/`text-rendering:
+// optimizeSpeed` here (an earlier pass did, on the theory that a pixel font
+// should render pixel-hard) — the original game itself renders these fonts
+// with light smoothing, not aliased, and a side-by-side comparison against
+// that confirmed the disabled-smoothing look reads as harder/crisper than
+// the source material.
+@mixin hg-pixel-font($family, $native-height) {
+  font-family: $family;
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: calc(#{$native-height} * var(--hg-pixel-scale));
+  line-height: 1;
+}
+
+// The black outline HOMM3 draws around its UI text isn't part of the font
+// (confirmed directly against the source .FNT pixel data — see this
+// project's own plan doc / scripts/h3fnt.py's docstring) — reproduced here
+// as a full-perimeter text-shadow (8 directions, not a single corner
+// offset, since the in-game effect surrounds the glyph on every side) at
+// the same ratio as the font-size itself (`--hg-pixel-scale`, set by
+// hero-sheet.mjs), so the outline stays proportional at every canvas width,
+// not just at 1x/2x/3x.
+//
+// Zero call sites as of the NoOutline font pass (utils/_fonts.scss):
+// MedFont/BigFont now discard their baked outline at the font-data level
+// (scripts/fnt_to_webfont.py --mode mono) instead of compositing it, so the
+// CSS reproduction this mixin exists for is no longer wanted anywhere on
+// SmallFont either — the sheet is meant to have no outlined text at all.
+// Kept, not deleted: it's the one place documenting how the effect was
+// built, in case a future task wants it back somewhere deliberately.
+@mixin hg-pixel-outline($color: #000) {
+  // Sass can't negate an opaque calc() token with unary `-`, so the negative
+  // offset is its own calc() literal instead of `-$d`.
+  $d: calc(1px * var(--hg-pixel-scale));
+  $neg-d: calc(-1px * var(--hg-pixel-scale));
+  text-shadow:
+    $d 0 0 $color,
+    $neg-d 0 0 $color,
+    0 $d 0 $color,
+    0 $neg-d 0 $color,
+    $d $d 0 $color,
+    $neg-d $neg-d 0 $color,
+    $d $neg-d 0 $color,
+    $neg-d $d 0 $color;
+}
+
+// Foundry core styles every `input[type=text]`/`[type=number]` inside its
+// own `@layer elements.forms` (foundry2.css): a fixed `height`/`line-height:
+// var(--input-height)` (`body` sets that to 2rem, i.e. 32px, unrelated to
+// this canvas's own `--hg-pixel-scale`) plus `padding: 0 0.5rem`, a border,
+// a border-radius, a background. On this canvas that's exactly what makes
+// a bare number read as its own separate boxed field sitting among plain
+// text — a 32px fixed line box next to a 14px-native pixel font's own, and
+// 8px of dead space on each side of the value that doesn't shrink/grow
+// with the sheet the way everything else here does. This zeroes precisely
+// those properties, nothing else.
+//
+// CLASS-scoped by design, always — never write this as a bare `input`/
+// `input[type=number]` tag rule. A blanket reset in this project has
+// already caused real damage once (see `hg-image-button`'s own comment on
+// what a blanket `all: unset` did to the backpack arrows); every input
+// that wants this opts in by its own class name.
+//
+// `outline` used to be left alone here on the theory that core's own base
+// value (`1px solid transparent`) stays invisible through every state —
+// checked live and that's wrong: `input[type=text/number/...]:focus` (same
+// `@layer elements.forms` block as the base rule, foundry2.css) sets
+// `outline: 2px solid var(--input-focus-outline-color); outline-offset:
+// -2px;` — a real, visible ring (measured live: `rgb(88, 74, 117)`, not
+// transparent) that this mixin's consumers were showing on every click.
+// Fixed below by redefining the CUSTOM PROPERTY core's rule reads from,
+// not by fighting the rule itself — see that declaration's own comment
+// for why that's the cleaner fix here specifically (unlike
+// `background`/`border`/`box-shadow` below, which a plain property
+// override already fully and correctly suppresses in every state, proven
+// live — core never varies THOSE three by state the way it varies
+// `outline` at `:focus`).
+@mixin hg-canvas-input-reset {
+  height: auto;
+  line-height: 1; // matches hg-pixel-font's own line box, so this input and
+  // a sibling text node sit at the same height instead of one being taller
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  min-width: 0; // flex items default to min-width: auto (their own content
+  // width), which would stop this from ever shrinking below that
+
+  // This module's own compiled CSS loads as `@import "systems/heroes-glory
+  // /css/heroes-glory.css" layer(system);` — `system` isn't part of core's
+  // own declared `@layer reset, variables, elements, blocks, applications,
+  // compatibility, layouts, exceptions;` order (foundry2.css), so it's
+  // appended after all of them the first time it's used and outranks every
+  // core layer regardless of selector specificity (same reasoning
+  // `hg-image-button`'s own comment relies on elsewhere in this file).
+  // That means redefining this ONE custom property, here, in a plain
+  // base-state rule — no `:focus`-specific selector needed — already beats
+  // core's own `:focus`-qualified `outline` declaration that reads it,
+  // and would keep working if core ever reads this same variable from some
+  // OTHER state too. A blunt `outline: none;` property reset would also
+  // visually work (outline never affects layout/box size either way,
+  // confirmed live: height is identical at rest and at focus), but
+  // wouldn't self-update if core's own use of the variable changes.
+  --input-focus-outline-color: transparent;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}
+
 @mixin hg-image-button {
   appearance: none;
   border: none;

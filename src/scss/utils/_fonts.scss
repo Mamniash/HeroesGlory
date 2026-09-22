@@ -1,0 +1,196 @@
+// HOMM3's own bitmap fonts (assets/fonts/*.FNT), converted to WOFF2/TTF by
+// scripts/fnt_to_webfont.py — each pixel of the source bitmap is a unit
+// square in the glyph outline, no smoothing/interpolation anywhere in the
+// pipeline. Hero-sheet-only (module/sheets/actor/hero-sheet.mjs's own
+// canvas), not a system-wide font swap — $font-primary/Roboto is untouched
+// everywhere else.
+//
+// `font-display: block` — a pixel font popping in after a flash of Roboto
+// looks worse here than a brief invisible wait; these are small local files
+// (a few KB each, see assets/fonts/*.woff2), not a slow remote fetch.
+// WOFF2 first (smaller, what every target browser here supports — this
+// project's own Electron/Chromium is always current, see hero-sheet.mjs's
+// own REFERENCE_CANVAS_WIDTH comment for that build's actual version), TTF
+// as the "on the off chance" fallback the task asked to keep around.
+//
+// Native pixel heights (`$hg-font-h3-*-height`) come straight from each
+// .FNT's own header (scripts/h3fnt.py parses `heightPacked >> 8`) — each
+// family's own nominal size, not a hard requirement. `--hg-pixel-scale`
+// (helpers/pixel-scale.mjs) is a continuous ratio, not an integer step, so
+// a font-size doesn't need to be an exact multiple of its own family's
+// native height to stay usable — see that module's own header comment for
+// why snapping it (or a second, font-only variant of it) was tried twice
+// and reverted both times.
+//
+// Two variants of MedFont/BigFont exist side by side, on purpose — the
+// outlined ones (`H3 MedFont`/`H3 BigFont`, --mode colr) are kept on disk
+// for later use, not deleted, but nothing in this system's CSS references
+// them anymore. Every element that used to show them now uses the
+// NoOutline variants below (--mode mono, scripts/fnt_to_webfont.py's own
+// per-glyph advance-tightening — see that script's own docstring): the
+// baked-in outline pixel (source .FNT value 1) is discarded rather than
+// composited, so there is nothing left anywhere on this sheet needing
+// `hg-pixel-outline` (utils/_mixins.scss) either. SmallFont never had a
+// baked outline to begin with (h3fnt.H3Font.has_baked_outline is false for
+// it) — same "no outline" end state, by construction rather than removal.
+@font-face {
+  font-family: 'H3 SmallFont';
+  src:
+    url('../assets/fonts/smalfont-h3.woff2') format('woff2'),
+    url('../assets/fonts/smalfont-h3.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+// Outlined (COLR) variants — kept on disk and declared here so the font
+// stack still resolves if something references them directly, but nothing
+// in this system's own CSS points `$font-h3-medium`/`$font-h3-big` at
+// these two anymore (see `H3 MedFont NoOutline`/`H3 BigFont NoOutline`
+// below, and this file's own header comment for why both are kept).
+@font-face {
+  font-family: 'H3 MedFont';
+  src:
+    url('../assets/fonts/medfont-h3.woff2') format('woff2'),
+    url('../assets/fonts/medfont-h3.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'H3 BigFont';
+  src:
+    url('../assets/fonts/bigfont-h3.woff2') format('woff2'),
+    url('../assets/fonts/bigfont-h3.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+// The active variants — mono (--mode mono), no baked outline layer at all.
+@font-face {
+  font-family: 'H3 MedFont NoOutline';
+  src:
+    url('../assets/fonts/medfont-h3-noline.woff2') format('woff2'),
+    url('../assets/fonts/medfont-h3-noline.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'H3 BigFont NoOutline';
+  src:
+    url('../assets/fonts/bigfont-h3-noline.woff2') format('woff2'),
+    url('../assets/fonts/bigfont-h3-noline.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+// Fira Sans Extra Condensed — settled on after a client demo compared it
+// against Fixedsys Excelsior (the picker/switch that comparison used has
+// been removed; see this file's git history for it). These 3 variables
+// keep their old "$font-h3-*" names rather than being renamed to
+// "$font-fira-*": 14 call sites across _hero-paperdoll.scss/_lvlup.scss/
+// _spellbook.scss pass them into `hg-pixel-font` (utils/_mixins.scss) by
+// name, several of those files mid-edit for unrelated work — repointing
+// the VALUE here is a one-file change; renaming the VARIABLE would have
+// touched all 14 call sites for a purely cosmetic gain. `hg-pixel-font`
+// and _tooltip.scss's own 3 direct font-family lines are this file's
+// actual "small/medium/big role" consumers.
+//
+// H3 SmallFont/MedFont/BigFont above are kept declared but unreferenced
+// by these three (same "on disk, unused" precedent as the outlined
+// MedFont/BigFont variants above) — a future comparison can repoint these
+// two lines back without re-wiring the @font-face rules.
+$font-h3-small: 'HG Fira 400', $font-primary;
+$font-h3-medium: 'HG Fira 500', $font-primary;
+$font-h3-big: 'HG Fira 700', $font-primary;
+
+$hg-font-h3-small-height: 14px;
+$hg-font-h3-medium-height: 15px;
+$hg-font-h3-big-height: 24px;
+
+// Fira Sans Extra Condensed — the permanent choice (see $font-h3-small's
+// own comment above for how it won out over Fixedsys Excelsior). Ships
+// many weights; H3's own three roles already differed by BOTH size AND
+// family (SmallFont/MedFont/BigFont are three different bitmap fonts, not
+// one family at three sizes) — mapped that same two-axis distinction onto
+// Fira's own weight axis rather than using one weight for all three:
+//   small (14px, secondary-skill names, most pervasive) -> Regular 400
+//   medium (15px, Health/Experience/Mana values)        -> Medium 500
+//   big (24px, hero name, "Уровень N", spell names)      -> Bold 700
+@font-face {
+  font-family: 'HG Fira 400';
+  src: url('../assets/fonts/tempswitch-fira-400.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'HG Fira 500';
+  src: url('../assets/fonts/tempswitch-fira-500.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'HG Fira 700';
+  src: url('../assets/fonts/tempswitch-fira-700.ttf') format('truetype');
+  font-display: block;
+  font-weight: normal;
+  font-style: normal;
+}
+
+// ---------------------------------------------------------------
+// Color roles — one gold/parchment family, five steps from near-white down
+// to fully saturated gold. Every step is a real pixel sampled from the same
+// source (assets/ui/dialog_frame_*.png's corner filigree, `border-image-
+// slice: 64` in _tooltip.scss — the exact slice these are sampled from),
+// identical across all ten color variants (red/blue/green/orange/pink/
+// purple/tan/teal/black/white) — none of these five is a guess.
+// ---------------------------------------------------------------
+
+// Role B — pure white. Doubles as the sheet's own base/body text color (see
+// its use on `.hero-paperdoll, .hero-spellbook` below) — matches the
+// original game's own UI text, measured directly off a same-scale HOMM3
+// screenshot (peak 253-255 on a clean white). The name "parchment" and the
+// original off-white value (#e8dcc0) predate that measurement — kept the
+// variable name (every call site below already reads it as "the body text
+// role", not literally "parchment-colored") rather than rename it project-
+// wide for a one-line color change.
+$hg-parchment: #ffffff;
+
+// Role A — pale, weakly saturated. The lightest of the four filigree steps
+// below $hg-parchment's own near-white — chosen because it's still clearly
+// "gold family" (unlike $hg-parchment) but nowhere near as saturated/dark
+// as $hg-gold. The hero's own name and every spell's name in the spellbook
+// (both header-weight text) use this.
+$hg-gold-pale: #E1CF8B;
+
+// Role C — light, closer to neutral than $hg-gold-pale. Found by searching
+// the same filigree slice (all four corners, all ten color variants) for a
+// pixel at least as light as $hg-gold-pale but meaningfully less saturated
+// — landed on this one, identical in all ten variants (bottom-right corner,
+// count=15 each). Primary-skill labels (Атака/Защита/Сила Магии/Знания).
+$hg-neutral-light: #DAC9B0;
+
+// Role D — Health/Experience/Mana labels. Was a muted mid-gold (#D4B96F,
+// one step more saturated than $hg-gold-pale, still short of $hg-gold);
+// replaced with the game's own measured value for these specific labels
+// (peak (255,242,139) on a same-scale HOMM3 screenshot) — brighter/more
+// saturated yellow than the filigree-derived four-step gradient the other
+// roles on this list still use, so no longer literally "one step between
+// A and E" the way it was chosen originally.
+$hg-gold-mid: #FFF28B;
+
+// Role E — HOMM3's own UI gold/yellow, the deepest, most saturated step of
+// the four sampled off the filigree (a deliberately more muted choice than
+// the brightest highlight pixel in that same gradient). Tooltip titles, and
+// the selected row in the race/faction/class/panel-color picker lists
+// (`.hg-option-list__item[data-current='true']`, components/_tooltip.scss)
+// — both an "emphasis" role within the tooltip layer, not tied to the
+// paperdoll's own label palette above.
+$hg-gold: #C8AD63;
