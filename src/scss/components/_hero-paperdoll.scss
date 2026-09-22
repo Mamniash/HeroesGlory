@@ -1634,10 +1634,21 @@ $hg-secondary-skill-scrollbar-gutter: 10px;
 // way — the art only has 8 fixed cells to position against).
 .hero-paperdoll__skill-cell {
   display: flex;
-  align-items: flex-start; // icon (44 tall) and desc (42 tall) share the
-  // same top edge, same as skill_name_N/skill_desc_N already do (both
-  // start at the same $hg-named-slots top) — flex-start reproduces that
-  // without needing to know either one's exact height up front.
+  // CORRECTED — this used to be `flex-start`, on the claim that icon (44
+  // tall) and desc (42 tall) share the same top edge in skill_name_N/
+  // skill_desc_N. Checked directly against docs/paperdoll_grid.json:
+  // they don't — skill_name_1 is y=271 h=44 (271-315), skill_desc_1 is
+  // y=272 h=42 (272-314), a full 1 native px inset on BOTH top and
+  // bottom, not flush at the top. `flex-start` here reproduced only the
+  // top half of that inset, dumping the whole 2px height difference onto
+  // the bottom edge instead of splitting it evenly — visible live as the
+  // Специализация cell's text sitting noticeably higher than a real
+  // secondary-skill row's own text (measured: 0 top gap / 1.33 (of this
+  // row's own scale) bottom gap with flex-start, vs skill_desc_N's own
+  // ~0.67 / ~0.66 symmetric split). `center` reproduces that even split
+  // without needing to know either box's exact height up front, same as
+  // `flex-start` claimed to.
+  align-items: center;
   //
   // % of this flex row's own width, same "stay on the container's real
   // scale" reasoning as `.hero-paperdoll__secondary-skills-scroll`'s own

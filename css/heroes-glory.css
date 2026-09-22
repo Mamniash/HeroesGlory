@@ -1635,7 +1635,7 @@
 }
 .heroes-glory .hero-paperdoll__skill-cell {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1.4492753623%;
 }
 .heroes-glory .hero-paperdoll__slot--specialization {
