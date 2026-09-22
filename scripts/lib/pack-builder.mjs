@@ -283,6 +283,16 @@ export async function buildPack({ packName, documents }) {
     return { skipped: true, count: documents.length };
   }
 
+  // packs/ itself is gitignored (build output, not source — see
+  // build-packs.mjs's own header) and so doesn't exist yet in a fresh
+  // clone — neither does packs/_source/ even once packs/ exists, since
+  // that's a further nesting level. mkdtempSync needs the former as its
+  // parent directory, renameSync(scratchSource, sourceDir) below needs
+  // the latter as ITS parent (rename never creates intermediate dirs),
+  // so both are created up front rather than one at a time as each step
+  // turns out to need it.
+  fs.mkdirSync(path.join(ROOT, 'packs', '_source'), { recursive: true });
+
   // Stage everything in a scratch directory on the same volume as the
   // repo (so the final promotion below is a same-filesystem rename, not
   // a copy) before touching the real source/dest paths.
