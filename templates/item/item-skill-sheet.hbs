@@ -2,8 +2,18 @@
   <div class="grid grid-2col">
     <label class="item-sheet__field">
       <span class="item-sheet__label">{{localize 'HEROES_GLORY.Skill.Key'}}</span>
+      {{!-- blank must be a non-empty string (foundry.mjs's prepareSelectOptionGroups
+        only inserts the placeholder option when typeof config.blank ===
+        "string") — without it, a still-unset skillKey ("", the schema's
+        own default) matches no <option>, and the browser silently shows
+        the first real one (Нападение/assault) as if selected, with
+        nothing actually written until the dropdown is touched. A GM
+        judging by that visual state alone can walk away believing a
+        skill is recorded when system.skillKey is still "" — invisible to
+        every skillKey-keyed lookup (rollLevelUp's duplicate check
+        included). This placeholder makes "nothing chosen yet" honest. --}}
       <select name="system.skillKey">
-        {{selectOptions config.secondarySkills selected=system.skillKey localize=true}}
+        {{selectOptions config.secondarySkills selected=system.skillKey localize=true blank='HEROES_GLORY.Skill.KeyPlaceholder'}}
       </select>
     </label>
 
