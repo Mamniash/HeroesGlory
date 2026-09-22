@@ -321,3 +321,17 @@ HEROES_GLORY.statusEffects = {
   unconscious: 'hgUnconscious',
   incapacitated: 'hgIncapacitated',
 };
+
+/**
+ * Placeholder art shown instead of a spell's own icon when `item.img` is
+ * still Foundry's own default artwork (or blank) — i.e. nobody ever picked
+ * a real icon for that spell. hero-sheet.mjs's spellbook slot-building
+ * compares against `Item.implementation.getDefaultArtwork(...).img` to
+ * decide this, not a hardcoded path guess. assets/spells/spells_g00_f002.png
+ * (a hand holding a sphere) was picked specifically for not reading as any
+ * one real spell from rules.md — the book has no dedicated "unknown spell"
+ * art of its own. TEMPORARY: swap this for a real blank/unknown-spell icon
+ * whenever one exists; nothing else needs to change at the call site.
+ * @type {string}
+ */
+HEROES_GLORY.unknownSpellIcon = 'systems/heroes-glory/assets/spells/spells_g00_f002.png';
