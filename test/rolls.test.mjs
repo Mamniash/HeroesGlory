@@ -21,7 +21,15 @@ import {
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
   resolvePostBattleCheck,
+  resolvePrimarySkillRoll,
+  SECONDARY_SKILL_ROLL_ORDER,
+  LEVEL_UP_SKILL_20_BY_FACTION,
+  resolveSecondarySkillRoll,
+  nextTier,
+  secondarySkillSlotCount,
 } from '../module/helpers/rolls.mjs';
+import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK } from '../module/helpers/class-stats.mjs';
+import { HEROES_GLORY } from '../module/helpers/config.mjs';
 
 describe('resolveHit — §5.3 hit table', () => {
   const cases = [
@@ -353,5 +361,142 @@ describe('resolvePostBattleCheck — §5.9 the unaided post-battle survival roll
   test('recovery is 1 Health and 1 Mana, per the book', () => {
     assert.equal(POST_BATTLE_RECOVERY_HEALTH, 1);
     assert.equal(POST_BATTLE_RECOVERY_MANA, 1);
+  });
+});
+
+describe('resolvePrimarySkillRoll — §6.1 level-up primary-skill roll', () => {
+  test('knight: boundaries of each range resolve to the right skill', () => {
+    const ranges = PRIMARY_SKILL_ROLL_RANGES.knight;
+    assert.equal(resolvePrimarySkillRoll(1, ranges), 'attack');
+    assert.equal(resolvePrimarySkillRoll(6, ranges), 'attack');
+    assert.equal(resolvePrimarySkillRoll(7, ranges), 'defense');
+    assert.equal(resolvePrimarySkillRoll(14, ranges), 'defense');
+    assert.equal(resolvePrimarySkillRoll(15, ranges), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(17, ranges), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(18, ranges), 'knowledge');
+    assert.equal(resolvePrimarySkillRoll(20, ranges), 'knowledge');
+  });
+
+  test('warlock: corrected 5-12 magicPower range (book prints 4-12, overlapping defense)', () => {
+    const ranges = PRIMARY_SKILL_ROLL_RANGES.warlock;
+    assert.equal(resolvePrimarySkillRoll(4, ranges), 'defense');
+    assert.equal(resolvePrimarySkillRoll(5, ranges), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(12, ranges), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(13, ranges), 'knowledge');
+  });
+
+  test('fallback (class undetermined): equal quarters', () => {
+    assert.equal(resolvePrimarySkillRoll(1, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'attack');
+    assert.equal(resolvePrimarySkillRoll(5, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'attack');
+    assert.equal(resolvePrimarySkillRoll(6, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'defense');
+    assert.equal(resolvePrimarySkillRoll(10, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'defense');
+    assert.equal(resolvePrimarySkillRoll(11, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(15, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'magicPower');
+    assert.equal(resolvePrimarySkillRoll(16, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'knowledge');
+    assert.equal(resolvePrimarySkillRoll(20, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), 'knowledge');
+  });
+
+  test('rejects an out-of-range d20', () => {
+    assert.throws(() => resolvePrimarySkillRoll(0, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), RangeError);
+    assert.throws(() => resolvePrimarySkillRoll(21, PRIMARY_SKILL_ROLL_RANGES_FALLBACK), RangeError);
+  });
+
+  test('every PRIMARY_SKILL_ROLL_RANGES entry is contiguous 1-20 with no gaps/overlaps', () => {
+    for (const [classKey, ranges] of Object.entries(PRIMARY_SKILL_ROLL_RANGES)) {
+      let expectedMin = 1;
+      for (const { max } of ranges) {
+        assert.ok(max >= expectedMin, `${classKey}: range starting below ${expectedMin}`);
+        expectedMin = max + 1;
+      }
+      assert.equal(ranges.at(-1).max, 20, `${classKey}: last range must end at 20`);
+    }
+  });
+});
+
+describe('resolveSecondarySkillRoll — §6.2/§3 level-up secondary-skill roll', () => {
+  test('rolls 1-19 map to SECONDARY_SKILL_ROLL_ORDER, independent of faction', () => {
+    for (let d20 = 1; d20 <= 19; d20 += 1) {
+      assert.equal(resolveSecondarySkillRoll(d20, { faction: 'castle' }), SECONDARY_SKILL_ROLL_ORDER[d20]);
+      assert.equal(resolveSecondarySkillRoll(d20), SECONDARY_SKILL_ROLL_ORDER[d20]);
+    }
+  });
+
+  test('every SECONDARY_SKILL_ROLL_ORDER[1-19] key exists in CONFIG.HEROES_GLORY.secondarySkills', () => {
+    for (let d20 = 1; d20 <= 19; d20 += 1) {
+      assert.ok(SECONDARY_SKILL_ROLL_ORDER[d20] in HEROES_GLORY.secondarySkills);
+    }
+  });
+
+  test('roll of 20: necropolis gets necromancy, every other faction gets healing', () => {
+    assert.equal(resolveSecondarySkillRoll(20, { faction: 'necropolis' }), 'necromancy');
+    for (const faction of Object.keys(HEROES_GLORY.factions)) {
+      if (faction === 'necropolis') continue;
+      assert.equal(resolveSecondarySkillRoll(20, { faction }), 'healing');
+    }
+  });
+
+  test('roll of 20 with no/unknown faction falls back to healing', () => {
+    assert.equal(resolveSecondarySkillRoll(20, {}), 'healing');
+    assert.equal(resolveSecondarySkillRoll(20), 'healing');
+    assert.equal(resolveSecondarySkillRoll(20, { faction: 'not-a-faction' }), 'healing');
+  });
+
+  test('LEVEL_UP_SKILL_20_BY_FACTION covers all 10 factions', () => {
+    assert.deepEqual(Object.keys(LEVEL_UP_SKILL_20_BY_FACTION).sort(), Object.keys(HEROES_GLORY.factions).sort());
+  });
+
+  test('rejects an out-of-range d20', () => {
+    assert.throws(() => resolveSecondarySkillRoll(0), RangeError);
+    assert.throws(() => resolveSecondarySkillRoll(21), RangeError);
+  });
+});
+
+describe('nextTier — §3 skill tier progression', () => {
+  test('base -> advanced -> expert', () => {
+    assert.equal(nextTier('base'), 'advanced');
+    assert.equal(nextTier('advanced'), 'expert');
+  });
+
+  test('expert stays expert (clamped)', () => {
+    assert.equal(nextTier('expert'), 'expert');
+  });
+
+  test('unrecognized tier passes through unchanged', () => {
+    assert.equal(nextTier('not-a-tier'), 'not-a-tier');
+  });
+});
+
+describe('secondarySkillSlotCount — §3 стр.39 Экспертная Обучаемость slot cap', () => {
+  test('base count with no skills owned at all', () => {
+    assert.equal(secondarySkillSlotCount([], 8), 8);
+  });
+
+  test('base count with skills owned but no Обучаемость', () => {
+    const owned = [{ skillKey: 'assault', tier: 'expert' }, { skillKey: 'archery', tier: 'base' }];
+    assert.equal(secondarySkillSlotCount(owned, 8), 8);
+  });
+
+  test('base count with Обучаемость owned but not at expert tier', () => {
+    const owned = [{ skillKey: 'aptitude', tier: 'base' }];
+    assert.equal(secondarySkillSlotCount(owned, 8), 8);
+    const advanced = [{ skillKey: 'aptitude', tier: 'advanced' }];
+    assert.equal(secondarySkillSlotCount(advanced, 8), 8);
+  });
+
+  test('raised to 10 with Экспертная Обучаемость owned', () => {
+    const owned = [{ skillKey: 'assault', tier: 'base' }, { skillKey: 'aptitude', tier: 'expert' }];
+    assert.equal(secondarySkillSlotCount(owned, 8), 10);
+  });
+
+  test('lapsed case: 9-10 skills owned, expert Обучаемость no longer among them — falls back to base', () => {
+    const owned = [
+      { skillKey: 'assault', tier: 'expert' }, { skillKey: 'archery', tier: 'base' },
+      { skillKey: 'armor', tier: 'base' }, { skillKey: 'tactics', tier: 'base' },
+      { skillKey: 'luck', tier: 'base' }, { skillKey: 'pathfinding', tier: 'base' },
+      { skillKey: 'leadership', tier: 'base' }, { skillKey: 'diplomacy', tier: 'base' },
+      { skillKey: 'aptitude', tier: 'advanced' }, // owned, but not expert
+    ];
+    assert.equal(owned.length, 9);
+    assert.equal(secondarySkillSlotCount(owned, 8), 8);
   });
 });
