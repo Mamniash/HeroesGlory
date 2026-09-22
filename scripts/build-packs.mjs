@@ -12,6 +12,15 @@
  *   node scripts/build-packs.mjs weapons     # build just this one
  *   node scripts/build-packs.mjs weapons skills
  * (or: npm run build:packs [-- <names...>])
+ *
+ * packs/ itself (both packs/_source/<name>/*.json and the compiled
+ * packs/<name>/ LevelDB) is gitignored, not committed — it's this
+ * script's own output, reproducible from scripts/data/*.mjs, and Foundry
+ * rewrites LevelDB's own CURRENT/MANIFEST/*.log housekeeping files just
+ * by having a pack open, which kept the working tree dirty for no real
+ * content change. Run this only with Foundry fully closed (it holds
+ * packs/<name>/LOCK while running) — `npm install && npm run build:packs`
+ * regenerates all five packs from a fresh clone.
  */
 
 import { buildPack } from './lib/pack-builder.mjs';

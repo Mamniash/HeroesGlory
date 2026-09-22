@@ -4,7 +4,9 @@ node_modules/
 scripts/__pycache__/
 # Scratch output from scripts/book_recrop.py — not source, regenerate on demand.
 recrop_out/
-# Scratch dir a pack build stages into before the atomic rename into
-# packs/_source/<name> and packs/<name> (scripts/lib/pack-builder.mjs) —
-# only survives on disk if the process was killed mid-build.
-packs/.build-*/
+# Compiled compendiums (packs/_source/<name>/*.json + packs/<name>/ LevelDB)
+# — build output from scripts/data/*.mjs, not source; see build-packs.mjs's
+# own header for the build command. Foundry rewrites LevelDB's own
+# CURRENT/MANIFEST/*.log housekeeping files just by having a pack open,
+# which kept the working tree dirty for no real content change.
+packs/
