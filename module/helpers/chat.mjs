@@ -27,10 +27,9 @@ const expandedMessages = new Set();
  *   the real double-apply guard is the `confirmed` flag confirmAttackOutcome
  *   checks.
  * - The "another attack on this target is still unconfirmed" warning is
- *   GM-only and computed from this client's own chat log, not stored at
- *   roll time: the rolling player's client may not have a whispered
- *   GM-only card at all, while every attack card in every mode includes
- *   the GM as a recipient.
+ *   GM-only (it only matters for the confirm decision, and would otherwise
+ *   hint to players that a GM-private attack exists) and computed from the
+ *   GM's own chat log at render time, not stored at roll time.
  * - The details toggle (attack and spell cards only). Only the title
  *   carries it, so clicks on buttons inside the card never toggle.
  * @param {ChatMessage} message
