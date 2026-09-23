@@ -643,13 +643,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     context.specializationPickable = this.#canPickIdentity.specialization && specializationOptions.length > 0;
     context.specializationHighlight = context.specializationPickable && !specializationType;
 
-    // Was read by the now-removed <details> fallback's Spells list (raw,
-    // unsorted, with its own cast/delete/open buttons) — the spellbook
-    // overlay below builds its own sorted/paged/tooltip-ready shape
-    // instead of reusing this array. Still computed, not deleted, for
-    // when that fallback list's markup comes back in an edit-mode UI.
-    context.spells = this.actor.items.filter((i) => i.type === 'spell');
-
     // §6.1: possession is item-based — see the removed `hasSpellbook`
     // field's replacement note in docs/rules.md §8.2. Only the removed
     // <details> markup's Spells-list gate read this directly; still
