@@ -42,7 +42,7 @@ HEROES_GLORY.factions = {
  */
 HEROES_GLORY.classes = {
   knight: 'HEROES_GLORY.Class.Knight',               // Замок / Воин — Рыцарь
-  cleric: 'HEROES_GLORY.Class.Cleric',                // Замок / Волшебник — Клирик
+  cleric: 'HEROES_GLORY.Class.Cleric',                // Замок / Волшебник — Клерик
   ranger: 'HEROES_GLORY.Class.Ranger',                // Оплот / Воин — Следопыт
   druid: 'HEROES_GLORY.Class.Druid',                  // Оплот / Волшебник — Друид
   alchemist: 'HEROES_GLORY.Class.Alchemist',          // Башня / Воин — Алхимик

@@ -1237,7 +1237,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
   /**
    * If a faction is already chosen, the list shows that faction's concrete
-   * class names (e.g. Замок: "Рыцарь"/"Клирик") instead of the generic
+   * class names (e.g. Замок: "Рыцарь"/"Клерик") instead of the generic
    * "Воин"/"Волшебник" — the value actually written to the system is
    * always classType ("warrior"/"mage"), never the concrete class name.
    * @this {HeroesGloryHeroSheet}

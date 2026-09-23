@@ -69,7 +69,7 @@ describe('config.mjs classByFactionAndType — faction → concrete class integr
   // lang/ru.json's localized labels — catches a faction/class swapped
   // pair, which a plain set-equality check would miss.
   const EXPECTED = {
-    castle: ['Замок', 'Рыцарь', 'Клирик'],
+    castle: ['Замок', 'Рыцарь', 'Клерик'],
     stronghold: ['Оплот', 'Следопыт', 'Друид'],
     tower: ['Башня', 'Алхимик', 'Маг'],
     fortress: ['Крепость', 'Зверолов', 'Ведьма'],
