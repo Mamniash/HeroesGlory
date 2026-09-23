@@ -6,6 +6,7 @@ import {
   resolveDefeat,
   resolveDamage,
   resolvePotentialDamage,
+  epicTableHasContent,
   resolveEpicTableRow,
   resolveEpicSeverity,
   resolveHitLocation,
@@ -158,6 +159,70 @@ describe('resolvePotentialDamage — §5.3 damage shown when no target is select
   });
 });
 
+// §5.6/§4.3: roll-actions.mjs's buildAttackContext combines resolveHit and
+// resolveTargetStateMultiplier into one "effective hit" — `{ ...hit,
+// multiplier: hit.multiplier * stateMultiplier }` — BEFORE calling
+// resolveDamage, so only one floor() happens at the very end, not one per
+// multiplier. That combining line itself isn't exported (buildAttackContext
+// is private to roll-actions.mjs, a Foundry-facing file, so it can't be
+// imported here) — these tests reproduce it exactly against the three
+// pieces that ARE exported and pure, to pin down the book math end to end
+// (also verified live against real rollAttack() chat cards through an
+// actual enchanted-weapon artifact, not just a plain weapon — see the
+// combat-diagnosis task). If buildAttackContext's own combining line ever
+// diverges from this (e.g. summed instead of multiplied), these tests
+// won't catch that specific regression — only exporting that line itself
+// would. Recommended as a follow-up, not done here.
+describe('resolveDamage × resolveTargetStateMultiplier — §5.3/§5.6/§4.3 combined', () => {
+  function effectiveDamage(baseDamage, d6, state, { attackerAttack = 5, targetDefense = 5, defeatDie = null } = {}) {
+    // targetDefense: null means "no target selected" (matches rollAttack's
+    // own `targetActor?.system?.defense ?? null`) — resolveDefeat reads
+    // that as "unresolved", not as an invalid die.
+    const hit = resolveHit(d6);
+    const stateMultiplier = resolveTargetStateMultiplier(state);
+    const effectiveHit = { ...hit, multiplier: hit.multiplier * stateMultiplier };
+    const defeat = resolveDefeat({ attackerAttack, targetDefense, die: defeatDie });
+    return resolveDamage({ baseDamage, hit: effectiveHit, defeat });
+  }
+
+  test('plain hit, no target state: unaffected by the multiplier chain', () => {
+    assert.equal(effectiveDamage(12, 4, {}), 12); // x1 x1
+  });
+
+  test('Доспехи alone halves a plain hit', () => {
+    assert.equal(effectiveDamage(12, 4, { armorSpecialization: true }), 6); // x1 x0.5
+  });
+
+  test('epic (x2) against Доспехи nets back to x1 — same number as a plain hit elsewhere', () => {
+    assert.equal(effectiveDamage(12, 6, { armorSpecialization: true }), 12); // x2 x0.5
+  });
+
+  test('graze (x0.5) against Доспехи floors down, not just halves cleanly', () => {
+    assert.equal(effectiveDamage(5, 3, { armorSpecialization: true }), 1); // floor(5 * 0.5 * 0.5) = floor(1.25)
+  });
+
+  test('unconscious (x3) stacked with Доспехи (x0.5): x1.5, multiplicative not additive', () => {
+    assert.equal(effectiveDamage(12, 4, { unconscious: true, armorSpecialization: true }), 18);
+    // Sanity check against the additive alternative this test is meant to
+    // catch: x3 + x0.5 read as a combined x3.5 would give floor(12*3.5)=42.
+    assert.notEqual(effectiveDamage(12, 4, { unconscious: true, armorSpecialization: true }), 42);
+  });
+
+  test('miss (x0) short-circuits to 0 regardless of target state', () => {
+    assert.equal(effectiveDamage(999, 1, { unconscious: true }), 0);
+    assert.equal(effectiveDamage(999, 2, { armorSpecialization: true }), 0);
+  });
+
+  test('a failed defeat test zeroes damage even on an epic hit', () => {
+    // targetDefense(20) - attackerAttack(5) = 15 threshold; die 10 fails (10 is not > 15).
+    assert.equal(effectiveDamage(12, 6, {}, { targetDefense: 20, defeatDie: 10 }), 0);
+  });
+
+  test('no target selected (targetDefense null): unresolved, returns null even with a target state supplied', () => {
+    assert.equal(effectiveDamage(12, 6, { armorSpecialization: true }, { targetDefense: null }), null);
+  });
+});
+
 describe('resolveEpicTableRow — §5.4', () => {
   const table = ['a', 'b', 'c', 'd', 'e', 'f'];
 
@@ -170,6 +235,30 @@ describe('resolveEpicTableRow — §5.4', () => {
     assert.equal(resolveEpicTableRow(3, null), null);
     assert.equal(resolveEpicTableRow(3, undefined), null);
     assert.equal(resolveEpicTableRow(3, []), null);
+  });
+});
+
+describe('epicTableHasContent — §5.4/§8.1 real table vs an absent/blank one', () => {
+  test('a real 6-row table has content', () => {
+    assert.equal(epicTableHasContent(['a', 'b', 'c', 'd', 'e', 'f']), true);
+  });
+
+  test('null/undefined (e.g. a ranged weapon): no table at all', () => {
+    assert.equal(epicTableHasContent(null), false);
+    assert.equal(epicTableHasContent(undefined), false);
+  });
+
+  test('present but all-blank (e.g. an enchanted-weapon artifact — item-artifact.mjs keeps the same 6-string shape but the book\'s own table has no epic column for that type): not content', () => {
+    assert.equal(epicTableHasContent(['', '', '', '', '', '']), false);
+    assert.equal(epicTableHasContent([]), false);
+  });
+
+  test('one non-blank row among blanks still counts as content', () => {
+    assert.equal(epicTableHasContent(['', '', 'x', '', '', '']), true);
+  });
+
+  test('whitespace-only rows count as blank, not content', () => {
+    assert.equal(epicTableHasContent(['  ', '\t', '', '', '', '']), false);
   });
 });
 
