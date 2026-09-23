@@ -18,6 +18,12 @@
       color: $c-tan;
       font-style: italic;
     }
+
+    &--warning {
+      color: $c-dark;
+      font-weight: bold;
+      font-style: italic;
+    }
   }
 
   &__damage {
@@ -71,5 +77,38 @@
     &[hidden] {
       display: none;
     }
+  }
+
+  &__confirm-btn {
+    display: block;
+    margin-top: $padding-sm;
+    padding: 4px $padding-sm;
+    border: 1px solid $c-dark;
+    background: $c-white;
+    color: $c-dark;
+    font-family: $font-primary;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+
+    &:hover {
+      background: $c-dark;
+      color: $c-white;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  &__applied {
+    margin-top: $padding-sm;
+    font-weight: bold;
+    color: $c-tan;
   }
 }

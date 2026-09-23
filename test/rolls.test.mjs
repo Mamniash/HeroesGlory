@@ -26,6 +26,9 @@ import {
   resolveArmorZoneProtection,
   resolveArmorZoneMultiplier,
   resolveDestroyedArmor,
+  resolveLocationConsequenceType,
+  resolveAttackResolution,
+  canConfirmAttack,
   isIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -815,6 +818,134 @@ describe('resolveDestroyedArmor — §5.5 разрушение: уровень 4
       resolveDestroyedArmor(true, equipped, protectingLevel3),
       [{ name: 'Нагрудник L4', level: 4 }, protectingLevel3],
     );
+  });
+});
+
+describe('resolveLocationConsequenceType — §5.4/§5.5/§5.6/§task pure "what should confirm apply" decision', () => {
+  test('a protecting item suppresses the consequence regardless of location', () => {
+    const protecting = { name: 'Щит', level: 2 };
+    assert.deepEqual(resolveLocationConsequenceType('torso', protecting), { type: 'none' });
+    assert.deepEqual(resolveLocationConsequenceType('head', protecting), { type: 'none' });
+    assert.deepEqual(resolveLocationConsequenceType('leg', protecting), { type: 'none' });
+  });
+
+  test('torso, unprotected -> prone', () => {
+    assert.deepEqual(resolveLocationConsequenceType('torso', null), { type: 'prone' });
+  });
+
+  test('head, unprotected -> unconscious', () => {
+    assert.deepEqual(resolveLocationConsequenceType('head', null), { type: 'unconscious' });
+  });
+
+  test('leg, unprotected -> legEffect', () => {
+    assert.deepEqual(resolveLocationConsequenceType('leg', null), { type: 'legEffect' });
+  });
+
+  test('arm never has a mechanical consequence, protected or not', () => {
+    assert.deepEqual(resolveLocationConsequenceType('arm', null), { type: 'none' });
+    assert.deepEqual(resolveLocationConsequenceType('arm', { name: 'Наручи', level: 1 }), { type: 'none' });
+  });
+
+  test('no location at all (not epic, or not severe) -> none', () => {
+    assert.deepEqual(resolveLocationConsequenceType(null, null), { type: 'none' });
+  });
+});
+
+describe('resolveAttackResolution — §task shared pure "what this attack does", display and apply read the same result', () => {
+  test('plain hit, successful defeat, no armor, no target state: damage matches resolveDamage directly', () => {
+    const flags = {
+      hitDie: 4, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
+      stateMultiplier: 1, equippedArmor: [], baseDamage: 6, location: null,
+    };
+    const result = resolveAttackResolution(flags);
+    assert.equal(result.damage, 6);
+    assert.equal(result.damageKnown, true);
+    assert.deepEqual(result.consequence, { type: 'none' });
+    assert.equal(result.protectingItem, null);
+    assert.deepEqual(result.destroyedArmor, []);
+  });
+
+  test('a miss deals 0 damage and has no consequence, even with a rolled location', () => {
+    const flags = {
+      hitDie: 1, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
+      stateMultiplier: 1, equippedArmor: [], baseDamage: 6, location: null,
+    };
+    const result = resolveAttackResolution(flags);
+    assert.equal(result.damage, 0);
+    assert.deepEqual(result.consequence, { type: 'none' });
+  });
+
+  test('no target selected: damage unknown, potentialDamage still computed, no consequence', () => {
+    const flags = {
+      hitDie: 5, attackerAttack: 5, targetDefense: null, defeatDie: null,
+      stateMultiplier: 1, equippedArmor: [], baseDamage: 6, location: null,
+    };
+    const result = resolveAttackResolution(flags);
+    assert.equal(result.damageKnown, false);
+    assert.equal(result.damage, null);
+    assert.equal(result.potentialDamage, 12);
+    assert.deepEqual(result.consequence, { type: 'none' });
+  });
+
+  test('epic hit to the head, unprotected: consequence is unconscious, armor not reported as destroyed', () => {
+    const flags = {
+      hitDie: 6, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
+      stateMultiplier: 1, equippedArmor: [], baseDamage: 6, location: 'head',
+    };
+    const result = resolveAttackResolution(flags);
+    assert.deepEqual(result.consequence, { type: 'unconscious' });
+    assert.equal(result.protectingItem, null);
+    assert.deepEqual(result.destroyedArmor, []);
+  });
+
+  test('epic hit to the head, level-2 armor covering the head slot: zone multiplier halves damage, consequence suppressed, that piece is the one that breaks', () => {
+    const helmet = { name: 'Шлем', level: 2, targetSlots: [3] };
+    const flags = {
+      hitDie: 6, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
+      stateMultiplier: 1, equippedArmor: [helmet], baseDamage: 6, location: 'head',
+    };
+    const result = resolveAttackResolution(flags);
+    // hit multiplier for epic is 2 (§5.3), zone multiplier 0.5 (level 2) -> floor(6 * 2 * 0.5) = 6
+    assert.equal(result.damage, 6);
+    assert.deepEqual(result.consequence, { type: 'none' });
+    assert.deepEqual(result.protectingItem, helmet);
+    assert.deepEqual(result.destroyedArmor, [helmet]);
+  });
+
+  test('level 4-5 armor halves damage unconditionally, independent of location/zone', () => {
+    const plate = { name: 'Латы', level: 4, targetSlots: [] };
+    const flags = {
+      hitDie: 4, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
+      stateMultiplier: 1, equippedArmor: [plate], baseDamage: 10, location: null,
+    };
+    const result = resolveAttackResolution(flags);
+    assert.equal(result.armorItemMultiplier, 0.5);
+    assert.equal(result.damage, 5);
+  });
+});
+
+describe('canConfirmAttack — §task the confirm-button gate/double-apply guard', () => {
+  const baseFlags = { kind: 'attack', confirmed: false, targetActorId: 'actor1' };
+
+  test('a fresh, unconfirmed attack against a real target may be confirmed', () => {
+    assert.equal(canConfirmAttack(baseFlags), true);
+  });
+
+  test('already confirmed: refused', () => {
+    assert.equal(canConfirmAttack({ ...baseFlags, confirmed: true }), false);
+  });
+
+  test('no target selected at all: refused, nothing to apply', () => {
+    assert.equal(canConfirmAttack({ ...baseFlags, targetActorId: null }), false);
+  });
+
+  test('not an attack card at all: refused', () => {
+    assert.equal(canConfirmAttack({ ...baseFlags, kind: 'check' }), false);
+  });
+
+  test('missing/null flags: refused', () => {
+    assert.equal(canConfirmAttack(null), false);
+    assert.equal(canConfirmAttack(undefined), false);
   });
 });
 

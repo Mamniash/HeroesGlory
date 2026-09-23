@@ -2700,6 +2700,11 @@
   color: #444;
   font-style: italic;
 }
+.heroes-glory-chat-card__line--warning {
+  color: #191813;
+  font-weight: bold;
+  font-style: italic;
+}
 .heroes-glory-chat-card__damage {
   margin: 5px 0 2px;
   font-size: 13px;
@@ -2744,6 +2749,34 @@
 }
 .heroes-glory-chat-card__reroll-btn[hidden] {
   display: none;
+}
+.heroes-glory-chat-card__confirm-btn {
+  display: block;
+  margin-top: 5px;
+  padding: 4px 5px;
+  border: 1px solid #191813;
+  background: #fff;
+  color: #191813;
+  font-family: "Roboto", sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.heroes-glory-chat-card__confirm-btn:hover {
+  background: #191813;
+  color: #fff;
+}
+.heroes-glory-chat-card__confirm-btn[hidden] {
+  display: none;
+}
+.heroes-glory-chat-card__confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.heroes-glory-chat-card__applied {
+  margin-top: 5px;
+  font-weight: bold;
+  color: #444;
 }
 
 /* The price-list compendium's journal pages, same reasoning as chat-card above */

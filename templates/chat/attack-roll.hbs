@@ -11,6 +11,10 @@
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
   {{/if}}
 
+  {{#if hasUnconfirmedEarlier}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--warning">{{localize 'HEROES_GLORY.Roll.UnconfirmedWarning'}}</p>
+  {{/if}}
+
   <p class="heroes-glory-chat-card__line">
     {{#if hit.previousDie}}
       <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=hit.previousDie}}</s>
@@ -60,7 +64,11 @@
 
   <p class="heroes-glory-chat-card__damage">
     {{#if damageKnown}}
-      {{localize 'HEROES_GLORY.Roll.Damage' damage=damage}}
+      {{#if confirmed}}
+        {{localize 'HEROES_GLORY.Roll.DamageApplied' damage=damage}}
+      {{else}}
+        {{localize 'HEROES_GLORY.Roll.DamagePending' damage=damage}}
+      {{/if}}
     {{else}}
       {{localize 'HEROES_GLORY.Roll.DamagePotential' damage=potentialDamage}}
     {{/if}}
@@ -72,7 +80,11 @@
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicRetreat'}}</p>
       {{#if destroyedArmorNames}}
         <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
-          {{localize 'HEROES_GLORY.Roll.ArmorDestroyed' armor=destroyedArmorNames}}
+          {{#if confirmed}}
+            {{localize 'HEROES_GLORY.Roll.ArmorDestroyedApplied' armor=destroyedArmorNames}}
+          {{else}}
+            {{localize 'HEROES_GLORY.Roll.ArmorDestroyedPending' armor=destroyedArmorNames}}
+          {{/if}}
         </p>
       {{/if}}
       {{#if hasEpicTable}}
@@ -96,5 +108,14 @@
         {{/if}}
       {{/if}}
     </div>
+  {{/if}}
+
+  {{#if canConfirm}}
+    <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-confirm-attack"
+      title="{{localize 'HEROES_GLORY.Roll.ConfirmHint'}}">
+      {{localize 'HEROES_GLORY.Roll.ConfirmButton'}}
+    </button>
+  {{else if confirmed}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">{{localize 'HEROES_GLORY.Roll.Applied'}}</p>
   {{/if}}
 </div>

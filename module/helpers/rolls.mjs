@@ -477,6 +477,87 @@ export function resolveDestroyedArmor(epic, equippedArmor, protectingItem) {
 }
 
 /**
+ * §5.4/§5.5/§5.6/§task: which mechanical consequence a severe epic hit's
+ * "Куда попал" result should cause on the target — the pure decision half
+ * of what used to be `applyLocationConsequence` (roll-actions.mjs), split
+ * out so the GM-confirm step (which now owns the actual Foundry mutation)
+ * has nothing left to decide, only to execute. A zone-matching level 1-3
+ * armor piece (`protectingItem`, {@link resolveArmorZoneProtection})
+ * suppresses the consequence entirely, same as before — "кроме урона",
+ * handled separately by {@link resolveArmorZoneMultiplier}. No `'arm'`
+ * case: a hit to the arm never had a mechanical effect (chat-text-only,
+ * "роняет предмет" — never touched inventory), so it falls through to
+ * `'none'` same as an unprotected arm always did.
+ * @param {string|null} location   A resolveHitLocation result, or null.
+ * @param {{name:string, level:number}|null} protectingItem   Result of
+ *   {@link resolveArmorZoneProtection}.
+ * @returns {{type: 'none'|'prone'|'unconscious'|'legEffect'}}
+ */
+export function resolveLocationConsequenceType(location, protectingItem) {
+  if (protectingItem) return { type: 'none' };
+  if (location === 'torso') return { type: 'prone' };
+  if (location === 'head') return { type: 'unconscious' };
+  if (location === 'leg') return { type: 'legEffect' };
+  return { type: 'none' };
+}
+
+/**
+ * §5.3/§5.4/§5.5/§5.6/§task: everything about an attack's outcome,
+ * resolved once from the frozen `reroll` flag snapshot a chat message
+ * carries — the single source both the card's display (buildAttackContext,
+ * roll-actions.mjs) and the GM-confirm step's actual application
+ * (confirmAttackOutcome, same file) read, so what the GM sees on the card
+ * and what gets applied to the target on confirm can never diverge. Pure
+ * — no Foundry calls, independently testable, unlike the two callers
+ * above which are Foundry-facing and only verified live.
+ * @param {object} flags   Same shape rollAttack/rerollAttackDie persist.
+ * @returns {{
+ *   hit: {die:number, key:string, multiplier:number, epic:boolean},
+ *   defeat: {known:boolean, auto:boolean, threshold:number|null, die:number|null, success:boolean|null},
+ *   damage: number|null, damageKnown: boolean, potentialDamage: number,
+ *   armorItemMultiplier: number, armorZoneMultiplier: number,
+ *   protectingItem: {name:string, level:number}|null,
+ *   destroyedArmor: Array<{name:string, level:number}>,
+ *   consequence: {type: 'none'|'prone'|'unconscious'|'legEffect'},
+ * }}
+ */
+export function resolveAttackResolution(flags) {
+  const hit = resolveHit(flags.hitDie);
+  const defeat = resolveDefeat({
+    attackerAttack: flags.attackerAttack,
+    targetDefense: flags.targetDefense,
+    die: flags.defeatDie,
+  });
+  const equippedArmor = flags.equippedArmor ?? [];
+  const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
+  const protectingItem = resolveArmorZoneProtection(flags.location, equippedArmor);
+  const armorZoneMultiplier = resolveArmorZoneMultiplier(protectingItem);
+  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier * armorZoneMultiplier);
+  const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
+  const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
+  const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor, protectingItem);
+  const consequence = resolveLocationConsequenceType(flags.location, protectingItem);
+  return {
+    hit, defeat, damage, damageKnown: damage !== null, potentialDamage,
+    armorItemMultiplier, armorZoneMultiplier, protectingItem, destroyedArmor, consequence,
+  };
+}
+
+/**
+ * §task: whether an attack card's proposed outcome may still be applied —
+ * `false` once already confirmed (the double-apply guard: checked first
+ * in confirmAttackOutcome, before any Foundry mutation), and `false` when
+ * there was never a real target to apply anything to in the first place
+ * (no confirm button renders at all in that case — see buildAttackContext
+ * reading this same function for its own `canConfirm` field).
+ * @param {object|null|undefined} flags
+ * @returns {boolean}
+ */
+export function canConfirmAttack(flags) {
+  return !!flags && flags.kind === 'attack' && !flags.confirmed && flags.targetActorId != null;
+}
+
+/**
  * §5.9: "ОЗ ≤ 0 → недееспособен до конца боя."
  * @param {number} healthValue
  * @returns {boolean}

@@ -6,9 +6,6 @@
  */
 import {
   resolveHit,
-  resolveDefeat,
-  resolveDamage,
-  resolvePotentialDamage,
   resolveEpicTableRow,
   epicTableHasContent,
   planEpicCascade,
@@ -25,11 +22,8 @@ import {
   moraleAttemptsRemaining,
   resolveMoraleCheck,
   resolveTargetStateMultiplier,
-  combineHitAndState,
-  resolveArmorItemMultiplier,
-  resolveArmorZoneProtection,
-  resolveArmorZoneMultiplier,
-  resolveDestroyedArmor,
+  resolveAttackResolution,
+  canConfirmAttack,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -74,24 +68,39 @@ const HIT_LABELS = {
   epic: 'HEROES_GLORY.Roll.Hit.Epic',
 };
 
-// §5.5: protectedKey — the "доспех защищает" phrasing shown instead of
-// effectKey when resolveArmorZoneProtection (rolls.mjs) found a level
-// 1-3 piece covering this location. No entry for `arm` — never
-// protectable at all (rolls.mjs's own LOCATION_TO_SLOT has no `arm` key
-// either, same underlying reason: no armor ever targets a forearm slot).
+// §5.5/§task: Pending/Applied pairs — the card must say "will happen" before
+// the GM confirms and "happened" after (§task: only lines describing
+// not-yet-applied state move to future tense; the roll-fact lines above
+// this block, like HitResult/DefeatThreshold, stay as-is). No protected*
+// entry for `arm` — never protectable at all (rolls.mjs's own
+// LOCATION_TO_SLOT has no `arm` key either, same underlying reason: no
+// armor ever targets a forearm slot).
 const LOCATION_LABELS = {
   leg: {
-    labelKey: 'HEROES_GLORY.Roll.Location.Leg', effectKey: 'HEROES_GLORY.Roll.Location.LegEffect',
-    protectedKey: 'HEROES_GLORY.Roll.Location.LegProtected',
+    labelKey: 'HEROES_GLORY.Roll.Location.Leg',
+    effectKeyPending: 'HEROES_GLORY.Roll.Location.LegEffectPending',
+    effectKeyApplied: 'HEROES_GLORY.Roll.Location.LegEffectApplied',
+    protectedKeyPending: 'HEROES_GLORY.Roll.Location.LegProtectedPending',
+    protectedKeyApplied: 'HEROES_GLORY.Roll.Location.LegProtectedApplied',
   },
-  arm: { labelKey: 'HEROES_GLORY.Roll.Location.Arm', effectKey: 'HEROES_GLORY.Roll.Location.ArmEffect' },
+  arm: {
+    labelKey: 'HEROES_GLORY.Roll.Location.Arm',
+    effectKeyPending: 'HEROES_GLORY.Roll.Location.ArmEffectPending',
+    effectKeyApplied: 'HEROES_GLORY.Roll.Location.ArmEffectApplied',
+  },
   torso: {
-    labelKey: 'HEROES_GLORY.Roll.Location.Torso', effectKey: 'HEROES_GLORY.Roll.Location.TorsoEffect',
-    protectedKey: 'HEROES_GLORY.Roll.Location.TorsoProtected',
+    labelKey: 'HEROES_GLORY.Roll.Location.Torso',
+    effectKeyPending: 'HEROES_GLORY.Roll.Location.TorsoEffectPending',
+    effectKeyApplied: 'HEROES_GLORY.Roll.Location.TorsoEffectApplied',
+    protectedKeyPending: 'HEROES_GLORY.Roll.Location.TorsoProtectedPending',
+    protectedKeyApplied: 'HEROES_GLORY.Roll.Location.TorsoProtectedApplied',
   },
   head: {
-    labelKey: 'HEROES_GLORY.Roll.Location.Head', effectKey: 'HEROES_GLORY.Roll.Location.HeadEffect',
-    protectedKey: 'HEROES_GLORY.Roll.Location.HeadProtected',
+    labelKey: 'HEROES_GLORY.Roll.Location.Head',
+    effectKeyPending: 'HEROES_GLORY.Roll.Location.HeadEffectPending',
+    effectKeyApplied: 'HEROES_GLORY.Roll.Location.HeadEffectApplied',
+    protectedKeyPending: 'HEROES_GLORY.Roll.Location.HeadProtectedPending',
+    protectedKeyApplied: 'HEROES_GLORY.Roll.Location.HeadProtectedApplied',
   },
 };
 
@@ -141,55 +150,6 @@ async function rollEpicCascade(hit, epicTable, legendary) {
 }
 
 /**
- * §5.4/§5.5/§5.6: the mechanical half of a severe epic hit's "Куда
- * попал" result — OR, if a level 1-3 armor piece covers this location
- * (resolveArmorZoneProtection, rolls.mjs), suppression of it instead
- * (§5.5: "Дает возможность избежать негативных последствий... кроме
- * урона" — damage is handled separately in buildAttackContext via
- * resolveArmorZoneMultiplier, never here). The ONE shared call both
- * rollAttack's initial roll and rerollAttackDie's hit-reroll branch
- * make — neither computes this independently, so they can't drift
- * apart on what counts as protected.
- *
- * Торс and голова toggle the same real, iconed statuses a GM could
- * otherwise apply by hand from the token HUD. Нога gets a real -1
- * Speed ActiveEffect, built the same way an artifact's structured
- * modifier would be (see modifiers.mjs) — it persists "до излечения"
- * rather than clearing when the battle ends, so unlike prone/
- * unconscious it isn't touched by combat.mjs's combat-end cleanup, and
- * stacks if the same leg (or the other one) gets hit again since the
- * book gives no rule against that. Рука stays chat-text-only — the
- * existing template already shows that message, and the task
- * explicitly scopes it to "не трогаем инвентарь" — also never
- * protectable (resolveArmorZoneProtection returns null for it always,
- * no armor ever targets a forearm slot), so this function is never even
- * asked to suppress it.
- * @param {Actor} targetActor
- * @param {string|null} location   'leg' | 'arm' | 'torso' | 'head' | null.
- * @param {Array<{name:string, level:number, targetSlots:number[]}>} equippedArmor
- * @returns {Promise<{name:string, level:number}|null>}   The protecting
- *   armor piece if the consequence was suppressed, else null (also null
- *   when location is null/'arm', or nothing on that slot qualifies).
- */
-async function applyLocationConsequence(targetActor, location, equippedArmor) {
-  const protectingItem = resolveArmorZoneProtection(location, equippedArmor);
-  if (protectingItem) return protectingItem;
-
-  if (location === 'torso') {
-    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.prone, { active: true });
-  } else if (location === 'head') {
-    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.unconscious, { active: true });
-  } else if (location === 'leg') {
-    await targetActor.createEmbeddedDocuments('ActiveEffect', [{
-      name: game.i18n.localize('HEROES_GLORY.Roll.Location.LegEffect'),
-      img: 'icons/svg/downgrade.svg',
-      system: { changes: buildEffectChanges([{ stat: 'speed', mode: 'subtract', value: 1 }]) },
-    }]);
-  }
-  return null;
-}
-
-/**
  * §5.9: an attack against an incapacitated target needs no dice at all —
  * it's an automatic, permanent kill — so it's gated behind an explicit
  * confirmation instead of resolving on the same click every other
@@ -234,45 +194,26 @@ async function killIncapacitatedTarget(actor, targetActor) {
  * @returns {object}   Context for templates/chat/attack-roll.hbs.
  */
 function buildAttackContext(actor, flags) {
-  const hit = resolveHit(flags.hitDie);
-  const defeat = resolveDefeat({
-    attackerAttack: flags.attackerAttack,
-    targetDefense: flags.targetDefense,
-    die: flags.defeatDie,
-  });
+  const {
+    hit, defeat, damage, damageKnown, potentialDamage,
+    armorItemMultiplier, armorZoneMultiplier, protectingItem, destroyedArmor,
+  } = resolveAttackResolution(flags);
   const equippedArmor = flags.equippedArmor ?? [];
-  // §5.5: doспех 4-5 уровня halves damage unconditionally (docs/rules.md
-  // §11 — a deliberate departure from "по защищённой части тела" for
-  // level 4, see resolveArmorItemMultiplier's own comment) — recomputed
-  // fresh here every time, like hit/defeat/effectiveHit themselves,
-  // from the equipped-armor snapshot frozen into flags at roll time
-  // (target's own gear doesn't change mid-resolution, so no separate
-  // freezing of the multiplier itself is needed).
-  const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
-  // §5.5 (уровни 1-3): pure and deterministic over already-frozen
-  // flags.location/equippedArmor, so recomputing it here gives the exact
-  // same answer applyLocationConsequence already acted on during the
-  // real roll — no second, possibly-diverging decision, just a cheap
-  // re-derivation for display, same pattern as armorItemMultiplier above.
-  const protectingItem = resolveArmorZoneProtection(flags.location, equippedArmor);
-  const armorZoneMultiplier = resolveArmorZoneMultiplier(protectingItem);
-  // §5.6: the target's prone/unconscious state, an equipped 4-5-level
-  // armor item, and a zone-matching 1-3-level armor item all multiply
-  // damage on top of the d6 hit-table multiplier — folded into a
-  // combined "effective hit" so resolveDamage/resolvePotentialDamage
-  // need no changes at all. The two armor multipliers are combined into
-  // one number here (not a 4th parameter on combineHitAndState) — floor
-  // still happens exactly once, at the very end, in resolveDamage.
-  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier * armorZoneMultiplier);
-  const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
-  const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
-  // §5.5: uses `hit.epic`, not flags.severe — level-4 armor breaks on
-  // ANY epic hit; a level 1-3 piece breaks only if it's the one
-  // protectingItem found (see resolveDestroyedArmor's own comment for
-  // why those two conditions differ). Unlike severe/location this isn't
-  // frozen in flags, it's derived fresh from the hit die every time,
-  // exactly like armorItemMultiplier above.
-  const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor, protectingItem);
+  const confirmed = !!flags.confirmed;
+
+  let location = null;
+  if (flags.location) {
+    const labels = LOCATION_LABELS[flags.location];
+    const protectingArmorName = protectingItem?.name ?? null;
+    location = {
+      labelKey: labels.labelKey,
+      effectKey: confirmed ? labels.effectKeyApplied : labels.effectKeyPending,
+      protectedKey: protectingArmorName
+        ? (confirmed ? labels.protectedKeyApplied : labels.protectedKeyPending)
+        : null,
+      protectingArmorName,
+    };
+  }
 
   return {
     attackerName: actor.name,
@@ -293,18 +234,48 @@ function buildAttackContext(actor, flags) {
       : equippedArmor.filter((item) => item.level >= 4).map((item) => item.name).join(', '),
     destroyedArmorNames: destroyedArmor.map((item) => item.name).join(', '),
     damage,
-    damageKnown: damage !== null,
+    damageKnown,
     potentialDamage,
     hasEpicTable: flags.hasEpicTable,
     epicRow: flags.epicRow,
     severe: flags.severe,
     // §5.5: protectingArmorName lets the template swap effectKey's
-    // normal text ("Цель теряет сознание") for protectedKey's
-    // ("Доспех («{armor}») защищает от потери сознания") — the
-    // approved "видно и куда попали, и почему эффекта не было" phrasing.
-    location: flags.location ? { ...LOCATION_LABELS[flags.location], protectingArmorName: protectingItem?.name ?? null } : null,
+    // normal text for protectedKey's "Доспех защитит/защитил от X" — the
+    // approved "видно и куда попали, и почему эффекта не было" phrasing,
+    // now in Pending/Applied tense per `confirmed` (§task).
+    location,
     actorId: actor.id,
+    // §task: canConfirm mirrors confirmAttackOutcome's own gate
+    // (canConfirmAttack, rolls.mjs) so the confirm button never shows
+    // when clicking it would be a no-op anyway (no real target selected,
+    // or already confirmed).
+    targetActorId: flags.targetActorId,
+    confirmed,
+    canConfirm: canConfirmAttack(flags),
+    hasUnconfirmedEarlier: !!flags.hasUnconfirmedEarlier,
   };
+}
+
+/**
+ * §task: whether another still-unconfirmed attack card already targets
+ * this actor — used to warn the GM on a fresh card that confirming it
+ * relies on the target's last-CONFIRMED state, which may already be
+ * stale if an earlier, still-pending attack against the same target gets
+ * confirmed later (each card's stateMultiplier/equippedArmor snapshot is
+ * frozen at ITS OWN roll time, not re-read at confirm time — see
+ * buildAttackContext/resolveAttackResolution). Scans `game.messages`
+ * rather than tracking a running count anywhere: chat history is already
+ * the authoritative record of what's pending, and this only needs to run
+ * once, when a new card is created.
+ * @param {string|null} targetActorId
+ * @returns {boolean}
+ */
+function hasUnconfirmedAttackAgainst(targetActorId) {
+  if (!targetActorId) return false;
+  return game.messages.some((m) => {
+    const flags = m.getFlag(FLAG_SCOPE, 'reroll');
+    return flags?.kind === 'attack' && flags.targetActorId === targetActorId && !flags.confirmed;
+  });
 }
 
 /**
@@ -341,10 +312,11 @@ export async function rollAttack(actor, weapon = null) {
   const legendary = weapon ? false : !!actor.system.legendary;
   const targetDefense = targetActor?.system?.defense ?? null;
 
-  // §5.6/§4.3: captured before this attack can itself apply a new state
-  // to the target (see applyLocationConsequence below) — reflects what
-  // the target was going into the attack, not a state this same hit
-  // causes. armorSpecialization reads the TARGET's own specialization
+  // §5.6/§4.3: captured before this attack's consequence is even decided
+  // (§task: no longer applied until the GM confirms — see
+  // confirmAttackOutcome below) — reflects what the target was going into
+  // the attack, not a state this same hit causes. armorSpecialization
+  // reads the TARGET's own specialization
   // (Доспехи halves damage the specialized hero TAKES, not deals).
   const stateMultiplier = resolveTargetStateMultiplier({
     prone: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.prone) ?? false,
@@ -375,7 +347,6 @@ export async function rollAttack(actor, weapon = null) {
   const defeatDie = targetActor ? mainRoll.dice[1].total : null;
   const hit = resolveHit(hitDie);
   const epicCascade = await rollEpicCascade(hit, epicTable, legendary);
-  if (targetActor) await applyLocationConsequence(targetActor, epicCascade.location, equippedArmor);
 
   const flags = {
     kind: 'attack',
@@ -398,6 +369,15 @@ export async function rollAttack(actor, weapon = null) {
     epicRow: epicCascade.epicRow,
     severe: epicCascade.severe,
     location: epicCascade.location,
+    // §task: nothing is applied to the target until the GM clicks
+    // confirm on the card — see confirmAttackOutcome below.
+    confirmed: false,
+    // §task: computed once, before this message exists in game.messages,
+    // so it can only ever see EARLIER unconfirmed cards, never itself.
+    // Carried through in flags rather than recomputed on every re-render
+    // — the set of other cards doesn't change from a reroll or confirm
+    // of THIS card.
+    hasUnconfirmedEarlier: hasUnconfirmedAttackAgainst(targetActor?.id ?? null),
   };
 
   const content = await foundry.applications.handlebars.renderTemplate(
@@ -426,6 +406,9 @@ export async function rollAttack(actor, weapon = null) {
 export async function rerollAttackDie(message, slot) {
   const flags = message.getFlag(FLAG_SCOPE, 'reroll');
   if (!flags || flags.kind !== 'attack') return;
+  // §task: "Реролл после подтверждения запрещаем" — belt-and-suspenders
+  // alongside the button being hidden/removed once confirmed (chat.mjs).
+  if (flags.confirmed) return;
 
   const actor = game.actors.get(flags.actorId);
   if (!actor) return;
@@ -446,17 +429,10 @@ export async function rerollAttackDie(message, slot) {
     nextFlags.severe = cascade.severe;
     nextFlags.location = cascade.location;
     extraRolls = [die, ...cascade.rolls];
-
-    // The hit die is what decides the epic cascade, so a hit reroll can
-    // produce a brand-new "Куда попал" result — apply its consequence
-    // the same way the initial roll would have. The previous cascade's
-    // consequence (if any) is intentionally left in place rather than
-    // reverted: a prone/unconscious toggle can't tell "caused by this
-    // attack" apart from "already true for some other reason", so
-    // undoing it here could clear a state the target had before this
-    // attack even started.
-    const targetActor = flags.targetActorId ? game.actors.get(flags.targetActorId) : null;
-    if (targetActor) await applyLocationConsequence(targetActor, nextFlags.location, flags.equippedArmor ?? []);
+    // §task: the consequence itself isn't applied until confirm any more
+    // — a hit reroll before that just recomputes what WOULD be applied
+    // (buildAttackContext, via resolveAttackResolution), nothing to
+    // (un)do to the target here.
   } else if (slot === 'defeat') {
     if (flags.defeatDie == null) return;
     const die = new Roll('1d20');
@@ -480,6 +456,74 @@ export async function rerollAttackDie(message, slot) {
     rolls: [...message.rolls, ...extraRolls],
     flags: { [FLAG_SCOPE]: { reroll: nextFlags } },
   });
+}
+
+/**
+ * §5.3/§5.4/§5.5/§5.6/§task: apply an already-rolled attack's damage and
+ * "Куда попал" consequence to the target — the GM-only action gated
+ * behind the card's confirm button (module/helpers/chat.mjs). What to
+ * apply is decided once, purely, by {@link resolveAttackResolution}
+ * (rolls.mjs) — the exact same call buildAttackContext already makes for
+ * display — so this function only executes that decision against the
+ * real target Actor and marks the card confirmed.
+ *
+ * §5.9: health is written as a plain subtraction, not clamped to 0 here —
+ * `system.health.value`'s own schema (`min: 0`, actor-hero.mjs/
+ * actor-creature.mjs) already clamps any negative result during Foundry's
+ * normal document-cleaning step, identically whether the write comes from
+ * this call or a manual sheet edit, so a second clamp here would be dead
+ * code. That same schema-level write is also what `_onUpdate`'s own
+ * "недееспособен" toggle (documents/actor.mjs) reacts to — it watches
+ * `changed.system.health.value`, not the *source* of the change, so it
+ * fires the same way for this automated write as for a manual one.
+ *
+ * Idempotent via the `confirmed` flag — {@link canConfirmAttack} (rolls.mjs)
+ * refuses a second call on an already-confirmed card outright, so a stray
+ * double-click that slipped through before its button was disabled/
+ * removed (or a click from an old already-confirmed card reopened in
+ * another tab) is a silent no-op, not a re-apply. This guard is NOT
+ * airtight against two genuinely simultaneous clicks from two separate GM
+ * clients (both could read `confirmed: false` before either write lands)
+ * — accepted as sufficient for a single-GM table, same call already made
+ * for the reroll-Удача guard this feature's diagnosis discussed.
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage|void>}
+ */
+export async function confirmAttackOutcome(message) {
+  const flags = message.getFlag(FLAG_SCOPE, 'reroll');
+  if (!canConfirmAttack(flags)) return;
+
+  const targetActor = game.actors.get(flags.targetActorId);
+  if (!targetActor) {
+    ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: flags.targetName ?? '' }));
+    return;
+  }
+
+  const { damage, consequence } = resolveAttackResolution(flags);
+
+  if (damage) {
+    await targetActor.update({ 'system.health.value': targetActor.system.health.value - damage });
+  }
+  if (consequence.type === 'prone') {
+    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.prone, { active: true });
+  } else if (consequence.type === 'unconscious') {
+    await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.unconscious, { active: true });
+  } else if (consequence.type === 'legEffect') {
+    await targetActor.createEmbeddedDocuments('ActiveEffect', [{
+      name: game.i18n.localize('HEROES_GLORY.Roll.Location.LegEffect'),
+      img: 'icons/svg/downgrade.svg',
+      system: { changes: buildEffectChanges([{ stat: 'speed', mode: 'subtract', value: 1 }]) },
+    }]);
+  }
+
+  const actor = game.actors.get(flags.actorId);
+  const nextFlags = { ...flags, confirmed: true };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/attack-roll.hbs',
+    buildAttackContext(actor, nextFlags),
+  );
+
+  return message.update({ content, flags: { [FLAG_SCOPE]: { reroll: nextFlags } } });
 }
 
 /**
