@@ -64,16 +64,16 @@
         {{#if epicRow}}
           <p class="heroes-glory-chat-card__line">{{epicRow}}</p>
         {{/if}}
-        {{#if severe}}
-          <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>
-          {{#if location}}
-            <p class="heroes-glory-chat-card__line">
-              {{localize location.labelKey}} — {{localize location.effectKey}}
-            </p>
-          {{/if}}
-        {{/if}}
       {{else}}
         <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicNoTable'}}</p>
+      {{/if}}
+      {{#if severe}}
+        <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>
+        {{#if location}}
+          <p class="heroes-glory-chat-card__line">
+            {{localize location.labelKey}} — {{localize location.effectKey}}
+          </p>
+        {{/if}}
       {{/if}}
     </div>
   {{/if}}

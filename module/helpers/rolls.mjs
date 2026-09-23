@@ -127,6 +127,28 @@ export function epicTableHasContent(table) {
 }
 
 /**
+ * §5.4: which of the epic cascade's two independent d6 rolls should even
+ * happen. The book ties only the flavor-text table roll to the weapon
+ * having a table — "Для стрелковых атак эпик-таблицы не предусмотрены"
+ * sits specifically in the "Таблица эпик-попаданий" paragraph (confirmed
+ * against the p.34 flowchart, where "(кроме стрелкового)" labels only the
+ * "Описание «как попал»" box, not the severity test or "Куда попал").
+ * The severity re-roll and, if severe, the "Куда попал" location roll are
+ * not gated by table presence at all — they happen on any epic hit,
+ * ranged or melee, table or no table.
+ * @param {{epic: boolean}} hit          Result of {@link resolveHit}.
+ * @param {string[]|null} epicTable      Already resolved via {@link epicTableHasContent}
+ *                                       (null if absent/blank).
+ * @returns {{rollFlavor: boolean, rollSeverity: boolean}}
+ */
+export function planEpicCascade(hit, epicTable) {
+  return {
+    rollFlavor: !!(hit.epic && epicTable),
+    rollSeverity: !!hit.epic,
+  };
+}
+
+/**
  * §5.4/§5.7: whether the repeated d6 counts as "существенное повреждение".
  * Normally needs a 6; a legendary creature's epic triggers it on a 4+.
  * @param {number} d6

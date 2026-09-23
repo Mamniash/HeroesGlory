@@ -11,6 +11,7 @@ import {
   resolvePotentialDamage,
   resolveEpicTableRow,
   epicTableHasContent,
+  planEpicCascade,
   resolveEpicSeverity,
   resolveHitLocation,
   SCHOOL_SKILL_KEYS,
@@ -75,12 +76,13 @@ const LOCATION_LABELS = {
 };
 
 /**
- * §5.4: epic cascade — table row, then a repeat d6 for severity, then
- * (only if severe) the "Куда попал" location roll. Each step depends on
- * the previous result, so these can't be folded into one Roll. Re-run
- * wholesale (fresh dice) whenever the *hit* die changes, since the hit
- * die is what decides whether an epic even happened — a reroll of the
- * *defeat* die never touches this.
+ * §5.4: epic cascade — flavor-table row (only if a table exists), then a
+ * repeat d6 for severity (any epic hit, table or not — see
+ * {@link planEpicCascade}), then (only if severe) the "Куда попал"
+ * location roll. Each step depends on the previous result, so these
+ * can't be folded into one Roll. Re-run wholesale (fresh dice) whenever
+ * the *hit* die changes, since the hit die is what decides whether an
+ * epic even happened — a reroll of the *defeat* die never touches this.
  * @param {{epic: boolean}} hit
  * @param {string[]|null} epicTable
  * @param {boolean} legendary
@@ -92,12 +94,16 @@ async function rollEpicCascade(hit, epicTable, legendary) {
   let severe = false;
   let location = null;
 
-  if (hit.epic && epicTable) {
+  const { rollFlavor, rollSeverity } = planEpicCascade(hit, epicTable);
+
+  if (rollFlavor) {
     const tableRoll = new Roll('1d6');
     await tableRoll.evaluate();
     rolls.push(tableRoll);
     epicRow = resolveEpicTableRow(tableRoll.dice[0].total, epicTable);
+  }
 
+  if (rollSeverity) {
     const severityRoll = new Roll('1d6');
     await severityRoll.evaluate();
     rolls.push(severityRoll);

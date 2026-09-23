@@ -7,6 +7,7 @@ import {
   resolveDamage,
   resolvePotentialDamage,
   epicTableHasContent,
+  planEpicCascade,
   resolveEpicTableRow,
   resolveEpicSeverity,
   resolveHitLocation,
@@ -280,6 +281,44 @@ describe('epicTableHasContent — §5.4/§8.1 real table vs an absent/blank one'
 
   test('whitespace-only rows count as blank, not content', () => {
     assert.equal(epicTableHasContent(['  ', '\t', '', '', '', '']), false);
+  });
+});
+
+// §5.4: confirmed against the book (p.29-30) and the p.34 flowchart —
+// "Для стрелковых атак эпик-таблицы не предусмотрены" scopes to the
+// flavor-text table roll only. The severity re-roll and "Куда попал" are
+// not gated by table presence: they happen on any epic hit.
+describe('planEpicCascade — §5.4 which epic-cascade rolls should happen', () => {
+  test('epic hit with a table: rolls both flavor and severity', () => {
+    const hit = resolveHit(6);
+    assert.deepEqual(planEpicCascade(hit, ['a', 'b', 'c', 'd', 'e', 'f']), {
+      rollFlavor: true,
+      rollSeverity: true,
+    });
+  });
+
+  test('epic hit without a table (ranged, or an enchanted weapon with a blank one): flavor skipped, severity still rolled', () => {
+    const hit = resolveHit(6);
+    assert.deepEqual(planEpicCascade(hit, null), {
+      rollFlavor: false,
+      rollSeverity: true,
+    });
+  });
+
+  test('non-epic hit: neither roll happens, even with a table present', () => {
+    const hit = resolveHit(4);
+    assert.deepEqual(planEpicCascade(hit, ['a', 'b', 'c', 'd', 'e', 'f']), {
+      rollFlavor: false,
+      rollSeverity: false,
+    });
+  });
+
+  test('non-epic hit without a table: neither roll happens', () => {
+    const hit = resolveHit(1);
+    assert.deepEqual(planEpicCascade(hit, null), {
+      rollFlavor: false,
+      rollSeverity: false,
+    });
   });
 });
 
