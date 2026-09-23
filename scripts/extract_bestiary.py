@@ -57,7 +57,78 @@ PORTRAIT_SRC = 'systems/heroes-glory/assets/twcrport/twcrport_g00_f{:03d}.png'
 PICTOGRAM_SRC = 'systems/heroes-glory/assets/bestiary/{}'
 
 # Book page N is PDF page index N (the PDF has one extra leading page).
+# Legs/arms pictogram wording: "слева/справа" as seen on the drawing.
+LEG_OR_LEG_IS_TORSO = 'фигура с закрашенной ногой слева · «Или» · фигура с закрашенной ногой справа · «=» · фигура с закрашенным торсом'
+
 FACTIONS = {
+    'castle': {
+        'pages': (73, 76),
+        # Book order == HOMM3 order (ids 0-13), checked portrait by portrait.
+        'entries': [
+            ('Копейщики', 'pikemen'), ('Арбалетчики', 'crossbowmen'), ('Грифоны', 'griffins'),
+            ('Мечники', 'swordsmen'), ('Монахи', 'monks'), ('Кавалеристы', 'cavaliers'), ('Ангелы', 'angels'),
+        ],
+        'portraitFrames': list(range(2, 16)),
+        'legendary': set(),
+        'pictogramText': {
+            'Грифоны': 'фигура с закрашенными ногами · «=» · фигура с закрашенными руками',
+        },
+        'fixes': [
+            {'creature': 'Алебардщик', 'field': 'specialSkillsRaw',
+             'from': 'кавалерийс-кому', 'to': 'кавалерийскому',
+             'reason': 'дефис посреди слова внутри строки; стр. 114 — «Иммунитет к кавалерийскому бонусу»'},
+            {'entry': 'Арбалетчики', 'field': 'epicTable', 'rows': [2, 3],
+             'from': 'колящий', 'to': 'колющий', 'reason': 'орфография'},
+            {'entry': 'Монахи', 'field': 'epicTable', 'rows': [1, 2, 3],
+             'from': 'эрегией', 'to': 'энергией', 'reason': 'пропущена буква'},
+            {'entry': 'Ангелы', 'field': 'epicTable', 'rows': [6],
+             'from': 'на цель стремясь, пронзить', 'to': 'на цель, стремясь пронзить',
+             'reason': 'запятая не на месте'},
+        ],
+    },
+    'stronghold': {
+        'pages': (77, 80),
+        # Book order == HOMM3 order (ids 14-27), checked portrait by portrait.
+        'entries': [
+            ('Кентавры', 'centaurs'), ('Гномы', 'dwarves'), ('Эльфы', 'elves'), ('Пегасы', 'pegasi'),
+            ('Дендроиды', 'dendroids'), ('Единорог', 'unicorns'), ('Зеленые и Золотые драконы', 'dragons'),
+        ],
+        'portraitFrames': list(range(16, 30)),
+        'legendary': set(),
+        'pictogramText': {
+            'Дендроиды': 'фигура с закрашенной головой · «=» · фигура с закрашенным торсом',
+            'Единорог': 'фигура с закрашенными руками · «=» · фигура с закрашенными ногами',
+        },
+        'fixes': [],
+    },
+    'inferno': {
+        'pages': (85, 88),
+        # Book order == HOMM3 order (ids 42-55), checked portrait by portrait.
+        'entries': [
+            ('Бесы', 'imps'), ('Гоги', 'gogs'), ('Адские гончие', 'hellhounds'), ('Демоны', 'demons'),
+            ('Отродья пропасти', 'pitfiends'), ('Ифриты', 'efreets'), ('Дьяволы', 'devils'),
+        ],
+        'portraitFrames': list(range(44, 58)),
+        'legendary': set(),
+        'pictogramText': {
+            'Адские гончие': 'фигура с закрашенными руками · «=» · фигура с закрашенными ногами · «Искл.» · фигура с закрашенной головой',
+            'Ифриты': LEG_OR_LEG_IS_TORSO,
+        },
+        'epicRangeFixes': {
+            'Бесы': {'4-7': {'to': '4-6', 'reason': 'на d6 нет грани 7; вместе с «1-3» покрывает 1–6'}},
+        },
+        'fixes': [
+            {'creature': 'Гоги', 'field': 'specialSkillsRaw',
+             'from': 'Стрелок Атакует', 'to': 'Стрелок, Атакует',
+             'reason': 'нет разделителя между двумя навыками (у Магогов он есть)'},
+            {'creature': 'Магоги', 'field': 'specialSkillsRaw',
+             'from': 'Шар,8d6', 'to': 'Шар, 8d6', 'reason': 'нет пробела после запятой'},
+            {'creature': 'Султаны Ифриты', 'field': 'specialSkillsRaw',
+             'from': 'Щит(3d6)', 'to': 'Щит (3d6)', 'reason': 'нет пробела перед скобкой'},
+            {'creature': 'Властилели Пропасти', 'field': 'name',
+             'from': 'Властилели', 'to': 'Властители', 'reason': 'орфография'},
+        ],
+    },
     'tower': {
         'pages': (81, 84),
         # (heading, slug) in book order. TwCrPort frame = HOMM3 creature
@@ -73,7 +144,7 @@ FACTIONS = {
         # means for "Куда попал" (docs/rules.md §11). "слева/справа" is as
         # seen on the drawing.
         'pictogramText': {
-            'Джинны': 'фигура с закрашенной ногой слева · «Или» · фигура с закрашенной ногой справа · «=» · фигура с закрашенным торсом',
+            'Джинны': LEG_OR_LEG_IS_TORSO,
             'Големы': 'фигура с закрашенной головой · «=» · фигура с закрашенным торсом',
             'Наги': '«Искл.» · фигура с закрашенным торсом',
         },
@@ -169,6 +240,22 @@ def is_bold(span):
     return 'Bold' in span['font']
 
 
+def is_italic(span):
+    return 'Italic' in span['font']
+
+
+def styled(text, bold, italic):
+    """Wrap `text` in <strong>/<em>, keeping its own leading/trailing
+    whitespace OUTSIDE the tags so the words around it stay separated."""
+    lead, core, trail = re.match(r'(\s*)(.*?)(\s*)$', text, re.S).groups()
+    core = html_escape(core)
+    if core and italic:
+        core = f'<em>{core}</em>'
+    if core and bold:
+        core = f'<strong>{core}</strong>'
+    return lead + core + trail
+
+
 def html_escape(text):
     return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
@@ -191,7 +278,7 @@ def lore_html(lines, where, flags):
         pieces = []  # (text, bold)
         for i, spans in enumerate(para):
             for j, s in enumerate(spans):
-                pieces.append([s['text'], is_bold(s)])
+                pieces.append([s['text'], (is_bold(s), is_italic(s))])
             if i < len(para) - 1:
                 tail = pieces[-1][0].rstrip()
                 nxt = line_text(para[i + 1])
@@ -201,17 +288,12 @@ def lore_html(lines, where, flags):
                 else:
                     pieces[-1][0] = tail + ' '
         merged = []
-        for text, bold in pieces:
-            if merged and merged[-1][1] == bold:
+        for text, style in pieces:
+            if merged and merged[-1][1] == style:
                 merged[-1][0] += text
             else:
-                merged.append([text, bold])
-        body = ''.join(f'<strong>{html_escape(t.strip())}</strong>' if b and t.strip() else html_escape(t)
-                       for t, b in merged)
-        # A bold run eats its own surrounding spaces above; put them back
-        # where the source had them.
-        body = re.sub(r'</strong>(?=[А-Яа-яЁё])', '</strong> ', body)
-        body = re.sub(r'(?<=[А-Яа-яЁё,])<strong>', ' <strong>', body)
+                merged.append([text, style])
+        body = ''.join(styled(t, *style) for t, style in merged)
         html.append('<p>' + re.sub(r'\s+', ' ', body).strip() + '</p>')
     return html
 
@@ -289,12 +371,15 @@ def extract_entry(page, heading_rect, heading, next_top, flags, cfg):
         flags.add('error', where, f'подпись «{EPIC_LABEL}» не найдена')
     else:
         lab_rect = label[0]
-        boxes = [d['rect'] for d in page.get_drawings() if d.get('fill') and d['rect'].contains(lab_rect)]
+        # The label's centre, not its whole rect: on p.87 the label pokes
+        # 1pt above the box's top edge.
+        centre = pymupdf.Point((lab_rect.x0 + lab_rect.x1) / 2, (lab_rect.y0 + lab_rect.y1) / 2)
+        boxes = [d['rect'] for d in page.get_drawings() if d.get('fill') and d['rect'].contains(centre)]
         epic_box = min(boxes, key=lambda r: r.width * r.height) if boxes else None
         if epic_box is None:
             flags.add('error', where, 'серая плашка эпик-таблицы не найдена')
         else:
-            epic = parse_epic(lines, epic_box, lab_rect, where, flags)
+            epic = parse_epic(lines, epic_box, lab_rect, where, flags, cfg.get('epicRangeFixes', {}).get(heading, {}))
 
     creatures = []
     for row in rows[1:]:
@@ -318,7 +403,7 @@ def extract_entry(page, heading_rect, heading, next_top, flags, cfg):
     }
 
 
-def parse_epic(lines, box, label_rect, where, flags):
+def parse_epic(lines, box, label_rect, where, flags, range_fixes):
     markers, texts = [], []
     for r, s in lines:
         if not box.contains(r) and not (box & r).get_area() > 0.6 * r.get_area():
@@ -337,6 +422,15 @@ def parse_epic(lines, box, label_rect, where, flags):
             flags.add('info', where, f'в плашке эпик-таблицы отброшен мусорный символ «{t}»')
         else:
             texts.append(((r.y0 + r.y1) / 2, t))
+
+    # Book typos in a range marker itself («4-7» on a d6) — fixed before
+    # the coverage check, which would otherwise (rightly) refuse the table.
+    for i, (lo, hi, y) in enumerate(markers):
+        fix = range_fixes.get(f'{lo}-{hi}')
+        if fix:
+            new_lo, new_hi = (int(v) for v in fix['to'].split('-'))
+            markers[i] = (new_lo, new_hi, y)
+            flags.add('fixed', where, f'опечатка книги в диапазоне эпик-таблицы ({fix["reason"]}): «{lo}-{hi}» → «{fix["to"]}»')
 
     covered = [n for lo, hi, _ in markers for n in range(lo, hi + 1)]
     if sorted(covered) != [1, 2, 3, 4, 5, 6]:
@@ -378,12 +472,15 @@ def main():
     flags = Flags()
     doc = pymupdf.open(PDF)
 
+    # Top-to-bottom within each page: the PDF's own text order is not
+    # (p.86 lists «Демоны» before «Адские гончие», which sits above it), and
+    # each entry is bounded by the NEXT heading on its page.
     headings = []
     for page_no in range(cfg['pages'][0], cfg['pages'][1] + 1):
         page = doc[page_no]
-        for r, s in page_lines(page):
-            if all(is_bold(sp) and abs(sp['size'] - HEADING_SIZE) < 0.6 for sp in s):
-                headings.append((page_no, r, line_text(s)))
+        found = [(page_no, r, line_text(s)) for r, s in page_lines(page)
+                 if all(is_bold(sp) and abs(sp['size'] - HEADING_SIZE) < 0.6 for sp in s)]
+        headings.extend(sorted(found, key=lambda h: h[1].y0))
     expected = [h for h, _ in cfg['entries']]
     if [h for _, _, h in headings] != expected:
         flags.add('error', args.faction, f'заголовки не совпали с FACTIONS: {[h for _, _, h in headings]}')
@@ -407,14 +504,17 @@ def main():
     # creature (statblock fields) or an entry + epic row (shared table).
     for fix in cfg['fixes']:
         if 'entry' in fix:
+            # One book row can fill several of the 6 d6 rows ("1-3"), so a
+            # fix lists every row it covers; `from` is a substring.
             entry = next((e for e in entries if e['heading'] == fix['entry']), None)
             rows = entry and entry['epicTable']
-            i = fix['row'] - 1
-            if not rows or rows[i] != fix['from']:
-                flags.add('error', fix['entry'], f'исправление строки {fix["row"]} не применилось: там «{rows[i] if rows else None}»')
+            numbers = fix.get('rows') or [fix['row']]
+            if not rows or any(fix['from'] not in rows[n - 1] for n in numbers):
+                flags.add('error', fix['entry'], f'исправление строк {numbers} не применилось: «{fix["from"]}» не найдено')
                 continue
-            rows[i] = fix['to']
-            flags.add('fixed', fix['entry'], f'опечатка книги ({fix["reason"]}), эпик {fix["row"]}: «{fix["from"]}» → «{fix["to"]}»')
+            for n in numbers:
+                rows[n - 1] = rows[n - 1].replace(fix['from'], fix['to'])
+            flags.add('fixed', fix['entry'], f'опечатка книги ({fix["reason"]}), эпик {numbers}: «{fix["from"]}» → «{fix["to"]}»')
             continue
         target = next((c for c in creatures_flat if c['name'] == fix['creature']), None)
         if target is None or fix['from'] not in target[fix['field']]:
