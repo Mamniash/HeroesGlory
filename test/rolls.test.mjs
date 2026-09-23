@@ -61,6 +61,20 @@ describe('resolveHit — §5.3 hit table', () => {
   });
 });
 
+// §5.4: "Отступление происходит даже в том случае, если тест на поражение
+// провален атакующим" — the chat card's retreat line is gated purely on
+// `hit.epic` ({{#if hit.epic}} in attack-roll.hbs), not on the defeat
+// test's outcome, so it has to keep showing even when the defeat test
+// fails outright. This pins the invariant the template relies on: a
+// failed resolveDefeat must not touch resolveHit's own `epic` flag.
+test('epic hit flag (§5.3) is independent of a failed defeat test — retreat line must still show even when the defeat test is lost', () => {
+  const hit = resolveHit(6);
+  const defeat = resolveDefeat({ attackerAttack: 5, targetDefense: 20, die: 10 }); // threshold 15, die 10 fails
+  assert.equal(hit.epic, true);
+  assert.equal(defeat.known, true);
+  assert.equal(defeat.success, false);
+});
+
 describe('resolveDefeat — §5.3 defeat-test threshold', () => {
   test('normal case: success requires d20 > threshold', () => {
     // Защита 15, Атака 5 -> threshold = 10
