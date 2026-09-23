@@ -48,6 +48,11 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
       new fields.StringField({ blank: true }), { initial: () => Array(6).fill("") }
     );
 
+    // Book text the other fields can't hold: the "Куда попал" pictogram
+    // (literal wording + the book's own crop), magic with charges, then
+    // the creature's lore paragraphs (docs/rules.md §9).
+    schema.description = new fields.HTMLField({ required: true, blank: true });
+
     return schema;
   }
 

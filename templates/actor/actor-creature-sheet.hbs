@@ -83,4 +83,10 @@
       </label>
     {{/each}}
   </fieldset>
+
+  <fieldset class="actor-sheet__description">
+    <legend>{{localize 'HEROES_GLORY.Creature.Description'}}</legend>
+    <prose-mirror name="system.description" value="{{system.description}}" toggled
+      data-document-uuid="{{actor.uuid}}">{{{enrichedDescription}}}</prose-mirror>
+  </fieldset>
 </section>

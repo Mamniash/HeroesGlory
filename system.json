@@ -111,6 +111,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "creatures",
+      "label": "HEROES_GLORY.Compendium.Creatures",
+      "path": "packs/creatures",
+      "type": "Actor",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "NONE",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [],

@@ -131,6 +131,40 @@ export function buildItemDocument({ name, type, system, img, index, seed }) {
  * third time.
  * @returns {object}
  */
+/**
+ * One Actor document in the shape foundryvtt-cli's compilePack expects —
+ * the Actor counterpart of {@link buildItemDocument}. The prototype token
+ * only carries name + portrait; Foundry fills every other token field
+ * with its own defaults when the pack is loaded.
+ * @param {object} params
+ * @param {string} params.name
+ * @param {string} params.type     Actor subtype (e.g. 'creature').
+ * @param {object} params.system
+ * @param {string} params.img
+ * @param {number} params.index    Position in the pack, for `sort`.
+ * @param {string} [params.seed]   Stable-id seed; defaults to `name`.
+ * @returns {object}
+ */
+export function buildActorDocument({ name, type, system, img, index, seed }) {
+  const id = stableId(seed ?? name);
+  return {
+    _id: id,
+    name,
+    type,
+    img,
+    system,
+    prototypeToken: { name, texture: { src: img } },
+    items: [],
+    effects: [],
+    folder: null,
+    sort: (index + 1) * 10000,
+    ownership: { default: 0 },
+    flags: {},
+    _stats: buildStats(),
+    _key: `!actors!${id}`,
+  };
+}
+
 function buildStats() {
   return {
     compendiumSource: null,

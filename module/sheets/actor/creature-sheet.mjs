@@ -14,6 +14,9 @@ export class HeroesGloryCreatureSheet extends HeroesGloryActorSheet {
     // §5.3 hit-table multipliers, display-only — no roll automation here.
     context.damageWeak = Math.floor(system.damage * 0.5);
     context.damageStrong = Math.floor(system.damage * 2);
+    context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+      system.description, { relativeTo: this.actor },
+    );
 
     return context;
   }

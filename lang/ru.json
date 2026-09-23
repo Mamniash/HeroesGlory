@@ -348,7 +348,8 @@
       "Speed": "Скорость",
       "SpecialSkills": "Особые навыки",
       "EpicTable": "Эпик-таблица (d6)",
-      "EpicRow": "Строка"
+      "EpicRow": "Строка",
+      "Description": "Описание"
     },
     "Item": {
       "ChangeImage": "Сменить изображение",
@@ -565,7 +566,8 @@
       "Skills": "Вторичные навыки",
       "Artifacts": "Артефакты",
       "Spells": "Заклинания",
-      "PriceList": "Справочник цен"
+      "PriceList": "Справочник цен",
+      "Creatures": "Бестиарий"
     }
   },
 
