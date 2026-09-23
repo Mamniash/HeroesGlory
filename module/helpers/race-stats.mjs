@@ -3,19 +3,16 @@
  * + pure diff helper — no game/actor references — for the race-change
  * recompute confirmation on the hero sheet (module/sheets/actor/hero-sheet.mjs).
  *
- * demon/djinn/elemental/minotaur are flagged provisional — extracted from a
- * PDF where stat blocks were positionally separated from name labels,
- * pending human verification against the physical book (docs/rules.md
- * §11). Still wired in: the confirm dialog surfaces the numbers to the GM
- * before anything is applied, so a wrong provisional value is caught
- * before it does damage, not silently trusted.
+ * demon/djinn/elemental/minotaur were verified directly against book pages
+ * 11-12 (page images, not PDF text extraction) — docs/rules.md §11 — and
+ * matched the pre-existing values exactly, no corrections needed.
  *
  * `unarmedDamage: null` means "this race uses the book's own default of 1"
  * (§8.1: "без оружия урон = 1, если не сказано иного") — NOT "leave
  * whatever's currently on the sheet". raceDiff below normalizes `null` to
  * 1 before comparing, so a stale override from a previous race (e.g.
  * Vampire's 5) never survives a race change forever.
- * @type {Record<string, {health:number, vision:string, speed:number, unarmedDamage:number|null, provisional?:true}>}
+ * @type {Record<string, {health:number, vision:string, speed:number, unarmedDamage:number|null}>}
  */
 export const RACE_STATS = {
   human: { health: 30, vision: 'normal', speed: 6, unarmedDamage: null },
@@ -24,10 +21,10 @@ export const RACE_STATS = {
   goblin: { health: 28, vision: 'darkvision', speed: 6, unarmedDamage: null },
   vampire: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: 5 },
   gnoll: { health: 30, vision: 'normal', speed: 6, unarmedDamage: null },
-  demon: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: null, provisional: true },
-  djinn: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5, provisional: true },
-  elemental: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5, provisional: true },
-  minotaur: { health: 35, vision: 'darkvision', speed: 5, unarmedDamage: 5, provisional: true },
+  demon: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: null },
+  djinn: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
+  elemental: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
+  minotaur: { health: 35, vision: 'darkvision', speed: 5, unarmedDamage: 5 },
   troglodyte: { health: 28, vision: 'blindsense', speed: 6, unarmedDamage: null },
   saurian: { health: 30, vision: 'normal', speed: 6, unarmedDamage: null },
 };

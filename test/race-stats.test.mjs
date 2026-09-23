@@ -19,6 +19,10 @@ describe('RACE_STATS — §2.3 starting Health/Vision/Speed/unarmed damage per r
     goblin: { health: 28, vision: 'darkvision', speed: 6, unarmedDamage: null },
     vampire: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: 5 },
     gnoll: { health: 30, vision: 'normal', speed: 6, unarmedDamage: null },
+    demon: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: null },
+    djinn: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
+    elemental: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
+    minotaur: { health: 35, vision: 'darkvision', speed: 5, unarmedDamage: 5 },
     troglodyte: { health: 28, vision: 'blindsense', speed: 6, unarmedDamage: null },
     saurian: { health: 30, vision: 'normal', speed: 6, unarmedDamage: null },
   };
@@ -26,24 +30,6 @@ describe('RACE_STATS — §2.3 starting Health/Vision/Speed/unarmed damage per r
   for (const [raceKey, row] of Object.entries(expected)) {
     test(`${raceKey}`, () => {
       const actual = statsForRace(raceKey);
-      assert.equal(actual.health, row.health);
-      assert.equal(actual.vision, row.vision);
-      assert.equal(actual.speed, row.speed);
-      assert.equal(actual.unarmedDamage, row.unarmedDamage);
-    });
-  }
-
-  // Provisional rows — values checked but flagged, per docs/rules.md §11.
-  const provisional = {
-    demon: { health: 30, vision: 'darkvision', speed: 6, unarmedDamage: null },
-    djinn: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
-    elemental: { health: 30, vision: 'normal', speed: 6, unarmedDamage: 5 },
-    minotaur: { health: 35, vision: 'darkvision', speed: 5, unarmedDamage: 5 },
-  };
-  for (const [raceKey, row] of Object.entries(provisional)) {
-    test(`${raceKey} (provisional)`, () => {
-      const actual = statsForRace(raceKey);
-      assert.equal(actual.provisional, true);
       assert.equal(actual.health, row.health);
       assert.equal(actual.vision, row.vision);
       assert.equal(actual.speed, row.speed);
