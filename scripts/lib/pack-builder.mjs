@@ -47,10 +47,36 @@ export const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.
 const SYSTEM_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, 'system.json'), 'utf8'));
 export const SYSTEM_ID = SYSTEM_JSON.id;
 export const SYSTEM_VERSION = SYSTEM_JSON.version;
-// The locally installed Foundry (see CLAUDE.md) — 14.365.0. Not the same
-// thing as compatibility.verified in system.json ("14", rounded for the
-// manifest).
-export const CORE_VERSION = '14.365.0';
+/**
+ * The installed Foundry's own core version, in the exact format Foundry
+ * compares a document's `_stats.coreVersion` against: `release.version`,
+ * i.e. `${generation}.${build}` ("14.365"). A different format is not
+ * cosmetic — the server's migration step throws "Documents from a core
+ * version newer than the running version cannot be migrated" when
+ * `isNewerVersion(coreVersion, release.version)`, and `isNewerVersion`
+ * counts any extra part as newer, so "14.365.0" > "14.365" and every pack
+ * silently skipped migration. Read from the installed Foundry (CLAUDE.md:
+ * D:\Foundry Virtual Tabletop) rather than hardcoded, so it follows an
+ * upgrade; override with FOUNDRY_APP_PATH. Not the same thing as
+ * compatibility.verified in system.json ("14", rounded for the manifest).
+ * @returns {string}
+ */
+function installedCoreVersion() {
+  const appPath = process.env.FOUNDRY_APP_PATH ?? 'D:/Foundry Virtual Tabletop/resources/app';
+  const manifest = path.join(appPath, 'package.json');
+  if (!fs.existsSync(manifest)) {
+    throw new Error(`Foundry не найден: ${manifest}. Укажите FOUNDRY_APP_PATH (папка resources/app установленного Foundry).`);
+  }
+  const { release } = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+  return `${release.generation}.${release.build}`;
+}
+
+// Lazy: unit tests import this module and must not need Foundry installed.
+let coreVersionCache = null;
+export function coreVersion() {
+  coreVersionCache ??= installedCoreVersion();
+  return coreVersionCache;
+}
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -113,7 +139,7 @@ export function buildItemDocument({ name, type, system, img, index, seed }) {
     _stats: {
       compendiumSource: null,
       duplicateSource: null,
-      coreVersion: CORE_VERSION,
+      coreVersion: coreVersion(),
       systemId: SYSTEM_ID,
       systemVersion: SYSTEM_VERSION,
       createdTime: null,
@@ -124,13 +150,6 @@ export function buildItemDocument({ name, type, system, img, index, seed }) {
   };
 }
 
-/**
- * Shared `_stats` boilerplate for both `buildItemDocument` and
- * `buildJournalDocument`/its pages — pulled out once both existed so a
- * future third document kind doesn't have to copy the same six fields a
- * third time.
- * @returns {object}
- */
 /**
  * One Actor document in the shape foundryvtt-cli's compilePack expects —
  * the Actor counterpart of {@link buildItemDocument}. The prototype token
@@ -165,11 +184,18 @@ export function buildActorDocument({ name, type, system, img, index, seed }) {
   };
 }
 
+/**
+ * Shared `_stats` boilerplate for `buildItemDocument`,
+ * `buildActorDocument` and `buildJournalDocument`/its pages — pulled out
+ * once two existed so another document kind doesn't have to copy the
+ * same six fields again.
+ * @returns {object}
+ */
 function buildStats() {
   return {
     compendiumSource: null,
     duplicateSource: null,
-    coreVersion: CORE_VERSION,
+    coreVersion: coreVersion(),
     systemId: SYSTEM_ID,
     systemVersion: SYSTEM_VERSION,
     createdTime: null,

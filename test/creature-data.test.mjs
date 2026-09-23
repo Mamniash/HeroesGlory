@@ -1,11 +1,24 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { FACTIONS, readFaction, creatureEntries, buildDescription, buildCreatureDocuments } from '../scripts/data/creature-compendium-data.mjs';
-import { ROOT } from '../scripts/lib/pack-builder.mjs';
+import { ROOT, coreVersion } from '../scripts/lib/pack-builder.mjs';
 import { HEROES_GLORY } from '../module/helpers/config.mjs';
+
+// Unit tests must not need Foundry installed: point the builder at a
+// fixture Foundry manifest instead of the real install.
+const fakeFoundry = fs.mkdtempSync(path.join(os.tmpdir(), 'hg-foundry-'));
+fs.writeFileSync(path.join(fakeFoundry, 'package.json'), JSON.stringify({ release: { generation: 14, build: 365 } }));
+process.env.FOUNDRY_APP_PATH = fakeFoundry;
+
+describe('pack builder core version', () => {
+  test('uses Foundry\'s own release.version format, generation.build — no third part', () => {
+    assert.equal(coreVersion(), '14.365');
+  });
+});
 
 const assetPath = (src) => path.join(ROOT, src.replace('systems/heroes-glory/', ''));
 const NUMERIC = ['attack', 'defense', 'damage', 'attacksCount', 'health', 'speed', 'level'];
@@ -90,6 +103,9 @@ describe('creature compendium mapping', () => {
     assert.equal(docs.length, total);
     assert.equal(new Set(docs.map((d) => d._id)).size, docs.length);
     assert.deepEqual(buildCreatureDocuments().map((d) => d._id), docs.map((d) => d._id));
-    for (const d of docs) assert.ok(d._key.startsWith('!actors!'));
+    for (const d of docs) {
+      assert.ok(d._key.startsWith('!actors!'));
+      assert.equal(d._stats.coreVersion, '14.365');
+    }
   });
 });
