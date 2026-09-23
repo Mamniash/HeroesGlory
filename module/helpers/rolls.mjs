@@ -558,6 +558,67 @@ export function canConfirmAttack(flags) {
 }
 
 /**
+ * Which of the three headline outcomes an attack card leads with: a miss,
+ * a hit whose defeat test failed (so 0 damage despite the hit), or a hit
+ * that lands (or whose defeat test is still unknown — no target).
+ * @param {{key: string}} hit        Result of {@link resolveHit}.
+ * @param {{known: boolean, success: boolean|null}} defeat   Result of {@link resolveDefeat}.
+ * @returns {'miss'|'defeatFailed'|'hit'}
+ */
+export function resolveAttackHeadlineOutcome(hit, defeat) {
+  if (hit.key === 'miss') return 'miss';
+  if (defeat.known && !defeat.success) return 'defeatFailed';
+  return 'hit';
+}
+
+/**
+ * The chat visibility an attack card is posted with, from the user's own
+ * chat-bar mode (`core.messageMode`). Every mode passes through unchanged
+ * except `self`: a self-only attack card would hide it from the GM, who
+ * must see it to confirm the damage — so it's raised to `ownersAndGm`
+ * (the attacker's owners plus every GM), which the caller turns into an
+ * explicit whisper list.
+ * @param {string} mode   A `CONFIG.ChatMessage.modes` key.
+ * @returns {string}      The same key, or `'ownersAndGm'`.
+ */
+export function resolveAttackMessageMode(mode) {
+  return mode === 'self' ? 'ownersAndGm' : mode;
+}
+
+/**
+ * Whisper recipients for a message that belongs to one actor's player and
+ * the GM — every owner of the actor plus every GM (a GM does NOT see a
+ * whisper they aren't listed on: ChatMessage#visible has no GM exception).
+ * @param {Array<{id: string, isGM: boolean, isOwner: boolean}>} users
+ *   `isOwner` = the user's OWNER permission on the actor.
+ * @returns {string[]}
+ */
+export function ownersAndGmRecipients(users) {
+  return users.filter((u) => u.isGM || u.isOwner).map((u) => u.id);
+}
+
+/**
+ * Whether `card` was rolled while another attack against the same target
+ * was still awaiting the GM's confirm — i.e. both proposals were computed
+ * from the same, not-yet-changed target state. Stays true after that
+ * earlier card gets confirmed later (its `confirmedAt` is then after this
+ * card's `timestamp`), since this card's numbers are still stale. A card
+ * confirmed before this build of the feature has no `confirmedAt` at all —
+ * treated as confirmed long ago, not as a pending one.
+ * @param {{id: string, targetActorId: string|null, timestamp: number}} card
+ * @param {Array<{id: string, targetActorId: string|null, timestamp: number, confirmed?: boolean, confirmedAt?: number|null}>} others
+ *   Every attack card the viewing client knows about (may include `card`).
+ * @returns {boolean}
+ */
+export function hadUnconfirmedAttackBefore(card, others) {
+  if (!card.targetActorId) return false;
+  return others.some((other) => other.id !== card.id
+    && other.targetActorId === card.targetActorId
+    && other.timestamp < card.timestamp
+    && (!other.confirmed || (other.confirmedAt != null && other.confirmedAt > card.timestamp)));
+}
+
+/**
  * §5.9: "ОЗ ≤ 0 → недееспособен до конца боя."
  * @param {number} healthValue
  * @returns {boolean}

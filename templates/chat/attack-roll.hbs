@@ -1,68 +1,35 @@
 <div class="heroes-glory-chat-card heroes-glory-chat-card--attack">
-  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.AttackTitle' attacker=attackerName}}</h3>
-
-  {{#if weaponName}}
-    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Weapon' weapon=weaponName}}</p>
-  {{/if}}
-
-  {{#if targetName}}
-    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Target' target=targetName}}</p>
-  {{else}}
-    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
-  {{/if}}
-
-  {{#if hasUnconfirmedEarlier}}
-    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--warning">{{localize 'HEROES_GLORY.Roll.UnconfirmedWarning'}}</p>
-  {{/if}}
-
-  <p class="heroes-glory-chat-card__line">
-    {{#if hit.previousDie}}
-      <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=hit.previousDie}}</s>
-    {{/if}}
-    {{localize 'HEROES_GLORY.Roll.HitResult' die=hit.die result=(localize hit.labelKey) multiplier=hit.multiplier}}
-    <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
-      data-actor-id="{{actorId}}" data-slot="hit" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
-      <i class="fa-solid fa-arrows-rotate"></i>
-    </button>
-  </p>
-
-  {{#if defeat.known}}
-    {{#if defeat.auto}}
-      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.DefeatAuto'}}</p>
+  {{!-- Headline: always visible. The title is the details toggle
+    (chat.mjs, activateChatListeners). --}}
+  <h3 class="heroes-glory-chat-card__title heroes-glory-chat-card__toggle" data-action="hg-toggle-details">
+    {{#if targetName}}
+      {{localize 'HEROES_GLORY.Roll.AttackTitleTarget' attacker=attackerName target=targetName}}
     {{else}}
-      <p class="heroes-glory-chat-card__line">
-        {{#if defeat.previousDie}}
-          <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=defeat.previousDie}}</s>
-        {{/if}}
-        {{localize 'HEROES_GLORY.Roll.DefeatThreshold' die=defeat.die threshold=defeat.threshold}}
-        —
-        {{#if defeat.success}}{{localize 'HEROES_GLORY.Roll.DefeatSuccess'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefeatFail'}}{{/if}}
-        <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
-          data-actor-id="{{actorId}}" data-slot="defeat" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
-          <i class="fa-solid fa-arrows-rotate"></i>
-        </button>
-      </p>
+      {{localize 'HEROES_GLORY.Roll.AttackTitle' attacker=attackerName}}
     {{/if}}
-  {{else}}
-    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.DefeatUnknown'}}</p>
-  {{/if}}
+  </h3>
 
-  {{#if (gt stateMultiplier 1)}}
-    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
-      {{localize 'HEROES_GLORY.Roll.StateMultiplierNote' multiplier=stateMultiplier}}
-    </p>
-  {{/if}}
+  {{#unless targetName}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
+  {{/unless}}
 
-  {{!-- §5.5: protectingArmorNames is already '' when a level-3 zone
-    match zeroed the damage — see buildAttackContext's own comment, this
-    is not the same condition as armorItemMultiplier < 1. --}}
-  {{#if protectingArmorNames}}
-    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
-      {{localize 'HEROES_GLORY.Roll.ArmorItemNote' armor=protectingArmorNames}}
+  {{!-- Shown/hidden per viewer by chat.mjs, GM only — computed from the
+    chat log the GM's client actually has (hadUnconfirmedAttackBefore,
+    rolls.mjs). No `hidden` attribute here: Foundry strips it from stored
+    message content. --}}
+  {{#if canConfirm}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--warning" data-hg-unconfirmed-warning>
+      {{localize 'HEROES_GLORY.Roll.UnconfirmedWarning'}}
     </p>
   {{/if}}
 
   <p class="heroes-glory-chat-card__damage">
+    {{#if (eq headlineOutcome 'defeatFailed')}}
+      {{localize 'HEROES_GLORY.Roll.HeadlineDefeatFailed' hit=(localize hit.labelKey)}}
+    {{else}}
+      {{localize hit.labelKey}}
+    {{/if}}
+    ·
     {{#if damageKnown}}
       {{#if confirmed}}
         {{localize 'HEROES_GLORY.Roll.DamageApplied' damage=damage}}
@@ -75,18 +42,84 @@
   </p>
 
   {{#if hit.epic}}
-    <div class="heroes-glory-chat-card__epic">
-      <h4 class="heroes-glory-chat-card__epic-title">{{localize 'HEROES_GLORY.Roll.EpicTitle'}}</h4>
-      <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicRetreat'}}</p>
-      {{#if destroyedArmorNames}}
-        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
-          {{#if confirmed}}
-            {{localize 'HEROES_GLORY.Roll.ArmorDestroyedApplied' armor=destroyedArmorNames}}
-          {{else}}
-            {{localize 'HEROES_GLORY.Roll.ArmorDestroyedPending' armor=destroyedArmorNames}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicRetreat'}}</p>
+  {{/if}}
+
+  {{#if location}}
+    <p class="heroes-glory-chat-card__line">
+      {{localize location.labelKey}} —
+      {{#if location.protectingArmorName}}
+        {{localize location.protectedKey armor=location.protectingArmorName}}
+      {{else}}
+        {{localize location.effectKey}}
+      {{/if}}
+    </p>
+  {{/if}}
+
+  {{#if destroyedArmorNames}}
+    <p class="heroes-glory-chat-card__line">
+      {{#if confirmed}}
+        {{localize 'HEROES_GLORY.Roll.ArmorDestroyedApplied' armor=destroyedArmorNames}}
+      {{else}}
+        {{localize 'HEROES_GLORY.Roll.ArmorDestroyedPending' armor=destroyedArmorNames}}
+      {{/if}}
+    </p>
+  {{/if}}
+
+  {{!-- Details: collapsed by default. --}}
+  <div class="heroes-glory-chat-card__details">
+    {{#if weaponName}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Weapon' weapon=weaponName}}</p>
+    {{/if}}
+
+    <p class="heroes-glory-chat-card__line">
+      {{#if hit.previousDie}}
+        <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=hit.previousDie}}</s>
+      {{/if}}
+      {{localize 'HEROES_GLORY.Roll.HitResult' die=hit.die result=(localize hit.labelKey) multiplier=hit.multiplier}}
+      <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+        data-actor-id="{{actorId}}" data-slot="hit" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+        <i class="fa-solid fa-arrows-rotate"></i>
+      </button>
+    </p>
+
+    {{#if defeat.known}}
+      {{#if defeat.auto}}
+        <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.DefeatAuto'}}</p>
+      {{else}}
+        <p class="heroes-glory-chat-card__line">
+          {{#if defeat.previousDie}}
+            <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=defeat.previousDie}}</s>
           {{/if}}
+          {{localize 'HEROES_GLORY.Roll.DefeatThreshold' die=defeat.die threshold=defeat.threshold}}
+          —
+          {{#if defeat.success}}{{localize 'HEROES_GLORY.Roll.DefeatSuccess'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefeatFail'}}{{/if}}
+          <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+            data-actor-id="{{actorId}}" data-slot="defeat" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
         </p>
       {{/if}}
+    {{else}}
+      <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.DefeatUnknown'}}</p>
+    {{/if}}
+
+    {{#if (gt stateMultiplier 1)}}
+      <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
+        {{localize 'HEROES_GLORY.Roll.StateMultiplierNote' multiplier=stateMultiplier}}
+      </p>
+    {{/if}}
+
+    {{!-- §5.5: protectingArmorNames is already '' when a level-3 zone
+      match zeroed the damage — see buildAttackContext's own comment, this
+      is not the same condition as armorItemMultiplier < 1. --}}
+    {{#if protectingArmorNames}}
+      <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
+        {{localize 'HEROES_GLORY.Roll.ArmorItemNote' armor=protectingArmorNames}}
+      </p>
+    {{/if}}
+
+    {{#if hit.epic}}
       {{#if hasEpicTable}}
         {{#if epicRow}}
           <p class="heroes-glory-chat-card__line">{{epicRow}}</p>
@@ -96,19 +129,9 @@
       {{/if}}
       {{#if severe}}
         <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>
-        {{#if location}}
-          <p class="heroes-glory-chat-card__line">
-            {{localize location.labelKey}} —
-            {{#if location.protectingArmorName}}
-              {{localize location.protectedKey armor=location.protectingArmorName}}
-            {{else}}
-              {{localize location.effectKey}}
-            {{/if}}
-          </p>
-        {{/if}}
       {{/if}}
-    </div>
-  {{/if}}
+    {{/if}}
+  </div>
 
   {{#if canConfirm}}
     <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-confirm-attack"

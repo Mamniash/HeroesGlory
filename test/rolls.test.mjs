@@ -29,6 +29,10 @@ import {
   resolveLocationConsequenceType,
   resolveAttackResolution,
   canConfirmAttack,
+  resolveAttackHeadlineOutcome,
+  resolveAttackMessageMode,
+  ownersAndGmRecipients,
+  hadUnconfirmedAttackBefore,
   isIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -946,6 +950,80 @@ describe('canConfirmAttack — §task the confirm-button gate/double-apply guard
   test('missing/null flags: refused', () => {
     assert.equal(canConfirmAttack(null), false);
     assert.equal(canConfirmAttack(undefined), false);
+  });
+});
+
+describe('resolveAttackHeadlineOutcome — which outcome the collapsed attack card leads with', () => {
+  test('a miss is a miss, whatever the defeat test did', () => {
+    assert.equal(resolveAttackHeadlineOutcome(resolveHit(1), { known: true, success: true }), 'miss');
+    assert.equal(resolveAttackHeadlineOutcome(resolveHit(2), { known: true, success: false }), 'miss');
+  });
+
+  test('a hit whose defeat test failed', () => {
+    assert.equal(resolveAttackHeadlineOutcome(resolveHit(4), { known: true, success: false }), 'defeatFailed');
+  });
+
+  test('a hit that lands, or whose defeat test is unknown (no target)', () => {
+    assert.equal(resolveAttackHeadlineOutcome(resolveHit(6), { known: true, success: true }), 'hit');
+    assert.equal(resolveAttackHeadlineOutcome(resolveHit(3), { known: false, success: null }), 'hit');
+  });
+});
+
+describe('resolveAttackMessageMode — chat-bar mode for an attack card', () => {
+  test('self is raised so the GM can still confirm the damage', () => {
+    assert.equal(resolveAttackMessageMode('self'), 'ownersAndGm');
+  });
+
+  test('every other mode passes through unchanged', () => {
+    for (const mode of ['public', 'gm', 'blind', 'ic']) assert.equal(resolveAttackMessageMode(mode), mode);
+  });
+});
+
+describe('ownersAndGmRecipients — whisper list for "the player and the GM"', () => {
+  test('owners and every GM, nobody else', () => {
+    const users = [
+      { id: 'gm1', isGM: true, isOwner: true },
+      { id: 'gm2', isGM: true, isOwner: false },
+      { id: 'owner', isGM: false, isOwner: true },
+      { id: 'other', isGM: false, isOwner: false },
+    ];
+    assert.deepEqual(ownersAndGmRecipients(users), ['gm1', 'gm2', 'owner']);
+  });
+});
+
+describe('hadUnconfirmedAttackBefore — the "another attack on this target is pending" warning', () => {
+  const card = { id: 'b', targetActorId: 't', timestamp: 200 };
+
+  test('an earlier, still-unconfirmed attack on the same target', () => {
+    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false }]), true);
+  });
+
+  test('stays true after that earlier card is confirmed later', () => {
+    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true, confirmedAt: 300 }];
+    assert.equal(hadUnconfirmedAttackBefore(card, others), true);
+  });
+
+  test('false when the earlier card was confirmed before this one was rolled', () => {
+    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true, confirmedAt: 150 }];
+    assert.equal(hadUnconfirmedAttackBefore(card, others), false);
+  });
+
+  test('a card confirmed before confirmedAt existed counts as confirmed long ago', () => {
+    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true }]), false);
+  });
+
+  test('ignores later cards, other targets, and the card itself', () => {
+    const others = [
+      card,
+      { id: 'c', targetActorId: 't', timestamp: 300, confirmed: false },
+      { id: 'd', targetActorId: 'other', timestamp: 100, confirmed: false },
+    ];
+    assert.equal(hadUnconfirmedAttackBefore(card, others), false);
+  });
+
+  test('no target: never warns', () => {
+    assert.equal(hadUnconfirmedAttackBefore({ id: 'x', targetActorId: null, timestamp: 200 },
+      [{ id: 'a', targetActorId: null, timestamp: 100, confirmed: false }]), false);
   });
 });
 

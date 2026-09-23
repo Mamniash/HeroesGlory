@@ -1,15 +1,23 @@
 <div class="heroes-glory-chat-card heroes-glory-chat-card--spell">
-  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.SpellTitle' caster=casterName spell=spellName}}</h3>
-  {{#if schoolLabelKey}}
-    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.SpellSchool' school=(localize schoolLabelKey)}}</p>
-  {{/if}}
+  {{!-- Headline: always visible. The title is the details toggle
+    (chat.mjs, activateChatListeners). --}}
+  <h3 class="heroes-glory-chat-card__title heroes-glory-chat-card__toggle" data-action="hg-toggle-details">
+    {{localize 'HEROES_GLORY.Roll.SpellTitle' caster=casterName spell=spellName}}
+  </h3>
   <p class="heroes-glory-chat-card__line">{{localize variantLabelKey}}</p>
   {{#if description}}
     <p class="heroes-glory-chat-card__description">{{description}}</p>
   {{/if}}
-  <p class="heroes-glory-chat-card__line">
-    {{localize 'HEROES_GLORY.Roll.ManaCost' cost=manaCost}}
-    —
-    {{localize 'HEROES_GLORY.Roll.ManaRemaining' mana=manaRemaining}}
-  </p>
+
+  {{!-- Details: collapsed by default. --}}
+  <div class="heroes-glory-chat-card__details">
+    {{#if schoolLabelKey}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.SpellSchool' school=(localize schoolLabelKey)}}</p>
+    {{/if}}
+    <p class="heroes-glory-chat-card__line">
+      {{localize 'HEROES_GLORY.Roll.ManaCost' cost=manaCost}}
+      —
+      {{localize 'HEROES_GLORY.Roll.ManaRemaining' mana=manaRemaining}}
+    </p>
+  </div>
 </div>

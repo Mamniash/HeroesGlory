@@ -24,6 +24,9 @@ import {
   resolveTargetStateMultiplier,
   resolveAttackResolution,
   canConfirmAttack,
+  resolveAttackHeadlineOutcome,
+  resolveAttackMessageMode,
+  ownersAndGmRecipients,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -39,6 +42,19 @@ import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPa
 
 /** The flag namespace every roll-related ChatMessage flag lives under. */
 const FLAG_SCOPE = 'heroes-glory';
+
+/**
+ * User ids a "this hero's player and the GM" whisper goes to.
+ * @param {Actor} actor
+ * @returns {string[]}
+ */
+function ownersAndGmIds(actor) {
+  return ownersAndGmRecipients(game.users.map((u) => ({
+    id: u.id,
+    isGM: u.isGM,
+    isOwner: actor.testUserPermission(u, 'OWNER'),
+  })));
+}
 
 // Exported so the spellbook overlay's tooltip (hero-sheet.mjs) can label
 // a spell's resolved variant the same way the cast chat card already
@@ -252,30 +268,8 @@ function buildAttackContext(actor, flags) {
     targetActorId: flags.targetActorId,
     confirmed,
     canConfirm: canConfirmAttack(flags),
-    hasUnconfirmedEarlier: !!flags.hasUnconfirmedEarlier,
+    headlineOutcome: resolveAttackHeadlineOutcome(hit, defeat),
   };
-}
-
-/**
- * §task: whether another still-unconfirmed attack card already targets
- * this actor — used to warn the GM on a fresh card that confirming it
- * relies on the target's last-CONFIRMED state, which may already be
- * stale if an earlier, still-pending attack against the same target gets
- * confirmed later (each card's stateMultiplier/equippedArmor snapshot is
- * frozen at ITS OWN roll time, not re-read at confirm time — see
- * buildAttackContext/resolveAttackResolution). Scans `game.messages`
- * rather than tracking a running count anywhere: chat history is already
- * the authoritative record of what's pending, and this only needs to run
- * once, when a new card is created.
- * @param {string|null} targetActorId
- * @returns {boolean}
- */
-function hasUnconfirmedAttackAgainst(targetActorId) {
-  if (!targetActorId) return false;
-  return game.messages.some((m) => {
-    const flags = m.getFlag(FLAG_SCOPE, 'reroll');
-    return flags?.kind === 'attack' && flags.targetActorId === targetActorId && !flags.confirmed;
-  });
 }
 
 /**
@@ -372,12 +366,6 @@ export async function rollAttack(actor, weapon = null) {
     // §task: nothing is applied to the target until the GM clicks
     // confirm on the card — see confirmAttackOutcome below.
     confirmed: false,
-    // §task: computed once, before this message exists in game.messages,
-    // so it can only ever see EARLIER unconfirmed cards, never itself.
-    // Carried through in flags rather than recomputed on every re-render
-    // — the set of other cards doesn't change from a reroll or confirm
-    // of THIS card.
-    hasUnconfirmedEarlier: hasUnconfirmedAttackAgainst(targetActor?.id ?? null),
   };
 
   const content = await foundry.applications.handlebars.renderTemplate(
@@ -385,12 +373,25 @@ export async function rollAttack(actor, weapon = null) {
     buildAttackContext(actor, flags),
   );
 
-  return ChatMessage.create({
+  // The chat-bar mode is respected, except `self` is raised to the
+  // attacker's owners + GM so the GM can still confirm the damage. A
+  // whispered card carries no `rolls`: Foundry shows non-recipients of a
+  // whispered roll a "rolled privately" stub (ChatMessage#visible returns
+  // true for any roll), and a private attack must not show up for them at
+  // all. The dice values are already in the card's own text.
+  const mode = resolveAttackMessageMode(game.settings.get('core', 'messageMode'));
+  const whispered = !['public', 'ic'].includes(mode);
+  const data = {
     speaker: ChatMessage.getSpeaker({ actor }),
-    rolls: [mainRoll, ...epicCascade.rolls],
     content,
     flags: { [FLAG_SCOPE]: { reroll: flags } },
-  });
+  };
+  if (!whispered) data.rolls = [mainRoll, ...epicCascade.rolls];
+  if (mode === 'ownersAndGm') {
+    data.whisper = ownersAndGmIds(actor);
+    return ChatMessage.create(data);
+  }
+  return ChatMessage.create(data, { messageMode: mode });
 }
 
 /**
@@ -451,11 +452,12 @@ export async function rerollAttackDie(message, slot) {
     buildAttackContext(actor, nextFlags),
   );
 
-  return message.update({
-    content,
-    rolls: [...message.rolls, ...extraRolls],
-    flags: { [FLAG_SCOPE]: { reroll: nextFlags } },
-  });
+  // A whispered card never carries rolls (see rollAttack) — adding the
+  // reroll's dice here would turn it back into a roll message that
+  // non-recipients see as a "rolled privately" stub.
+  const update = { content, flags: { [FLAG_SCOPE]: { reroll: nextFlags } } };
+  if (!message.whisper.length) update.rolls = [...message.rolls, ...extraRolls];
+  return message.update(update);
 }
 
 /**
@@ -517,7 +519,9 @@ export async function confirmAttackOutcome(message) {
   }
 
   const actor = game.actors.get(flags.actorId);
-  const nextFlags = { ...flags, confirmed: true };
+  // confirmedAt lets a later card tell it was rolled while this one was
+  // still pending (hadUnconfirmedAttackBefore, rolls.mjs).
+  const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/attack-roll.hbs',
     buildAttackContext(actor, nextFlags),
@@ -682,12 +686,13 @@ export async function rollAbilityCheck(actor, skillKey) {
     { actorName: actor.name, actorId: actor.id, skillLabelKey: flags.skillLabelKey, previousDie: null, ...result },
   );
 
+  // Same default as core Roll#toMessage: the user's chat-bar mode.
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     rolls: [roll],
     content,
     flags: { [FLAG_SCOPE]: { reroll: flags } },
-  });
+  }, { messageMode: game.settings.get('core', 'messageMode') });
 }
 
 /**
@@ -878,7 +883,10 @@ async function rollPrimarySkillKey(actor) {
     'systems/heroes-glory/templates/chat/levelup-primary-skill.hbs',
     { actorName: actor.name, die: roll.dice[0].total, skillLabelKey: PRIMARY_SKILL_LABELS[skillKey] },
   );
-  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
+  // Private to the hero's player and the GM. No `rolls`: a whispered roll
+  // still shows everyone else a "rolled privately" stub; the die value is
+  // already in the card text.
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content, whisper: ownersAndGmIds(actor) });
 
   return skillKey;
 }
@@ -979,7 +987,8 @@ async function rollNewCandidateSkillKey(actor) {
     'systems/heroes-glory/templates/chat/levelup-secondary-skill.hbs',
     { actorName: actor.name, die: finalRoll.dice[0].total, skillLabelKey: config.secondarySkills[candidate], rerollCount },
   );
-  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [finalRoll], content });
+  // Same privacy as rollPrimarySkillKey's card.
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content, whisper: ownersAndGmIds(actor) });
 
   return candidate;
 }

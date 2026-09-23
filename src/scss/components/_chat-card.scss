@@ -10,6 +10,29 @@
     font-size: 14px;
   }
 
+  // Details toggle (attack/spell cards): only a ▸/▾ marker, deliberately
+  // no animation or highlight. Details are collapsed unless the card has
+  // .is-expanded (set per viewer by chat.mjs).
+  &__toggle {
+    cursor: pointer;
+
+    &::before {
+      content: "▸ ";
+    }
+  }
+
+  &.is-expanded &__toggle::before {
+    content: "▾ ";
+  }
+
+  &__details {
+    display: none;
+  }
+
+  &.is-expanded &__details {
+    display: block;
+  }
+
   &__line {
     margin: 2px 0;
     font-size: 12px;
