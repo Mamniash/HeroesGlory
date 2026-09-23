@@ -18,6 +18,7 @@ import {
   moraleAttemptsRemaining,
   resolveMoraleCheck,
   resolveTargetStateMultiplier,
+  combineHitAndState,
   isIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -159,20 +160,40 @@ describe('resolvePotentialDamage — §5.3 damage shown when no target is select
   });
 });
 
+describe('combineHitAndState — §5.3/§5.6 hit×state combination', () => {
+  test('state multiplier of 1 is a no-op', () => {
+    const hit = resolveHit(4); // multiplier 1
+    assert.equal(combineHitAndState(hit, 1).multiplier, 1);
+  });
+
+  test('multiplies, does not add — a state multiplier of 2 doubles, not +2', () => {
+    const hit = resolveHit(4); // multiplier 1
+    assert.equal(combineHitAndState(hit, 2).multiplier, 2);
+    assert.notEqual(combineHitAndState(hit, 2).multiplier, 3); // 1 + 2, the additive alternative
+  });
+
+  test('compounds with the hit-table multiplier itself (epic x2, unconscious x3 -> x6)', () => {
+    const hit = resolveHit(6); // multiplier 2, epic
+    assert.equal(combineHitAndState(hit, 3).multiplier, 6);
+  });
+
+  test('preserves every other field on the hit result unchanged', () => {
+    const hit = resolveHit(6);
+    const combined = combineHitAndState(hit, 0.5);
+    assert.equal(combined.die, hit.die);
+    assert.equal(combined.key, hit.key);
+    assert.equal(combined.epic, hit.epic);
+  });
+});
+
 // §5.6/§4.3: roll-actions.mjs's buildAttackContext combines resolveHit and
-// resolveTargetStateMultiplier into one "effective hit" — `{ ...hit,
-// multiplier: hit.multiplier * stateMultiplier }` — BEFORE calling
-// resolveDamage, so only one floor() happens at the very end, not one per
-// multiplier. That combining line itself isn't exported (buildAttackContext
-// is private to roll-actions.mjs, a Foundry-facing file, so it can't be
-// imported here) — these tests reproduce it exactly against the three
-// pieces that ARE exported and pure, to pin down the book math end to end
-// (also verified live against real rollAttack() chat cards through an
-// actual enchanted-weapon artifact, not just a plain weapon — see the
-// combat-diagnosis task). If buildAttackContext's own combining line ever
-// diverges from this (e.g. summed instead of multiplied), these tests
-// won't catch that specific regression — only exporting that line itself
-// would. Recommended as a follow-up, not done here.
+// resolveTargetStateMultiplier into one "effective hit" via the exported
+// combineHitAndState — BEFORE calling resolveDamage, so only one floor()
+// happens at the very end, not one per multiplier. combineHitAndState has
+// its own direct describe block below; this one exercises the full chain
+// end to end (also verified live against real rollAttack() chat cards
+// through an actual enchanted-weapon artifact, not just a plain weapon —
+// see the combat-diagnosis task).
 describe('resolveDamage × resolveTargetStateMultiplier — §5.3/§5.6/§4.3 combined', () => {
   function effectiveDamage(baseDamage, d6, state, { attackerAttack = 5, targetDefense = 5, defeatDie = null } = {}) {
     // targetDefense: null means "no target selected" (matches rollAttack's
@@ -180,7 +201,7 @@ describe('resolveDamage × resolveTargetStateMultiplier — §5.3/§5.6/§4.3 co
     // that as "unresolved", not as an invalid die.
     const hit = resolveHit(d6);
     const stateMultiplier = resolveTargetStateMultiplier(state);
-    const effectiveHit = { ...hit, multiplier: hit.multiplier * stateMultiplier };
+    const effectiveHit = combineHitAndState(hit, stateMultiplier);
     const defeat = resolveDefeat({ attackerAttack, targetDefense, die: defeatDie });
     return resolveDamage({ baseDamage, hit: effectiveHit, defeat });
   }

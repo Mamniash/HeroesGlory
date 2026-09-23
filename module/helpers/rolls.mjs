@@ -291,6 +291,21 @@ export function resolveTargetStateMultiplier({ prone = false, unconscious = fals
 }
 
 /**
+ * §5.3/§5.6: fold a target's state multiplier ({@link resolveTargetStateMultiplier})
+ * into a {@link resolveHit} result, producing the "effective hit" that
+ * resolveDamage/resolvePotentialDamage actually use. Multiplicative, not
+ * additive — a state multiplier of 1 (no prone/unconscious/Доспехи) is a
+ * no-op, unlike an additive combination which would inflate every hit by
+ * a flat +1.
+ * @param {{multiplier: number}} hit   Result of {@link resolveHit}.
+ * @param {number} stateMultiplier     Result of {@link resolveTargetStateMultiplier}.
+ * @returns {object}   `hit` with `multiplier` replaced by the combined value.
+ */
+export function combineHitAndState(hit, stateMultiplier) {
+  return { ...hit, multiplier: hit.multiplier * stateMultiplier };
+}
+
+/**
  * §5.9: "ОЗ ≤ 0 → недееспособен до конца боя."
  * @param {number} healthValue
  * @returns {boolean}

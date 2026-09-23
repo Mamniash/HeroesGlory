@@ -22,6 +22,7 @@ import {
   moraleAttemptsRemaining,
   resolveMoraleCheck,
   resolveTargetStateMultiplier,
+  combineHitAndState,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -197,7 +198,7 @@ function buildAttackContext(actor, flags) {
   // §5.6: the target's prone/unconscious state multiplies damage on top
   // of the d6 hit-table multiplier — folded into a combined "effective
   // hit" so resolveDamage/resolvePotentialDamage need no changes at all.
-  const effectiveHit = { ...hit, multiplier: hit.multiplier * flags.stateMultiplier };
+  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier);
   const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
   const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
 
