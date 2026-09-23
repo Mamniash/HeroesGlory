@@ -92,6 +92,10 @@ FACTIONS = {
             {'creature': 'Архимаги', 'field': 'specialSkillsRaw',
              'from': '5d6,пять зарядов', 'to': '5d6, пять зарядов)',
              'reason': 'не закрыта скобка, нет пробела после запятой'},
+            {'entry': 'Джинны', 'field': 'epicTable', 'row': 4,
+             'from': 'Хватает противника и рукой и наносит удар второй',
+             'to': 'Хватает противника одной рукой и наносит удар второй',
+             'reason': 'искажение «и рукой» вместо «одной рукой» (решение Сени)'},
         ],
     },
 }
@@ -399,8 +403,19 @@ def main():
     if len(creatures_flat) != len(cfg['portraitFrames']):
         flags.add('error', args.faction, f'существ {len(creatures_flat)}, кадров портретов {len(cfg["portraitFrames"])}')
 
-    # Fixes (book typos), then derived fields.
+    # Fixes (book typos), then derived fields. A fix names either a
+    # creature (statblock fields) or an entry + epic row (shared table).
     for fix in cfg['fixes']:
+        if 'entry' in fix:
+            entry = next((e for e in entries if e['heading'] == fix['entry']), None)
+            rows = entry and entry['epicTable']
+            i = fix['row'] - 1
+            if not rows or rows[i] != fix['from']:
+                flags.add('error', fix['entry'], f'исправление строки {fix["row"]} не применилось: там «{rows[i] if rows else None}»')
+                continue
+            rows[i] = fix['to']
+            flags.add('fixed', fix['entry'], f'опечатка книги ({fix["reason"]}), эпик {fix["row"]}: «{fix["from"]}» → «{fix["to"]}»')
+            continue
         target = next((c for c in creatures_flat if c['name'] == fix['creature']), None)
         if target is None or fix['from'] not in target[fix['field']]:
             flags.add('error', fix['creature'], f'исправление не применилось: «{fix["from"]}» не найдено')
