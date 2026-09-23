@@ -161,9 +161,13 @@ export function luckIconPath(value, { large = false } = {}) {
  * ornament, f001 two, f002 three, f003 all four (a complete frame),
  * matching the caster's mastery variant in that school 1:1 (the same 4
  * keys as item-spell.mjs's own `variants` schema: none/basic/advanced/
- * expert). Universal-school spells have no governing secondary skill
- * (rolls.mjs's SCHOOL_SKILL_KEYS has no `universal` entry either) and no
- * frame set exists for them — returns null, caller renders no overlay.
+ * expert). No `universal` entry — a Универсальные spell has no frame set
+ * of its own at all (§6.2/§11), it always borrows one of these four via
+ * whichever real elemental school it resolved to (roll-actions.mjs's
+ * findSpellVariant — see that function's own `resolvedSchool`, which is
+ * what callers must pass here, never a raw `spell.system.school` for a
+ * universal spell). `null` in means no school owned at all — same
+ * "returns null, caller renders no overlay" result either way.
  * @type {Record<string, string>}
  */
 const SCHOOL_FRAME_SETS = { earth: 'spleve', air: 'spleva', water: 'splevw', fire: 'splevf' };
@@ -172,9 +176,11 @@ const SCHOOL_FRAME_SETS = { earth: 'spleve', air: 'spleva', water: 'splevw', fir
 const VARIANT_FRAME_INDEX = { none: 0, basic: 1, advanced: 2, expert: 3 };
 
 /**
- * @param {string} school   A CONFIG.HEROES_GLORY.schools key.
+ * @param {string|null} school   An elemental CONFIG.HEROES_GLORY.schools
+ *   key (never `'universal'` itself — pass the already-resolved elemental
+ *   school for a universal spell), or `null` for "no school owned".
  * @param {'none'|'basic'|'advanced'|'expert'} variant
- * @returns {string|null}   `null` for `school: 'universal'` (no frame set).
+ * @returns {string|null}   `null` for a `null`/unrecognized/`'universal'` school (no frame set).
  */
 export function schoolFramePath(school, variant) {
   const set = SCHOOL_FRAME_SETS[school];

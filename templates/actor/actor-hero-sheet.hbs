@@ -19,6 +19,13 @@
           <p>{{localize this.variantLabelKey}}</p>
           <p>{{localize 'HEROES_GLORY.Roll.ManaCost' cost=this.variantData.manaCost}}</p>
           <p>{{this.variantData.description}}</p>
+          {{#if this.ambiguous}}
+            {{!-- §6.2/§11: Универсальные, 2+ schools tied at the same max
+              tier — school/variant/cost above are a PREVIEW (first tied
+              school by SCHOOL_ORDER), not yet final; casting still opens
+              a picker to ask which school gets credit. --}}
+            <p>{{localize 'HEROES_GLORY.Spellbook.SchoolPickPending'}}</p>
+          {{/if}}
         </template>
       {{/if}}
     </div>

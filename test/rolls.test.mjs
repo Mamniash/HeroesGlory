@@ -12,6 +12,8 @@ import {
   resolveEpicSeverity,
   resolveHitLocation,
   resolveSpellVariant,
+  resolveUniversalSchool,
+  ELEMENTAL_SCHOOLS,
   canAffordSpell,
   resolveAbilityCheck,
   nextLuck,
@@ -367,6 +369,57 @@ describe('resolveSpellVariant — §6.3', () => {
     assert.equal(resolveSpellVariant('base'), 'basic');
     assert.equal(resolveSpellVariant('advanced'), 'advanced');
     assert.equal(resolveSpellVariant('expert'), 'expert');
+  });
+});
+
+// §6.2/§11: Сеня's ruling for the book's own open question (docs/rules.md
+// §11) — a Универсальные spell casts from the hero's single highest-tier
+// elemental school; a tie is reported, not silently broken.
+describe('resolveUniversalSchool — §6.2/§11 which school an Универсальные spell draws from', () => {
+  test('ELEMENTAL_SCHOOLS is earth/air/water/fire, in that order (SCHOOL_ORDER minus universal)', () => {
+    assert.deepEqual(ELEMENTAL_SCHOOLS, ['earth', 'air', 'water', 'fire']);
+  });
+
+  test('no schools owned at all: empty candidates, null tier', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: null, air: null, water: null, fire: null }),
+      { candidateSchools: [], tier: null },
+    );
+  });
+
+  test('one school owned: that school alone, unambiguous', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: null, air: 'advanced', water: null, fire: null }),
+      { candidateSchools: ['air'], tier: 'advanced' },
+    );
+  });
+
+  test('several schools with different tiers: only the highest wins', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: 'base', air: 'expert', water: 'advanced', fire: null }),
+      { candidateSchools: ['air'], tier: 'expert' },
+    );
+  });
+
+  test('several schools tied at the same max tier: all reported, first-by-SCHOOL_ORDER first', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: 'expert', air: null, water: 'expert', fire: null }),
+      { candidateSchools: ['earth', 'water'], tier: 'expert' },
+    );
+  });
+
+  test('all four tied: every school listed, in SCHOOL_ORDER', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: 'base', air: 'base', water: 'base', fire: 'base' }),
+      { candidateSchools: ['earth', 'air', 'water', 'fire'], tier: 'base' },
+    );
+  });
+
+  test('a lower tier among owned schools never displaces the tie at the top', () => {
+    assert.deepEqual(
+      resolveUniversalSchool({ earth: 'expert', air: 'base', water: 'expert', fire: 'advanced' }),
+      { candidateSchools: ['earth', 'water'], tier: 'expert' },
+    );
   });
 });
 

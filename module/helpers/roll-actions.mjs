@@ -15,6 +15,8 @@ import {
   resolveEpicSeverity,
   resolveHitLocation,
   SCHOOL_SKILL_KEYS,
+  ELEMENTAL_SCHOOLS,
+  resolveUniversalSchool,
   resolveSpellVariant,
   canAffordSpell,
   resolveAbilityCheck,
@@ -387,22 +389,70 @@ export async function rerollAttackDie(message, slot) {
 }
 
 /**
- * §6.2/§6.3: resolve which of a spell's four variants applies for a given
- * caster — finds the owned skill item governing the spell's school (none
- * for Universal-school spells, since SCHOOL_SKILL_KEYS has no `universal`
- * entry), reads its tier, and looks up the matching variant data. Shared
- * by castSpell (the cast/charge flow below) and the hero sheet's
- * spellbook overlay (tooltip content, module/sheets/actor/hero-sheet.mjs)
- * so the school→skill→tier→variant chain lives in exactly one place.
+ * §6.2/§6.3/§11: resolve which of a spell's four variants applies for a
+ * given caster, and which school it's drawn from. For an ordinary spell
+ * that's just its own `system.school`; for a Универсальные spell (no
+ * governing secondary skill of its own — SCHOOL_SKILL_KEYS has no
+ * `universal` entry) it's whichever of the hero's four elemental schools
+ * is highest-tier (resolveUniversalSchool, rolls.mjs) — Сеня's ruling for
+ * the open book question, docs/rules.md §11.
+ *
+ * A tie between two-or-more schools at that max tier is `ambiguous: true`
+ * unless the caller already resolved it via `chosenSchool` (the school
+ * the player picked in the picker triggered by the ambiguous case —
+ * module/sheets/actor/hero-sheet.mjs's castSpell action override).
+ * `variant`/`variantData` are still fully resolved even while ambiguous —
+ * the tier (and so the mana cost/description) is identical across every
+ * tied candidate by construction, only WHICH school gets credit is
+ * unresolved — so a preview using `candidateSchools[0]` never shows a
+ * wrong number, only a provisional school.
+ *
+ * Shared by castSpell (the cast/charge flow below) and the hero sheet's
+ * spellbook overlay (tooltip/frame content, hero-sheet.mjs) so the
+ * school→skill→tier→variant chain lives in exactly one place.
  * @param {Actor} actor
  * @param {Item} spell
- * @returns {{variant: string, variantData: {description: string, manaCost: number}}}
+ * @param {string|null} [chosenSchool]   An elemental school the player
+ *   already picked for this specific cast (only meaningful when `spell`'s
+ *   own school is `universal`); ignored otherwise.
+ * @returns {{
+ *   variant: string,
+ *   variantData: {description: string, manaCost: number},
+ *   resolvedSchool: string|null,
+ *   ambiguous: boolean,
+ *   candidateSchools: string[],
+ * }}
+ *   `resolvedSchool` is `null` only when nothing is owned at all (no
+ *   elemental school for a universal spell). `candidateSchools` is always
+ *   `[school]` for an ordinary spell; for universal it's every
+ *   tied-for-highest elemental school (length 0/1/2+ — see
+ *   resolveUniversalSchool).
  */
-export function findSpellVariant(actor, spell) {
-  const skillKey = SCHOOL_SKILL_KEYS[spell.system.school];
+export function findSpellVariant(actor, spell, chosenSchool = null) {
+  const school = spell.system.school;
+
+  if (school === 'universal') {
+    const schoolTiers = Object.fromEntries(ELEMENTAL_SCHOOLS.map((s) => [
+      s,
+      actor.items.find((i) => i.type === 'skill' && i.system.skillKey === SCHOOL_SKILL_KEYS[s])?.system.tier ?? null,
+    ]));
+    const { candidateSchools, tier } = resolveUniversalSchool(schoolTiers);
+    const ambiguous = !chosenSchool && candidateSchools.length > 1;
+    const resolvedSchool = chosenSchool ?? candidateSchools[0] ?? null;
+    const variant = resolveSpellVariant(tier);
+    return { variant, variantData: spell.system.variants[variant], resolvedSchool, ambiguous, candidateSchools };
+  }
+
+  const skillKey = SCHOOL_SKILL_KEYS[school];
   const skillItem = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === skillKey);
   const variant = resolveSpellVariant(skillItem?.system.tier);
-  return { variant, variantData: spell.system.variants[variant] };
+  return {
+    variant,
+    variantData: spell.system.variants[variant],
+    resolvedSchool: school || null,
+    ambiguous: false,
+    candidateSchools: [school],
+  };
 }
 
 /**
@@ -412,12 +462,25 @@ export function findSpellVariant(actor, spell) {
  * `specializationManaDiscount`) is applied here, at the one place that
  * already reads/spends `variantData.manaCost` — not a second cost
  * computation living somewhere else.
+ *
+ * `chosenSchool` threads straight through to findSpellVariant — for an
+ * ambiguous Универсальные spell, the caller (hero-sheet.mjs's castSpell
+ * action override) must resolve the ambiguity via its school-picker
+ * BEFORE calling this, then pass the pick here. Called with an
+ * unresolved ambiguity, this refuses to cast at all (no Mana spent, no
+ * chat message) rather than silently guessing a school — the picker path
+ * is the only supported way through that case, this is just a defensive
+ * backstop against a caller that forgot to check.
  * @param {Actor} actor   The casting hero.
  * @param {Item} spell    The spell item.
- * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana (nothing is cast).
+ * @param {string|null} [chosenSchool]   See findSpellVariant.
+ * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana, or the
+ *   school is still ambiguous — nothing is cast either way.
  */
-export async function castSpell(actor, spell) {
-  const { variant, variantData } = findSpellVariant(actor, spell);
+export async function castSpell(actor, spell, chosenSchool = null) {
+  const { variant, variantData, resolvedSchool, ambiguous } = findSpellVariant(actor, spell, chosenSchool);
+  if (ambiguous) return null;
+
   const discount = specializationManaDiscount(actor.system.specialization, spell.name);
   const manaCost = Math.max(0, variantData.manaCost - discount);
 
@@ -438,6 +501,10 @@ export async function castSpell(actor, spell) {
     {
       casterName: actor.name,
       spellName: spell.name,
+      // §task: shown for every spell, not just Универсальные — resolvedSchool
+      // is always spell.system.school for an ordinary spell, so this line
+      // was just as omittable before, only now does it earn its keep.
+      schoolLabelKey: resolvedSchool ? `HEROES_GLORY.School.${resolvedSchool.charAt(0).toUpperCase()}${resolvedSchool.slice(1)}` : null,
       variantLabelKey: SPELL_VARIANT_LABELS[variant],
       description: variantData.description,
       manaCost,

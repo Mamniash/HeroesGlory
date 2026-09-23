@@ -7,9 +7,14 @@
  * Foundry-independent function like rolls.mjs's own SCHOOL_SKILL_KEYS —
  * keep in sync with config.mjs's HEROES_GLORY.schools key order if that
  * ever changes.
+ *
+ * Exported (not just used locally) so rolls.mjs's resolveUniversalSchool
+ * can reuse this exact order for its own tie-break-by-first-in-order
+ * preview pick, rather than a second hardcoded list drifting from this
+ * one — Сеня's own instruction when the tie-break question came up.
  * @type {string[]}
  */
-const SCHOOL_ORDER = ['earth', 'air', 'water', 'fire', 'universal'];
+export const SCHOOL_ORDER = ['earth', 'air', 'water', 'fire', 'universal'];
 
 /**
  * @param {{level: number, school: string, name: string}} a

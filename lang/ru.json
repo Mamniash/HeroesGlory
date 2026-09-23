@@ -432,7 +432,9 @@
       "NextPageHint": "Следующий разворот книги",
       "CloseHint": "Закрыть книгу магии",
       "SpellMeta": "{level} ур. Мана: {cost}",
-      "SpellMetaNoCost": "{level} ур. Мана: —"
+      "SpellMetaNoCost": "{level} ур. Мана: —",
+      "SchoolPickTitle": "Школа заклинания",
+      "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте"
     },
     "Effect": {
       "Source": "Источник",
@@ -484,6 +486,7 @@
         "HeadEffect": "Цель теряет сознание"
       },
       "SpellTitle": "{caster} творит «{spell}»",
+      "SpellSchool": "Школа: {school}",
       "ManaCost": "Стоимость: {cost} Маны",
       "ManaRemaining": "Осталось Маны: {mana}",
       "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",

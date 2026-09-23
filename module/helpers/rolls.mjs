@@ -5,6 +5,7 @@
  * global — so this file can be unit-tested with plain `node --test`.
  * Rolling the actual dice and posting to chat lives in roll-actions.mjs.
  */
+import { SCHOOL_ORDER } from './spellbook.mjs';
 
 /**
  * §5.3 hit table. Index 0 is unused so `HIT_TABLE[d6]` reads naturally.
@@ -193,6 +194,50 @@ export const SCHOOL_SKILL_KEYS = {
   water: 'waterMagic',
   fire: 'fireMagic',
 };
+
+/**
+ * The four elemental schools a hero can actually train, in SCHOOL_ORDER's
+ * own declared order — Универсальные excluded, since it's never itself a
+ * governing school (see resolveUniversalSchool below).
+ * @type {string[]}
+ */
+export const ELEMENTAL_SCHOOLS = SCHOOL_ORDER.filter((school) => school !== 'universal');
+
+/**
+ * §6.2/§11: which school an Универсальные spell draws its casting mastery
+ * from. The book doesn't address this at all (checked directly against
+ * the "Универсальные" table's own page and the page after — no
+ * surrounding text, docs/rules.md §11); this is Сеня's own ruling: the
+ * hero's single highest-tier elemental school. A tie between two or more
+ * schools at the same max tier is deliberately NOT broken here — silently
+ * picking one was explicitly rejected as its own silent error (a hero
+ * with two Experts would always cast from the same school forever without
+ * ever being told there was a choice). The caller must ask the player.
+ *
+ * `candidateSchools[0]` is always the first tied school in SCHOOL_ORDER —
+ * usable as a non-binding PREVIEW (spellbook frame/tooltip) before that
+ * ask happens, never as the actual cast resolution when candidateSchools
+ * has more than one entry.
+ * @param {Record<string, string|null|undefined>} schoolTiers   earth/air/water/fire -> tier ("base"|"advanced"|"expert") or null/undefined if unowned.
+ * @returns {{candidateSchools: string[], tier: string|null}}
+ *   Empty `candidateSchools` (`tier: null`) means no elemental school is
+ *   owned at all. One entry means unambiguous. Two or more means a tie.
+ */
+export function resolveUniversalSchool(schoolTiers) {
+  let bestIndex = -1;
+  let candidateSchools = [];
+  for (const school of ELEMENTAL_SCHOOLS) {
+    const index = SKILL_TIER_ORDER.indexOf(schoolTiers[school]);
+    if (index === -1) continue;
+    if (index > bestIndex) {
+      bestIndex = index;
+      candidateSchools = [school];
+    } else if (index === bestIndex) {
+      candidateSchools.push(school);
+    }
+  }
+  return { candidateSchools, tier: bestIndex === -1 ? null : SKILL_TIER_ORDER[bestIndex] };
+}
 
 /**
  * §6.3: which of a spell's four variants applies, based on the hero's
