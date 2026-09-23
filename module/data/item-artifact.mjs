@@ -16,12 +16,17 @@ export default class HeroesGloryArtifact extends HeroesGloryDataModel {
     // not structured modifiers.
     schema.bonus = new fields.StringField({ required: true, blank: true });
 
-    // §5.5/§8.2: only enchanted armor carries a level (1-5) — null for the
-    // other 5 artifact types. Enchanted SHIELDS were assumed to carry one
-    // too (rules.md previously said so), but the book's own "Зачарованные
-    // щиты" table (стр. 48) has no level column or per-item level at all —
-    // checked directly against the page images, not carried over from the
-    // doc. Fixed in rules.md; left null here for every shield artifact.
+    // §5.5/§8.2: meaningful for two of the 6 artifact types, each in its
+    // own way — null for the other 4. Enchanted ARMOR: gates epic-hit
+    // mitigation (§5.5's 5-level table); the book's own "Зачарованные
+    // доспехи" table (стр. 47) gives all 11 entries a level. Enchanted
+    // SHIELDS: feeds a synthesized +level Defense bonus (§5.5: "+1-5 в
+    // зависимости от уровня щита") — but unlike armor, the book's own
+    // "Зачарованные щиты" table (стр. 48) has no level column at all for
+    // any of its 10 entries (checked directly against the page images),
+    // so this stays null there until a GM sets one by hand on a specific
+    // handed-out item (module/documents/item.mjs's #effectiveModifiers
+    // reads it live, no compendium value to fall back on).
     schema.level = new fields.NumberField({
       required: false, nullable: true, integer: true, initial: null, min: 1, max: 5,
     });

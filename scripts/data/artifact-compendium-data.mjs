@@ -3,11 +3,16 @@
  * страниц книги (OKP_Heroes_Glory_v2_1.pdf, книжные стр. 46-51, один тип
  * на страницу; текстовый слой PDF не читается для кириллицы, см. тот же
  * комментарий в weapon-compendium-data.mjs). 2d6 на каждой странице,
- * 61 запись всего: 11 «Зачарованное оружие» (2-12) + по 10 на каждый из
- * оставшихся пяти типов (2-11). Один компендиум на все 6 типов — они все
- * являются одним типом документа (`Item` → `artifact`), различаются только
- * `system.artifactType`, ровно как единый компендиум оружия уже различает
- * 5 категорий через `weaponType`.
+ * 61 книжная запись: 11 «Зачарованное оружие» (2-12) + по 10 на каждый из
+ * оставшихся пяти типов (2-11). Плюс 10 небрендированных: 5 «Доспех
+ * (N уровень)»/5 «Щит (N уровень)» без бонуса — книга не даёт обычную,
+ * незачарованную броню как отдельную позицию вообще (ни в прайс-листе,
+ * ни в стартовом снаряжении, см. docs/rules.md §11), но митигация эпика
+ * (§5.5) требует, чтобы герой мог носить доспех без артефактного бонуса
+ * — см. PLAIN_ARMOR/PLAIN_SHIELDS ниже. Итого 71 запись. Один компендиум
+ * на все 6 типов — они все являются одним типом документа (`Item` →
+ * `artifact`), различаются только `system.artifactType`, ровно как единый
+ * компендиум оружия уже различает 5 категорий через `weaponType`.
  *
  * Числовые бонусы продублированы в `modifiers` (структурированно, реально
  * действуют через ActiveEffect — module/documents/item.mjs) поверх
@@ -88,23 +93,60 @@ const ENCHANTED_WEAPONS = [
 ];
 
 // --- Зачарованные доспехи, стр. 47 — 10 записей (2-11) ---
+// targetSlots — по названию каждой записи, сопоставлено вручную с
+// rules.md §8.2's slot semantics (slot_3 голова, slot_5 торс, slot_9
+// ноги): «Шлем...» -> голова, «Поножи...» -> ноги, остальное (нагрудник/
+// кольчуга/туника/общее «доспех») -> торс. Не догадка по аналогии — тот
+// же принцип, что уже применён к оружию (targetSlots оружия детерминирован
+// по weaponType), просто категория тут читается из самого имени предмета,
+// а не из отдельного книжного поля (колонка «Тип» в этой таблице даёт
+// только уровень, не зону). Это же сопоставление слот↔зона используется
+// для допущения по эпик-митигации доспеха (docs/rules.md §11, "Куда
+// попал" ↔ слоты) — помечено там как допущение, не книжный факт.
+const HEAD_SLOT = 3;
+const TORSO_SLOT = 5;
+const LEG_SLOT = 9;
+const SHIELD_SLOT = 6;
+
 const ENCHANTED_ARMOR = [
-  { name: 'Нагрудник из окаменелого дерева', bonus: '+1 к Силе магии', level: 1, modifiers: [mod('magicPower', 'add', 1)] },
-  { name: 'Шлем белого единорога', bonus: '+1 к Знанию', level: 1, modifiers: [mod('knowledge', 'add', 1)] },
-  { name: 'Шлем-череп', bonus: '+2 к Знанию', level: 2, modifiers: [mod('knowledge', 'add', 2)] },
-  { name: 'Шлем Хаоса', bonus: '+3 к Знанию', level: 2, modifiers: [mod('knowledge', 'add', 3)] },
-  { name: 'Поножи из кости дракона', bonus: '+1 к Силе магии и Знанию', level: 3, modifiers: [mod('magicPower', 'add', 1), mod('knowledge', 'add', 1)] },
-  { name: 'Шлем адской ярости', bonus: '+5 к Знанию', level: 3, modifiers: [mod('knowledge', 'add', 5)] },
-  { name: 'Кольчуга великого василиска', bonus: '+3 к Силе магии', level: 3, modifiers: [mod('magicPower', 'add', 3)] },
-  { name: 'Туника короля циклопов', bonus: '+4 к Силе магии', level: 4, modifiers: [mod('magicPower', 'add', 4)] },
-  { name: 'Шлем небесного грома', bonus: '+10 к Знанию, но -2 к Силе магии', level: 4, modifiers: [mod('knowledge', 'add', 10), mod('magicPower', 'subtract', 2)] },
-  { name: 'Доспех из чешуи дракона', bonus: '+4 к Атаке и защите', level: 5, modifiers: [mod('attack', 'add', 4), mod('defense', 'add', 4)] },
+  { name: 'Нагрудник из окаменелого дерева', bonus: '+1 к Силе магии', level: 1, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 1)] },
+  { name: 'Шлем белого единорога', bonus: '+1 к Знанию', level: 1, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 1)] },
+  { name: 'Шлем-череп', bonus: '+2 к Знанию', level: 2, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 2)] },
+  { name: 'Шлем Хаоса', bonus: '+3 к Знанию', level: 2, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 3)] },
+  { name: 'Поножи из кости дракона', bonus: '+1 к Силе магии и Знанию', level: 3, targetSlots: [LEG_SLOT], modifiers: [mod('magicPower', 'add', 1), mod('knowledge', 'add', 1)] },
+  { name: 'Шлем адской ярости', bonus: '+5 к Знанию', level: 3, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 5)] },
+  { name: 'Кольчуга великого василиска', bonus: '+3 к Силе магии', level: 3, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 3)] },
+  { name: 'Туника короля циклопов', bonus: '+4 к Силе магии', level: 4, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 4)] },
+  { name: 'Шлем небесного грома', bonus: '+10 к Знанию, но -2 к Силе магии', level: 4, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 10), mod('magicPower', 'subtract', 2)] },
+  { name: 'Доспех из чешуи дракона', bonus: '+4 к Атаке и защите', level: 5, targetSlots: [TORSO_SLOT], modifiers: [mod('attack', 'add', 4), mod('defense', 'add', 4)] },
 ];
+
+// Обычная (незачарованная) броня — в книге не описана как отдельная
+// покупаемая/выдаваемая позиция (нет ни в прайс-листе стр. 66-69, ни в
+// стартовом снаряжении по расе — см. docs/rules.md §11), но митигация
+// эпика (§5.5) требует, чтобы герой мог носить доспех БЕЗ артефактного
+// бонуса. Пять записей, по одной на уровень, без bonus/modifiers — то же
+// artifactType, что и зачарованные (см. этого файла собственный
+// заголовочный комментарий: разница между "зачарован" и "не зачарован" —
+// только в тексте/бонусе, не в типе документа). Названия — дословно
+// формат книжной колонки "Тип" у зачарованных доспехов ("доспех (N
+// уровень)", стр. 47), не придуманы заново. targetSlots — все три
+// доспеховых слота сразу (не одна фиксированная зона): решает Сеня в
+// момент выдачи, что это — шлем, нагрудник или поножи для конкретного героя.
+const PLAIN_ARMOR = [1, 2, 3, 4, 5].map((level) => ({
+  name: `Доспех (${level} уровень)`, bonus: '', level, targetSlots: [HEAD_SLOT, TORSO_SLOT, LEG_SLOT], modifiers: [],
+}));
 
 // --- Зачарованные щиты, стр. 48 — 10 записей (2-11) ---
 // Уровня НЕТ ни у одной записи (книга: колонка "Тип" = "щит" без номера,
-// в отличие от доспехов) — level остаётся null для всех, docs/rules.md
-// поправлен под это же наблюдение.
+// в отличие от доспехов) — level остаётся null (не задан) для всех 10;
+// module/documents/item.mjs теперь умеет синтезировать +level к Защите
+// из этого поля отдельно от modifiers ниже (§5.5: "щит даёт +1-5 в
+// зависимости от уровня", а modifiers здесь — "дополнительный бонус
+// сверх описанного выше", т.е. складывается поверх, не вместо), но
+// значение самого level для этих 10 именованных записей книга не даёт —
+// Сеня проставляет вручную на конкретном выданном предмете, как и для
+// доспехов. Все 10 — в слот щита (slot_6, rules.md §8.2).
 const ENCHANTED_SHIELDS = [
   { name: 'Щит стражника королевы', bonus: '+1 к Защите, +1 к Атаке', modifiers: [mod('defense', 'add', 1), mod('attack', 'add', 1)] },
   { name: 'Щит полурослика', bonus: '+1 к Защите, +1 к Удаче', modifiers: [mod('defense', 'add', 1), mod('luck', 'add', 1)] },
@@ -116,7 +158,15 @@ const ENCHANTED_SHIELDS = [
   { name: 'Щит морской славы', bonus: '+7 к Защите', modifiers: [mod('defense', 'add', 7)] },
   { name: 'Щит из чешуи дракона', bonus: '+4 к Атаке и Защите', modifiers: [mod('attack', 'add', 4), mod('defense', 'add', 4)] },
   { name: 'Щит часового', bonus: '+12 к Защите, но -3 к Атаке', modifiers: [mod('defense', 'add', 12), mod('attack', 'subtract', 3)] },
-];
+].map((entry) => ({ ...entry, targetSlots: [SHIELD_SLOT] }));
+
+// Обычный (незачарованный) щит — та же логика, что и PLAIN_ARMOR выше:
+// книга не даёт ни номенклатуры, ни цен, только механику самого бонуса.
+// Пять уровней, без дополнительного bonus/modifiers — level несёт весь
+// эффект через тот же синтез в module/documents/item.mjs.
+const PLAIN_SHIELDS = [1, 2, 3, 4, 5].map((level) => ({
+  name: `Щит (${level} уровень)`, bonus: '', level, targetSlots: [SHIELD_SLOT], modifiers: [],
+}));
 
 // --- Ожерелья, стр. 49 — 10 записей (2-11), без колонки "Тип" ---
 const NECKLACES = [
@@ -198,7 +248,9 @@ const ICONS = {
 const GROUPS = [
   { artifactType: 'enchantedWeapon', entries: ENCHANTED_WEAPONS },
   { artifactType: 'enchantedArmor', entries: ENCHANTED_ARMOR },
+  { artifactType: 'enchantedArmor', entries: PLAIN_ARMOR },
   { artifactType: 'enchantedShield', entries: ENCHANTED_SHIELDS },
+  { artifactType: 'enchantedShield', entries: PLAIN_SHIELDS },
   { artifactType: 'necklace', entries: NECKLACES },
   { artifactType: 'magicClothing', entries: MAGIC_CLOTHING },
   { artifactType: 'magicItem', entries: MAGIC_ITEMS },
@@ -225,7 +277,7 @@ export function buildArtifactDocuments() {
           level: entry.level ?? null,
           equipped: false,
           paperdollSlot: null,
-          targetSlots: isWeapon ? [entry.weaponType === 'ranged' ? 16 : 1] : [],
+          targetSlots: isWeapon ? [entry.weaponType === 'ranged' ? 16 : 1] : (entry.targetSlots ?? []),
           modifiers: entry.modifiers,
           weaponType: isWeapon ? entry.weaponType : '',
           damage: isWeapon ? entry.damage : null,

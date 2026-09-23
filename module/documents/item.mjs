@@ -88,10 +88,11 @@ export class HeroesGloryItem extends Item {
    * handled there instead, keyed off `system.paperdollSlot`, and multiple
    * artifacts of the same type are allowed in different slots.
    *
-   * Also keeps an artifact's structured `system.modifiers` (§8.2) synced
-   * onto a real embedded ActiveEffect, so the bonuses actually apply
-   * instead of just being displayed as text — see module/helpers/
-   * modifiers.mjs and #syncModifierEffect below. This runs independently
+   * Also keeps an artifact's structured `system.modifiers` (§8.2) — plus,
+   * for a shield, its level-derived Defense bonus (§5.5) — synced onto a
+   * real embedded ActiveEffect, so the bonuses actually apply instead of
+   * just being displayed as text — see module/helpers/modifiers.mjs and
+   * #syncModifierEffect/#effectiveModifiers below. This runs independently
    * of the weapon-slot logic above: an enchanted weapon's `+N к Атаке`
    * keeps applying via its own ActiveEffect (gated on `equipped` alone)
    * regardless of whether it's sitting in the weapon paperdoll slot, the
@@ -106,7 +107,14 @@ export class HeroesGloryItem extends Item {
     // they don't get attempted redundantly on every connected client.
     if (userId !== game.user.id) return;
 
-    if (this.type === 'artifact' && ('modifiers' in (changed.system ?? {}) || 'equipped' in (changed.system ?? {}))) {
+    if (this.type === 'artifact' && (
+      'modifiers' in (changed.system ?? {})
+      || 'equipped' in (changed.system ?? {})
+      // §5.5/§8.2: a shield's level feeds the synthesized +level Defense
+      // modifier below — a level-only edit (GM setting the level on a
+      // handed-out shield) needs the same resync as a modifiers edit.
+      || 'level' in (changed.system ?? {})
+    )) {
       this.#syncModifierEffect();
     }
 
@@ -147,13 +155,37 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
+   * §5.5/§8.2: `system.modifiers` (the book's own printed table bonus)
+   * plus, for an enchanted shield with a level set, a synthesized
+   * `+level` Defense modifier — "Герой, который держит в руках щит,
+   * имеет бонус +1-5 в зависимости от уровня щита" (стр. 48), and the
+   * table's own bonus is explicitly "дополнительный бонус сверх
+   * описанного выше" — on top of the level bonus, not instead of it.
+   * Synthesized here only, never written back into `system.modifiers`
+   * itself — that field stays exactly what the book's table prints (or
+   * empty, for an unbranded "Щит (N уровень)" compendium entry).
+   * `level` is null by default even for a named shield (docs/rules.md
+   * §11: the book never assigns a level to any of the 10 named
+   * entries) — a GM fills it in on the specific item once handed out.
+   * @returns {Array<{stat:string, mode:string, value:number}>}
+   */
+  #effectiveModifiers() {
+    const modifiers = [...(this.system.modifiers ?? [])];
+    if (this.system.artifactType === 'enchantedShield' && this.system.level != null) {
+      modifiers.push({ stat: 'defense', mode: 'add', value: this.system.level });
+    }
+    return modifiers;
+  }
+
+  /**
    * Keep this artifact's single auto-managed ActiveEffect in sync with
-   * `system.modifiers` and `system.equipped`. Always rebuilds the full
-   * effect data and calls `update()` rather than diffing — Foundry only
-   * writes an actual change if something differs, so this is simple
-   * without being wasteful in practice (an equip toggle recomputes the
-   * same `changes` and only `disabled` actually differs; a modifiers
-   * edit recomputes `changes` and `disabled` stays the same).
+   * `system.modifiers`/`system.level`/`system.equipped` (via
+   * #effectiveModifiers above). Always rebuilds the full effect data and
+   * calls `update()` rather than diffing — Foundry only writes an actual
+   * change if something differs, so this is simple without being
+   * wasteful in practice (an equip toggle recomputes the same `changes`
+   * and only `disabled` actually differs; a modifiers/level edit
+   * recomputes `changes` and `disabled` stays the same).
    *
    * The effect has `transfer: true` (Foundry's own default for
    * ActiveEffect), so it applies to the owning actor automatically once
@@ -161,7 +193,7 @@ export class HeroesGloryItem extends Item {
    * @returns {Promise<void>}
    */
   async #syncModifierEffect() {
-    const modifiers = this.system.modifiers ?? [];
+    const modifiers = this.#effectiveModifiers();
     const existing = this.effects.find((e) => e.getFlag(...MODIFIER_EFFECT_FLAG));
 
     if (modifiers.length === 0) {
