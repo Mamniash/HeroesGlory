@@ -49,7 +49,10 @@
     </p>
   {{/if}}
 
-  {{#if (lt armorItemMultiplier 1)}}
+  {{!-- §5.5: protectingArmorNames is already '' when a level-3 zone
+    match zeroed the damage — see buildAttackContext's own comment, this
+    is not the same condition as armorItemMultiplier < 1. --}}
+  {{#if protectingArmorNames}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
       {{localize 'HEROES_GLORY.Roll.ArmorItemNote' armor=protectingArmorNames}}
     </p>
@@ -83,7 +86,12 @@
         <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>
         {{#if location}}
           <p class="heroes-glory-chat-card__line">
-            {{localize location.labelKey}} — {{localize location.effectKey}}
+            {{localize location.labelKey}} —
+            {{#if location.protectingArmorName}}
+              {{localize location.protectedKey armor=location.protectingArmorName}}
+            {{else}}
+              {{localize location.effectKey}}
+            {{/if}}
           </p>
         {{/if}}
       {{/if}}

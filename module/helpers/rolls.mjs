@@ -400,18 +400,80 @@ export function resolveArmorItemMultiplier(equippedArmor) {
 }
 
 /**
- * §5.5 (уровни 1-4): "Доспех разрушается"/"Эпик-попадание разрушает
- * доспех" — на эпик-попадании ломается любой надетый доспех уровня 1-4
- * (уровень 5 не разрушается никогда, §5.5's own text). Возвращает сами
- * предметы (не бросает их), чтобы вызывающий код мог только сообщить об
- * этом в чате — предмет физически не трогаем (docs/rules.md §11).
- * @param {boolean} epic                        Result of {@link resolveHit}'s `.epic`.
- * @param {Array<{level: number}>} equippedArmor Same shape as {@link resolveArmorItemMultiplier}.
- * @returns {Array<{level: number}>}   The subset that breaks — empty if not epic or none qualify.
+ * §5.4/§5.5: which "Куда попал" location maps to which paperdoll slot —
+ * the same assumption already accepted for targetSlots curation
+ * (docs/rules.md §11: голова↔slot_3, торс↔slot_5, нога↔slot_9, not a
+ * book fact, an explicit project decision). Deliberately has no `arm`
+ * key — no armor entry (book or "Доспех (N уровень)") has ever been
+ * curated onto a forearm slot (2/7), because the book has no armor for
+ * arms at all. That absence, not a special-cased exclusion, is what
+ * makes "рука" never protectable below: resolveArmorZoneProtection just
+ * finds no slot to look up.
+ * @type {Record<string, number>}
  */
-export function resolveDestroyedArmor(epic, equippedArmor) {
+const LOCATION_TO_SLOT = { leg: 9, torso: 5, head: 3 };
+
+/**
+ * §5.5 (уровни 1-3): which equipped level-1-3 armor piece, if any,
+ * actually covers a "Куда попал" location — the single source both
+ * rollAttack and rerollAttackDie's hit-reroll branch read (via
+ * applyLocationConsequence, roll-actions.mjs) so neither can diverge.
+ * Only ever returns a level 1-3 piece — level 4-5's own mitigation
+ * (resolveArmorItemMultiplier) doesn't care about zone at all, so a
+ * level 4-5 piece occupying the matching slot is irrelevant here.
+ * @param {string|null} location   A resolveHitLocation result, or null
+ *   (not epic, not severe, or reroll hasn't happened yet).
+ * @param {Array<{name:string, level:number, targetSlots:number[]}>} equippedArmor
+ * @returns {{name:string, level:number, targetSlots:number[]}|null}
+ */
+export function resolveArmorZoneProtection(location, equippedArmor) {
+  const slot = LOCATION_TO_SLOT[location];
+  if (slot == null) return null;
+  return equippedArmor.find((item) => item.level >= 1 && item.level <= 3 && (item.targetSlots ?? []).includes(slot)) ?? null;
+}
+
+/**
+ * §5.5 (уровни 1-3): the damage multiplier a zone-matching protector
+ * contributes — 0 for level 3 ("урон... полностью снимается"), 0.5 for
+ * level 2 ("снижает урон эпика вдвое"), 1 for level 1 (explicitly
+ * excludes урон — "кроме урона") or no protector at all.
+ * @param {{level:number}|null} protectingItem   Result of {@link resolveArmorZoneProtection}.
+ * @returns {number}
+ */
+export function resolveArmorZoneMultiplier(protectingItem) {
+  if (!protectingItem) return 1;
+  if (protectingItem.level === 3) return 0;
+  if (protectingItem.level === 2) return 0.5;
+  return 1; // level 1
+}
+
+/**
+ * §5.5: which equipped armor breaks on an epic hit — two different
+ * conditions for two different reasons (docs/rules.md §11), not one
+ * rule loosely applied to both:
+ * - level 4: unconditional — "Доспех при этом разрушается" isn't
+ *   qualified by zone for THIS level's own damage mitigation either
+ *   (Подход 2's deliberate departure from "по защищённой части тела"),
+ *   so its destruction stays consistent with that same departure.
+ * - levels 1-3: "Доспех ПРИ ЭТОМ разрушается" — "при этом" ties
+ *   destruction to the mitigation actually firing this specific hit, so
+ *   only the ONE piece resolveArmorZoneProtection found (if any) breaks
+ *   — a doспех on the leg does not break from a hit to the head it
+ *   never protected.
+ * Level 5 never breaks (§5.5's own text says so explicitly) — never
+ * appears in either branch. Returns the items themselves (not deleted),
+ * so the caller can only report this in chat — the item is never
+ * touched (docs/rules.md §11).
+ * @param {boolean} epic   Result of {@link resolveHit}'s `.epic`.
+ * @param {Array<{name:string, level:number}>} equippedArmor   Same shape as {@link resolveArmorItemMultiplier}.
+ * @param {{name:string, level:number}|null} protectingItem   Result of {@link resolveArmorZoneProtection}.
+ * @returns {Array<{name:string, level:number}>}   The subset that breaks — empty if not epic or none qualify.
+ */
+export function resolveDestroyedArmor(epic, equippedArmor, protectingItem) {
   if (!epic) return [];
-  return equippedArmor.filter((item) => item.level >= 1 && item.level <= 4);
+  const unconditional = equippedArmor.filter((item) => item.level === 4);
+  const zoneProtected = protectingItem && protectingItem.level >= 1 && protectingItem.level <= 3 ? [protectingItem] : [];
+  return [...unconditional, ...zoneProtected];
 }
 
 /**

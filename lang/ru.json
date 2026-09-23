@@ -478,12 +478,15 @@
       "Location": {
         "Leg": "Нога",
         "LegEffect": "−1 к Скорости до излечения",
+        "LegProtected": "Доспех («{armor}») защищает от повреждения ноги",
         "Arm": "Рука",
         "ArmEffect": "Роняет предмет",
         "Torso": "Торс",
         "TorsoEffect": "Цель падает",
+        "TorsoProtected": "Доспех («{armor}») защищает от падения",
         "Head": "Голова",
-        "HeadEffect": "Цель теряет сознание"
+        "HeadEffect": "Цель теряет сознание",
+        "HeadProtected": "Доспех («{armor}») защищает от потери сознания"
       },
       "SpellTitle": "{caster} творит «{spell}»",
       "SpellSchool": "Школа: {school}",
@@ -511,6 +514,8 @@
       "MoraleSkip": "пропускает ход",
       "MoraleResist": "ход сохранён",
       "StateMultiplierNote": "Состояние цели: урон ×{multiplier}",
+      "ArmorItemNote": "Доспех цели (уровень 4-5) снижает урон вдвое: {armor}",
+      "ArmorDestroyed": "Доспех цели разрушен: {armor}",
       "KillConfirmTitle": "Убить недееспособную цель?",
       "KillConfirmContent": "{attacker} атакует недееспособного «{target}». По правилам (§5.9) это автоматическое убийство навсегда, без броска. Действие необратимо. Продолжить?",
       "KillTitle": "{attacker} атакует «{target}»",

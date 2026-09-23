@@ -27,6 +27,8 @@ import {
   resolveTargetStateMultiplier,
   combineHitAndState,
   resolveArmorItemMultiplier,
+  resolveArmorZoneProtection,
+  resolveArmorZoneMultiplier,
   resolveDestroyedArmor,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
@@ -72,11 +74,25 @@ const HIT_LABELS = {
   epic: 'HEROES_GLORY.Roll.Hit.Epic',
 };
 
+// §5.5: protectedKey — the "доспех защищает" phrasing shown instead of
+// effectKey when resolveArmorZoneProtection (rolls.mjs) found a level
+// 1-3 piece covering this location. No entry for `arm` — never
+// protectable at all (rolls.mjs's own LOCATION_TO_SLOT has no `arm` key
+// either, same underlying reason: no armor ever targets a forearm slot).
 const LOCATION_LABELS = {
-  leg: { labelKey: 'HEROES_GLORY.Roll.Location.Leg', effectKey: 'HEROES_GLORY.Roll.Location.LegEffect' },
+  leg: {
+    labelKey: 'HEROES_GLORY.Roll.Location.Leg', effectKey: 'HEROES_GLORY.Roll.Location.LegEffect',
+    protectedKey: 'HEROES_GLORY.Roll.Location.LegProtected',
+  },
   arm: { labelKey: 'HEROES_GLORY.Roll.Location.Arm', effectKey: 'HEROES_GLORY.Roll.Location.ArmEffect' },
-  torso: { labelKey: 'HEROES_GLORY.Roll.Location.Torso', effectKey: 'HEROES_GLORY.Roll.Location.TorsoEffect' },
-  head: { labelKey: 'HEROES_GLORY.Roll.Location.Head', effectKey: 'HEROES_GLORY.Roll.Location.HeadEffect' },
+  torso: {
+    labelKey: 'HEROES_GLORY.Roll.Location.Torso', effectKey: 'HEROES_GLORY.Roll.Location.TorsoEffect',
+    protectedKey: 'HEROES_GLORY.Roll.Location.TorsoProtected',
+  },
+  head: {
+    labelKey: 'HEROES_GLORY.Roll.Location.Head', effectKey: 'HEROES_GLORY.Roll.Location.HeadEffect',
+    protectedKey: 'HEROES_GLORY.Roll.Location.HeadProtected',
+  },
 };
 
 /**
@@ -125,22 +141,40 @@ async function rollEpicCascade(hit, epicTable, legendary) {
 }
 
 /**
- * §5.4/§5.6: the mechanical half of a severe epic hit's "Куда попал"
- * result. Торс and голова toggle the same real, iconed statuses a GM
- * could otherwise apply by hand from the token HUD. Нога gets a real
- * -1 Speed ActiveEffect, built the same way an artifact's structured
+ * §5.4/§5.5/§5.6: the mechanical half of a severe epic hit's "Куда
+ * попал" result — OR, if a level 1-3 armor piece covers this location
+ * (resolveArmorZoneProtection, rolls.mjs), suppression of it instead
+ * (§5.5: "Дает возможность избежать негативных последствий... кроме
+ * урона" — damage is handled separately in buildAttackContext via
+ * resolveArmorZoneMultiplier, never here). The ONE shared call both
+ * rollAttack's initial roll and rerollAttackDie's hit-reroll branch
+ * make — neither computes this independently, so they can't drift
+ * apart on what counts as protected.
+ *
+ * Торс and голова toggle the same real, iconed statuses a GM could
+ * otherwise apply by hand from the token HUD. Нога gets a real -1
+ * Speed ActiveEffect, built the same way an artifact's structured
  * modifier would be (see modifiers.mjs) — it persists "до излечения"
  * rather than clearing when the battle ends, so unlike prone/
  * unconscious it isn't touched by combat.mjs's combat-end cleanup, and
  * stacks if the same leg (or the other one) gets hit again since the
  * book gives no rule against that. Рука stays chat-text-only — the
  * existing template already shows that message, and the task
- * explicitly scopes it to "не трогаем инвентарь".
+ * explicitly scopes it to "не трогаем инвентарь" — also never
+ * protectable (resolveArmorZoneProtection returns null for it always,
+ * no armor ever targets a forearm slot), so this function is never even
+ * asked to suppress it.
  * @param {Actor} targetActor
  * @param {string|null} location   'leg' | 'arm' | 'torso' | 'head' | null.
- * @returns {Promise<void>}
+ * @param {Array<{name:string, level:number, targetSlots:number[]}>} equippedArmor
+ * @returns {Promise<{name:string, level:number}|null>}   The protecting
+ *   armor piece if the consequence was suppressed, else null (also null
+ *   when location is null/'arm', or nothing on that slot qualifies).
  */
-async function applyLocationConsequence(targetActor, location) {
+async function applyLocationConsequence(targetActor, location, equippedArmor) {
+  const protectingItem = resolveArmorZoneProtection(location, equippedArmor);
+  if (protectingItem) return protectingItem;
+
   if (location === 'torso') {
     await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.prone, { active: true });
   } else if (location === 'head') {
@@ -152,6 +186,7 @@ async function applyLocationConsequence(targetActor, location) {
       system: { changes: buildEffectChanges([{ stat: 'speed', mode: 'subtract', value: 1 }]) },
     }]);
   }
+  return null;
 }
 
 /**
@@ -214,18 +249,30 @@ function buildAttackContext(actor, flags) {
   // (target's own gear doesn't change mid-resolution, so no separate
   // freezing of the multiplier itself is needed).
   const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
-  // §5.6: the target's prone/unconscious state, and now also an equipped
-  // armor item's own level, multiply damage on top of the d6 hit-table
-  // multiplier — folded into a combined "effective hit" so resolveDamage/
-  // resolvePotentialDamage need no changes at all.
-  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier);
+  // §5.5 (уровни 1-3): pure and deterministic over already-frozen
+  // flags.location/equippedArmor, so recomputing it here gives the exact
+  // same answer applyLocationConsequence already acted on during the
+  // real roll — no second, possibly-diverging decision, just a cheap
+  // re-derivation for display, same pattern as armorItemMultiplier above.
+  const protectingItem = resolveArmorZoneProtection(flags.location, equippedArmor);
+  const armorZoneMultiplier = resolveArmorZoneMultiplier(protectingItem);
+  // §5.6: the target's prone/unconscious state, an equipped 4-5-level
+  // armor item, and a zone-matching 1-3-level armor item all multiply
+  // damage on top of the d6 hit-table multiplier — folded into a
+  // combined "effective hit" so resolveDamage/resolvePotentialDamage
+  // need no changes at all. The two armor multipliers are combined into
+  // one number here (not a 4th parameter on combineHitAndState) — floor
+  // still happens exactly once, at the very end, in resolveDamage.
+  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier * armorZoneMultiplier);
   const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
   const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
-  // §5.5: uses `hit.epic`, not flags.severe — armor breaks on ANY epic
-  // hit (levels 1-4), not just a severe one; unlike severe/location this
-  // isn't frozen in flags, it's derived fresh from the hit die every
-  // time, exactly like armorItemMultiplier above.
-  const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor);
+  // §5.5: uses `hit.epic`, not flags.severe — level-4 armor breaks on
+  // ANY epic hit; a level 1-3 piece breaks only if it's the one
+  // protectingItem found (see resolveDestroyedArmor's own comment for
+  // why those two conditions differ). Unlike severe/location this isn't
+  // frozen in flags, it's derived fresh from the hit die every time,
+  // exactly like armorItemMultiplier above.
+  const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor, protectingItem);
 
   return {
     attackerName: actor.name,
@@ -235,9 +282,15 @@ function buildAttackContext(actor, flags) {
     defeat: { ...defeat, previousDie: flags.previousDefeatDie ?? null },
     stateMultiplier: flags.stateMultiplier,
     armorItemMultiplier,
-    // Joined here, not in the template — Foundry's own Handlebars helper
-    // set (foundry.mjs) has no `join`, only eq/ne/lt/gt/lte/gte/not/and/or.
-    protectingArmorNames: equippedArmor.filter((item) => item.level >= 4).map((item) => item.name).join(', '),
+    // §5.5: suppressed when a level-3 zone match already zeroed the
+    // damage (armorZoneMultiplier === 0) — showing "doспех 4-5 halves
+    // it" alongside "doспех 3 removes it entirely" only confuses, since
+    // the level-3 piece is what actually decided this hit's outcome.
+    protectingArmorNames: armorZoneMultiplier === 0
+      ? ''
+      // Joined here, not in the template — Foundry's own Handlebars
+      // helper set (foundry.mjs) has no `join`, only eq/ne/lt/gt/lte/gte/not/and/or.
+      : equippedArmor.filter((item) => item.level >= 4).map((item) => item.name).join(', '),
     destroyedArmorNames: destroyedArmor.map((item) => item.name).join(', '),
     damage,
     damageKnown: damage !== null,
@@ -245,7 +298,11 @@ function buildAttackContext(actor, flags) {
     hasEpicTable: flags.hasEpicTable,
     epicRow: flags.epicRow,
     severe: flags.severe,
-    location: flags.location ? LOCATION_LABELS[flags.location] : null,
+    // §5.5: protectingArmorName lets the template swap effectKey's
+    // normal text ("Цель теряет сознание") for protectedKey's
+    // ("Доспех («{armor}») защищает от потери сознания") — the
+    // approved "видно и куда попали, и почему эффекта не было" phrasing.
+    location: flags.location ? { ...LOCATION_LABELS[flags.location], protectingArmorName: protectingItem?.name ?? null } : null,
     actorId: actor.id,
   };
 }
@@ -302,9 +359,12 @@ export async function rollAttack(actor, weapon = null) {
   // yet) contributes nothing, same as not wearing it at all. Frozen
   // here, at attack time, same category as stateMultiplier/targetDefense
   // above — the target's own gear can't change mid-resolution anyway.
+  // targetSlots included (not just name/level) so resolveArmorZoneProtection
+  // (§5.5 levels 1-3) can tell which body zone each piece actually
+  // covers — levels 4-5's own multiplier never looks at this field.
   const equippedArmor = (targetActor?.items ?? [])
     .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
-    .map((i) => ({ name: i.name, level: i.system.level }));
+    .map((i) => ({ name: i.name, level: i.system.level, targetSlots: i.system.targetSlots ?? [] }));
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
@@ -315,7 +375,7 @@ export async function rollAttack(actor, weapon = null) {
   const defeatDie = targetActor ? mainRoll.dice[1].total : null;
   const hit = resolveHit(hitDie);
   const epicCascade = await rollEpicCascade(hit, epicTable, legendary);
-  if (targetActor) await applyLocationConsequence(targetActor, epicCascade.location);
+  if (targetActor) await applyLocationConsequence(targetActor, epicCascade.location, equippedArmor);
 
   const flags = {
     kind: 'attack',
@@ -396,7 +456,7 @@ export async function rerollAttackDie(message, slot) {
     // undoing it here could clear a state the target had before this
     // attack even started.
     const targetActor = flags.targetActorId ? game.actors.get(flags.targetActorId) : null;
-    if (targetActor) await applyLocationConsequence(targetActor, nextFlags.location);
+    if (targetActor) await applyLocationConsequence(targetActor, nextFlags.location, flags.equippedArmor ?? []);
   } else if (slot === 'defeat') {
     if (flags.defeatDie == null) return;
     const die = new Roll('1d20');

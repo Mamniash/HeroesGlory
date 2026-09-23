@@ -23,6 +23,8 @@ import {
   resolveTargetStateMultiplier,
   combineHitAndState,
   resolveArmorItemMultiplier,
+  resolveArmorZoneProtection,
+  resolveArmorZoneMultiplier,
   resolveDestroyedArmor,
   isIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
@@ -299,7 +301,7 @@ describe('resolveDamage × resolveTargetStateMultiplier × resolveArmorItemMulti
     assert.equal(effectiveDamage(12, 4, {}, [{ name: 'Доспех', level: 5 }]), 6);
   });
 
-  test('level 1-3 armor alone: no effect — that mitigation is a separate task', () => {
+  test('level 1-3 armor alone: no effect on THIS (armorItemMultiplier) chain — их zone-gated урон проверен отдельно ниже', () => {
     assert.equal(effectiveDamage(12, 4, {}, [{ name: 'Шлем', level: 2 }]), 12);
   });
 
@@ -316,6 +318,50 @@ describe('resolveDamage × resolveTargetStateMultiplier × resolveArmorItemMulti
 
   test('epic hit (x2) with level 4 armor: x2 x0.5 nets back to x1', () => {
     assert.equal(effectiveDamage(12, 6, {}, [{ name: 'Шлем', level: 4 }]), 12);
+  });
+});
+
+// §5.5: the full chain including the zone-gated 1-3 multiplier, mirroring
+// exactly how buildAttackContext (roll-actions.mjs) actually assembles
+// it: armorItemMultiplier (4-5, unconditional) and armorZoneMultiplier
+// (1-3, zone-gated) are two independent numbers, combined by simple
+// multiplication into combineHitAndState's third argument — not a 4th
+// parameter on the function itself.
+describe('resolveDamage × resolveArmorZoneMultiplier — §5.5 доспех 1-3 уровня, урон только при совпадении зоны', () => {
+  function effectiveDamage(baseDamage, d6, equippedArmor, location, { attackerAttack = 5, targetDefense = 5 } = {}) {
+    const hit = resolveHit(d6);
+    const protectingItem = resolveArmorZoneProtection(location, equippedArmor);
+    const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
+    const armorZoneMultiplier = resolveArmorZoneMultiplier(protectingItem);
+    const effectiveHit = combineHitAndState(hit, 1, armorItemMultiplier * armorZoneMultiplier);
+    const defeat = resolveDefeat({ attackerAttack, targetDefense, die: 10 });
+    return resolveDamage({ baseDamage, hit: effectiveHit, defeat });
+  }
+
+  test('level 2 on the matching zone: epic damage halved', () => {
+    const helmet = { name: 'Шлем', level: 2, targetSlots: [3] };
+    assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 12); // floor(12*2*0.5)
+  });
+
+  test('level 2 equipped but on a DIFFERENT zone than the hit: no reduction', () => {
+    const legs = { name: 'Поножи', level: 2, targetSlots: [9] };
+    assert.equal(effectiveDamage(12, 6, [legs], 'head'), 24); // floor(12*2), unprotected
+  });
+
+  test('level 3 on the matching zone: damage fully removed, x0 not just x0.5', () => {
+    const helmet = { name: 'Шлем', level: 3, targetSlots: [3] };
+    assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 0);
+  });
+
+  test('доспех 3 (защищает эту зону) + доспех 5 (безусловный) одновременно: итог 0, не floor(12*2*0.5*0.5)=12', () => {
+    const legs3 = { name: 'Поножи L3', level: 3, targetSlots: [9] };
+    const chest5 = { name: 'Нагрудник L5', level: 5, targetSlots: [5] };
+    assert.equal(effectiveDamage(12, 6, [legs3, chest5], 'leg'), 0);
+  });
+
+  test('level 1 on the matching zone: damage untouched (only the consequence is suppressed, not modeled here)', () => {
+    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 24);
   });
 });
 
@@ -417,6 +463,18 @@ describe('resolveHitLocation — §5.4 "Куда попал"', () => {
     assert.equal(resolveHitLocation(4), 'arm');
     assert.equal(resolveHitLocation(5), 'torso');
     assert.equal(resolveHitLocation(6), 'head');
+  });
+
+  // §5.5: главный регресс подхода 3 — цель БЕЗ доспеха должна вести себя
+  // ровно как раньше, для всех шести исходов d6. resolveArmorZoneProtection
+  // (Foundry-facing applyLocationConsequence's own gate, roll-actions.mjs)
+  // is pure and testable here; the actual status/AE application it guards
+  // isn't (no Foundry mocking in this project — verified live instead).
+  test('no equipped armor at all: none of the six outcomes ever finds a protector — applyLocationConsequence always falls through to its normal effect', () => {
+    for (let d6 = 1; d6 <= 6; d6++) {
+      const location = resolveHitLocation(d6);
+      assert.equal(resolveArmorZoneProtection(location, []), null, `d6=${d6} (${location}) should never be protected with no armor equipped`);
+    }
   });
 });
 
@@ -622,7 +680,7 @@ describe('resolveArmorItemMultiplier — §5.5 уровень 4-5 снижает
     assert.equal(resolveArmorItemMultiplier([{ name: 'Доспех', level: 5 }]), 0.5);
   });
 
-  test('levels 1-3 alone: no effect, x1 — that mitigation is a separate, not-yet-automated task', () => {
+  test('levels 1-3 alone: no effect on THIS unconditional multiplier — their own zone-gated mitigation is resolveArmorZoneMultiplier below', () => {
     assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 1 }]), 1);
     assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 2 }]), 1);
     assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 3 }]), 1);
@@ -639,27 +697,123 @@ describe('resolveArmorItemMultiplier — §5.5 уровень 4-5 снижает
   });
 });
 
-describe('resolveDestroyedArmor — §5.5 доспех уровня 1-4 разрушается на эпик-попадании', () => {
+// §5.5 (уровни 1-3): the zone-matching half — leg/torso/head map to
+// slots 9/5/3 (docs/rules.md §11's own assumption, reused unchanged
+// from targetSlots curation), arm maps to nothing at all — no armor
+// entry (book or "Доспех (N уровень)") has ever been curated onto a
+// forearm slot, so "рука никогда не защищена" falls out of the data,
+// not a hardcoded exclusion (the last test below proves this: feeding
+// it armor curated onto an unrelated slot for an 'arm' location still
+// finds nothing, because 'arm' has no entry in LOCATION_TO_SLOT to look
+// up in the first place).
+describe('resolveArmorZoneProtection — §5.5 доспех 1-3 уровня защищает только свою зону', () => {
+  test('no armor equipped: no protection', () => {
+    assert.equal(resolveArmorZoneProtection('head', []), null);
+  });
+
+  test('armor equipped, wrong slot: no protection', () => {
+    const chest = { name: 'Нагрудник', level: 2, targetSlots: [5] };
+    assert.equal(resolveArmorZoneProtection('head', [chest]), null); // head needs slot 3
+  });
+
+  test('armor equipped, matching slot: protects', () => {
+    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    assert.deepEqual(resolveArmorZoneProtection('head', [helmet]), helmet);
+  });
+
+  test('leg (slot 9) and torso (slot 5) both resolve correctly', () => {
+    const legs = { name: 'Поножи', level: 3, targetSlots: [9] };
+    const chest = { name: 'Нагрудник', level: 2, targetSlots: [5] };
+    assert.deepEqual(resolveArmorZoneProtection('leg', [legs, chest]), legs);
+    assert.deepEqual(resolveArmorZoneProtection('torso', [legs, chest]), chest);
+  });
+
+  test('a level 4-5 piece on the matching slot does NOT count — only levels 1-3 protect', () => {
+    const helmet45 = { name: 'Шлем L5', level: 5, targetSlots: [3] };
+    assert.equal(resolveArmorZoneProtection('head', [helmet45]), null);
+  });
+
+  test('location null (not epic, not severe): no protection regardless of armor', () => {
+    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    assert.equal(resolveArmorZoneProtection(null, [helmet]), null);
+  });
+
+  test('"arm" is never protected — no slot mapping exists for it at all, not a special-cased exclusion', () => {
+    // Deliberately curate armor onto slot 2 (forearm/ring, per rules.md
+    // §8.2) — a slot no real armor entry has ever used — to prove the
+    // lookup itself has nowhere to find 'arm', not that a value-based
+    // check rejected it.
+    const wristguard = { name: 'QA Наручи (гипотетические)', level: 1, targetSlots: [2] };
+    assert.equal(resolveArmorZoneProtection('arm', [wristguard]), null);
+  });
+});
+
+describe('resolveArmorZoneMultiplier — §5.5 доспех 1-3 уровня: множитель урона при совпадении зоны', () => {
+  test('no protecting item: x1 (no effect)', () => {
+    assert.equal(resolveArmorZoneMultiplier(null), 1);
+  });
+
+  test('level 1: x1 — "кроме урона", suppresses the consequence only, never the damage number', () => {
+    assert.equal(resolveArmorZoneMultiplier({ name: 'Шлем', level: 1 }), 1);
+  });
+
+  test('level 2: x0.5', () => {
+    assert.equal(resolveArmorZoneMultiplier({ name: 'Шлем', level: 2 }), 0.5);
+  });
+
+  test('level 3: x0 — "полностью снимается"', () => {
+    assert.equal(resolveArmorZoneMultiplier({ name: 'Поножи', level: 3 }), 0);
+  });
+});
+
+// §5.5: level 4 breaks unconditionally on ANY epic hit (same departure
+// as its own unconditional damage-halving); levels 1-3 break ONLY when
+// they're the specific piece that protected THIS hit's zone
+// (resolveArmorZoneProtection's result, passed as the 3rd argument) —
+// "Доспех ПРИ ЭТОМ разрушается" ties destruction to the mitigation
+// actually firing. Level 5 never breaks either way.
+describe('resolveDestroyedArmor — §5.5 разрушение: уровень 4 безусловно, 1-3 только при совпадении зоны', () => {
   test('not an epic hit: nothing breaks, even with qualifying armor equipped', () => {
-    assert.deepEqual(resolveDestroyedArmor(false, [{ name: 'Шлем', level: 2 }]), []);
+    assert.deepEqual(resolveDestroyedArmor(false, [{ name: 'Шлем', level: 4 }], null), []);
   });
 
   test('epic hit, no armor equipped: nothing to break', () => {
-    assert.deepEqual(resolveDestroyedArmor(true, []), []);
+    assert.deepEqual(resolveDestroyedArmor(true, [], null), []);
   });
 
-  test('epic hit, level 1-4 armor: it breaks', () => {
-    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Шлем', level: 1 }]), [{ name: 'Шлем', level: 1 }]);
+  test('epic hit, level 4 armor: breaks unconditionally, no protectingItem needed', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Шлем', level: 4 }], null), [{ name: 'Шлем', level: 4 }]);
   });
 
-  test('epic hit, level 5 armor: does not break — §5.5\'s own "эпик-попадание не разрушает"', () => {
-    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Доспех', level: 5 }]), []);
+  test('epic hit, level 5 armor: never breaks — §5.5\'s own "эпик-попадание не разрушает"', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Доспех', level: 5 }], null), []);
   });
 
-  test('epic hit, mixed levels: only the 1-4 pieces break, the level-5 piece survives', () => {
+  test('epic hit, level 1-3 armor equipped but it did NOT protect this hit (no protectingItem): does not break', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Шлем', level: 2 }], null), []);
+  });
+
+  test('epic hit, level 1-3 armor that DID protect this hit (protectingItem given): it breaks', () => {
+    const protecting = { name: 'Шлем', level: 2 };
+    assert.deepEqual(resolveDestroyedArmor(true, [protecting], protecting), [protecting]);
+  });
+
+  test('level 1 (no damage effect at all) still breaks when it protected the hit', () => {
+    const protecting = { name: 'Шлем', level: 1 };
+    assert.deepEqual(resolveDestroyedArmor(true, [protecting], protecting), [protecting]);
+  });
+
+  test('mixed: level 4 breaks unconditionally, level 5 never, a non-protecting level 2 piece survives, the protecting level 3 piece breaks', () => {
+    const protectingLevel3 = { name: 'Поножи', level: 3 };
+    const equipped = [
+      { name: 'Шлем L2 (не защитил)', level: 2 },
+      { name: 'Доспех L5', level: 5 },
+      { name: 'Нагрудник L4', level: 4 },
+      protectingLevel3,
+    ];
     assert.deepEqual(
-      resolveDestroyedArmor(true, [{ name: 'Шлем', level: 2 }, { name: 'Доспех', level: 5 }, { name: 'Поножи', level: 4 }]),
-      [{ name: 'Шлем', level: 2 }, { name: 'Поножи', level: 4 }],
+      resolveDestroyedArmor(true, equipped, protectingLevel3),
+      [{ name: 'Нагрудник L4', level: 4 }, protectingLevel3],
     );
   });
 });
