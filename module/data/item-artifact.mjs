@@ -18,7 +18,11 @@ export default class HeroesGloryArtifact extends HeroesGloryDataModel {
 
     // §5.5/§8.2: meaningful for two of the 6 artifact types, each in its
     // own way — null for the other 4. Enchanted ARMOR: gates epic-hit
-    // mitigation (§5.5's 5-level table); the book's own "Зачарованные
+    // mitigation (§5.5's 5-level table) — level 4-5 read live by
+    // roll-actions.mjs's rollAttack (resolveArmorItemMultiplier/
+    // resolveDestroyedArmor, rolls.mjs) to halve incoming damage and flag
+    // destruction; levels 1-3 (suppressing "Куда попал" itself) not
+    // automated yet — separate task. The book's own "Зачарованные
     // доспехи" table (стр. 47) gives all 11 entries a level. Enchanted
     // SHIELDS: feeds a synthesized +level Defense bonus (§5.5: "+1-5 в
     // зависимости от уровня щита") — but unlike armor, the book's own

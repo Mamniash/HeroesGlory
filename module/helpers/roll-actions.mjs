@@ -26,6 +26,8 @@ import {
   resolveMoraleCheck,
   resolveTargetStateMultiplier,
   combineHitAndState,
+  resolveArmorItemMultiplier,
+  resolveDestroyedArmor,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -203,12 +205,27 @@ function buildAttackContext(actor, flags) {
     targetDefense: flags.targetDefense,
     die: flags.defeatDie,
   });
-  // §5.6: the target's prone/unconscious state multiplies damage on top
-  // of the d6 hit-table multiplier — folded into a combined "effective
-  // hit" so resolveDamage/resolvePotentialDamage need no changes at all.
-  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier);
+  const equippedArmor = flags.equippedArmor ?? [];
+  // §5.5: doспех 4-5 уровня halves damage unconditionally (docs/rules.md
+  // §11 — a deliberate departure from "по защищённой части тела" for
+  // level 4, see resolveArmorItemMultiplier's own comment) — recomputed
+  // fresh here every time, like hit/defeat/effectiveHit themselves,
+  // from the equipped-armor snapshot frozen into flags at roll time
+  // (target's own gear doesn't change mid-resolution, so no separate
+  // freezing of the multiplier itself is needed).
+  const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
+  // §5.6: the target's prone/unconscious state, and now also an equipped
+  // armor item's own level, multiply damage on top of the d6 hit-table
+  // multiplier — folded into a combined "effective hit" so resolveDamage/
+  // resolvePotentialDamage need no changes at all.
+  const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier);
   const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
   const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
+  // §5.5: uses `hit.epic`, not flags.severe — armor breaks on ANY epic
+  // hit (levels 1-4), not just a severe one; unlike severe/location this
+  // isn't frozen in flags, it's derived fresh from the hit die every
+  // time, exactly like armorItemMultiplier above.
+  const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor);
 
   return {
     attackerName: actor.name,
@@ -217,6 +234,11 @@ function buildAttackContext(actor, flags) {
     hit: { ...hit, labelKey: HIT_LABELS[hit.key], previousDie: flags.previousHitDie ?? null },
     defeat: { ...defeat, previousDie: flags.previousDefeatDie ?? null },
     stateMultiplier: flags.stateMultiplier,
+    armorItemMultiplier,
+    // Joined here, not in the template — Foundry's own Handlebars helper
+    // set (foundry.mjs) has no `join`, only eq/ne/lt/gt/lte/gte/not/and/or.
+    protectingArmorNames: equippedArmor.filter((item) => item.level >= 4).map((item) => item.name).join(', '),
+    destroyedArmorNames: destroyedArmor.map((item) => item.name).join(', '),
     damage,
     damageKnown: damage !== null,
     potentialDamage,
@@ -273,6 +295,17 @@ export async function rollAttack(actor, weapon = null) {
     armorSpecialization: hasArmorSpecialization(targetActor?.system?.specialization),
   });
 
+  // §5.5: every equipped enchanted-armor piece on the target with a
+  // known level — gated on `equipped` alone (same convention as the
+  // modifiers-sync in documents/item.mjs, not on paperdollSlot). A
+  // book-named armor entry with no level set (GM hasn't assigned one
+  // yet) contributes nothing, same as not wearing it at all. Frozen
+  // here, at attack time, same category as stateMultiplier/targetDefense
+  // above — the target's own gear can't change mid-resolution anyway.
+  const equippedArmor = (targetActor?.items ?? [])
+    .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
+    .map((i) => ({ name: i.name, level: i.system.level }));
+
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
   const mainRoll = new Roll(targetActor ? '1d6 + 1d20' : '1d6');
@@ -294,6 +327,7 @@ export async function rollAttack(actor, weapon = null) {
     baseDamage,
     targetDefense,
     stateMultiplier,
+    equippedArmor,
     hasEpicTable: !!epicTable,
     epicTableData: epicTable ?? null,
     legendary,

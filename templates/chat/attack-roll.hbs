@@ -49,6 +49,12 @@
     </p>
   {{/if}}
 
+  {{#if (lt armorItemMultiplier 1)}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
+      {{localize 'HEROES_GLORY.Roll.ArmorItemNote' armor=protectingArmorNames}}
+    </p>
+  {{/if}}
+
   <p class="heroes-glory-chat-card__damage">
     {{#if damageKnown}}
       {{localize 'HEROES_GLORY.Roll.Damage' damage=damage}}
@@ -61,6 +67,11 @@
     <div class="heroes-glory-chat-card__epic">
       <h4 class="heroes-glory-chat-card__epic-title">{{localize 'HEROES_GLORY.Roll.EpicTitle'}}</h4>
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicRetreat'}}</p>
+      {{#if destroyedArmorNames}}
+        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">
+          {{localize 'HEROES_GLORY.Roll.ArmorDestroyed' armor=destroyedArmorNames}}
+        </p>
+      {{/if}}
       {{#if hasEpicTable}}
         {{#if epicRow}}
           <p class="heroes-glory-chat-card__line">{{epicRow}}</p>

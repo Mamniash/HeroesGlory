@@ -22,6 +22,8 @@ import {
   resolveMoraleCheck,
   resolveTargetStateMultiplier,
   combineHitAndState,
+  resolveArmorItemMultiplier,
+  resolveDestroyedArmor,
   isIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -201,6 +203,16 @@ describe('combineHitAndState — §5.3/§5.6 hit×state combination', () => {
     assert.equal(combined.key, hit.key);
     assert.equal(combined.epic, hit.epic);
   });
+
+  test('third argument (armorItemMultiplier) defaults to 1 — old 2-arg calls unaffected', () => {
+    const hit = resolveHit(4); // multiplier 1
+    assert.equal(combineHitAndState(hit, 2).multiplier, combineHitAndState(hit, 2, 1).multiplier);
+  });
+
+  test('armorItemMultiplier compounds with state multiplier, not just hit', () => {
+    const hit = resolveHit(4); // multiplier 1
+    assert.equal(combineHitAndState(hit, 2, 0.5).multiplier, 1); // 1 x 2 x 0.5
+  });
 });
 
 // §5.6/§4.3: roll-actions.mjs's buildAttackContext combines resolveHit and
@@ -258,6 +270,52 @@ describe('resolveDamage × resolveTargetStateMultiplier — §5.3/§5.6/§4.3 co
 
   test('no target selected (targetDefense null): unresolved, returns null even with a target state supplied', () => {
     assert.equal(effectiveDamage(12, 6, { armorSpecialization: true }, { targetDefense: null }), null);
+  });
+});
+
+// §5.5: the full chain including resolveArmorItemMultiplier — mirrors the
+// describe block above but adds the target's equipped armor as a fourth
+// input, exactly like buildAttackContext (roll-actions.mjs) actually
+// assembles it via combineHitAndState's third argument.
+describe('resolveDamage × resolveTargetStateMultiplier × resolveArmorItemMultiplier — §5.3/§5.5/§5.6 combined', () => {
+  function effectiveDamage(baseDamage, d6, state, equippedArmor, { attackerAttack = 5, targetDefense = 5, defeatDie = null } = {}) {
+    const hit = resolveHit(d6);
+    const stateMultiplier = resolveTargetStateMultiplier(state);
+    const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
+    const effectiveHit = combineHitAndState(hit, stateMultiplier, armorItemMultiplier);
+    const defeat = resolveDefeat({ attackerAttack, targetDefense, die: defeatDie });
+    return resolveDamage({ baseDamage, hit: effectiveHit, defeat });
+  }
+
+  test('no armor: unaffected, same as the plain state-only chain', () => {
+    assert.equal(effectiveDamage(12, 4, {}, []), 12);
+  });
+
+  test('level 4 armor alone halves a plain hit', () => {
+    assert.equal(effectiveDamage(12, 4, {}, [{ name: 'Шлем', level: 4 }]), 6);
+  });
+
+  test('level 5 armor alone: same halving as level 4', () => {
+    assert.equal(effectiveDamage(12, 4, {}, [{ name: 'Доспех', level: 5 }]), 6);
+  });
+
+  test('level 1-3 armor alone: no effect — that mitigation is a separate task', () => {
+    assert.equal(effectiveDamage(12, 4, {}, [{ name: 'Шлем', level: 2 }]), 12);
+  });
+
+  test('доспех 4 уровня + специализация Доспехи: compounds multiplicatively (x0.5 x0.5 = x0.25), not summed', () => {
+    assert.equal(effectiveDamage(12, 4, { armorSpecialization: true }, [{ name: 'Шлем', level: 4 }]), 3); // floor(12*1*0.5*0.5)
+    // Sanity check against an additive misreading (0.5+0.5=1.0 -> no reduction at all -> 12).
+    assert.notEqual(effectiveDamage(12, 4, { armorSpecialization: true }, [{ name: 'Шлем', level: 4 }]), 12);
+  });
+
+  test('multiple level 4-5 pieces worn at once: still one x0.5, not compounded per piece', () => {
+    const armor = [{ name: 'Шлем', level: 4 }, { name: 'Нагрудник', level: 5 }, { name: 'Поножи', level: 4 }];
+    assert.equal(effectiveDamage(12, 4, {}, armor), 6); // not floor(12*0.5*0.5*0.5)=1
+  });
+
+  test('epic hit (x2) with level 4 armor: x2 x0.5 nets back to x1', () => {
+    assert.equal(effectiveDamage(12, 6, {}, [{ name: 'Шлем', level: 4 }]), 12);
   });
 });
 
@@ -543,6 +601,66 @@ describe('resolveTargetStateMultiplier — §5.6 combat-state damage multiplier'
   test('Доспехи compounds with prone/unconscious (book gives no rule either way)', () => {
     assert.equal(resolveTargetStateMultiplier({ prone: true, armorSpecialization: true }), 1);
     assert.equal(resolveTargetStateMultiplier({ unconscious: true, armorSpecialization: true }), 1.5);
+  });
+});
+
+// §5.5 (уровни 4-5): решение — "любой урон вдвое" применяется безусловно,
+// без привязки к защищённой части тела, для ОБОИХ уровней (не только 5,
+// где книга и так это пишет буквально, но и для 4, где это сознательное
+// отступление от "по защищённой части тела" — см. resolveArmorItemMultiplier's
+// own comment и docs/rules.md §11).
+describe('resolveArmorItemMultiplier — §5.5 уровень 4-5 снижает урон вдвое', () => {
+  test('no equipped armor at all: x1', () => {
+    assert.equal(resolveArmorItemMultiplier([]), 1);
+  });
+
+  test('level 4: x0.5', () => {
+    assert.equal(resolveArmorItemMultiplier([{ name: 'Шлем', level: 4 }]), 0.5);
+  });
+
+  test('level 5: x0.5, same as level 4', () => {
+    assert.equal(resolveArmorItemMultiplier([{ name: 'Доспех', level: 5 }]), 0.5);
+  });
+
+  test('levels 1-3 alone: no effect, x1 — that mitigation is a separate, not-yet-automated task', () => {
+    assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 1 }]), 1);
+    assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 2 }]), 1);
+    assert.equal(resolveArmorItemMultiplier([{ name: 'A', level: 3 }]), 1);
+  });
+
+  test('multiple level 4-5 pieces at once: still x0.5, not compounded to x0.25', () => {
+    assert.equal(resolveArmorItemMultiplier([
+      { name: 'Шлем', level: 4 }, { name: 'Нагрудник', level: 5 }, { name: 'Поножи', level: 4 },
+    ]), 0.5);
+  });
+
+  test('a level 1-3 piece alongside a level 4-5 piece: the 4-5 piece still triggers x0.5', () => {
+    assert.equal(resolveArmorItemMultiplier([{ name: 'Шлем', level: 2 }, { name: 'Поножи', level: 4 }]), 0.5);
+  });
+});
+
+describe('resolveDestroyedArmor — §5.5 доспех уровня 1-4 разрушается на эпик-попадании', () => {
+  test('not an epic hit: nothing breaks, even with qualifying armor equipped', () => {
+    assert.deepEqual(resolveDestroyedArmor(false, [{ name: 'Шлем', level: 2 }]), []);
+  });
+
+  test('epic hit, no armor equipped: nothing to break', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, []), []);
+  });
+
+  test('epic hit, level 1-4 armor: it breaks', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Шлем', level: 1 }]), [{ name: 'Шлем', level: 1 }]);
+  });
+
+  test('epic hit, level 5 armor: does not break — §5.5\'s own "эпик-попадание не разрушает"', () => {
+    assert.deepEqual(resolveDestroyedArmor(true, [{ name: 'Доспех', level: 5 }]), []);
+  });
+
+  test('epic hit, mixed levels: only the 1-4 pieces break, the level-5 piece survives', () => {
+    assert.deepEqual(
+      resolveDestroyedArmor(true, [{ name: 'Шлем', level: 2 }, { name: 'Доспех', level: 5 }, { name: 'Поножи', level: 4 }]),
+      [{ name: 'Шлем', level: 2 }, { name: 'Поножи', level: 4 }],
+    );
   });
 });
 

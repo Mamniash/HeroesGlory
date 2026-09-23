@@ -358,18 +358,60 @@ export function resolveTargetStateMultiplier({ prone = false, unconscious = fals
 }
 
 /**
- * §5.3/§5.6: fold a target's state multiplier ({@link resolveTargetStateMultiplier})
- * into a {@link resolveHit} result, producing the "effective hit" that
- * resolveDamage/resolvePotentialDamage actually use. Multiplicative, not
- * additive — a state multiplier of 1 (no prone/unconscious/Доспехи) is a
- * no-op, unlike an additive combination which would inflate every hit by
- * a flat +1.
+ * §5.3/§5.6/§5.5: fold a target's state multiplier
+ * ({@link resolveTargetStateMultiplier}) and equipped-armor-item multiplier
+ * ({@link resolveArmorItemMultiplier}) into a {@link resolveHit} result,
+ * producing the "effective hit" that resolveDamage/resolvePotentialDamage
+ * actually use. Multiplicative, not additive — a multiplier of 1 (no
+ * prone/unconscious/Доспехи-специализация/доспех 4-5 уровня) is a no-op,
+ * unlike an additive combination which would inflate every hit by a flat
+ * amount. `armorItemMultiplier` defaults to 1 so every existing call site
+ * (and test) that only ever combined hit+state keeps working unchanged.
  * @param {{multiplier: number}} hit   Result of {@link resolveHit}.
  * @param {number} stateMultiplier     Result of {@link resolveTargetStateMultiplier}.
+ * @param {number} [armorItemMultiplier=1]   Result of {@link resolveArmorItemMultiplier}.
  * @returns {object}   `hit` with `multiplier` replaced by the combined value.
  */
-export function combineHitAndState(hit, stateMultiplier) {
-  return { ...hit, multiplier: hit.multiplier * stateMultiplier };
+export function combineHitAndState(hit, stateMultiplier, armorItemMultiplier = 1) {
+  return { ...hit, multiplier: hit.multiplier * stateMultiplier * armorItemMultiplier };
+}
+
+/**
+ * §5.5 (уровни 4-5, docs/rules.md §11): "любой урон снижается вдвое" —
+ * принятое решение применяет это БЕЗ привязки к защищённой части тела ни
+ * для уровня 5 (буквально по книге — там и нет такой оговорки), ни для
+ * уровня 4 (сознательное отступление от буквального «по защищённой части
+ * тела»: при строгом чтении условие требует «Куда попал», которая
+ * бросается только на существенном эпик-попадании — 1 случай из ~36 — что
+ * явно не похоже на замысел книги, раз уровень 5 описан как усиление
+ * того же эффекта, а не как что-то принципиально другое. Решение принято
+ * осознанно, не додумано мной — не баг).
+ *
+ * Применяется РОВНО ОДИН РАЗ, даже если у цели одновременно надето
+ * несколько предметов брони 4-5 уровня (шлем + нагрудник + поножи не
+ * компаундятся в 0.25 и меньше) — `.some(...)`, не суммирование.
+ * @param {Array<{level: number}>} equippedArmor   Every equipped
+ *   enchanted-armor item on the target with a known level (nullish levels
+ *   already filtered out by the caller).
+ * @returns {number}   0.5 if any equipped piece is level 4 or 5, else 1.
+ */
+export function resolveArmorItemMultiplier(equippedArmor) {
+  return equippedArmor.some((item) => item.level >= 4) ? 0.5 : 1;
+}
+
+/**
+ * §5.5 (уровни 1-4): "Доспех разрушается"/"Эпик-попадание разрушает
+ * доспех" — на эпик-попадании ломается любой надетый доспех уровня 1-4
+ * (уровень 5 не разрушается никогда, §5.5's own text). Возвращает сами
+ * предметы (не бросает их), чтобы вызывающий код мог только сообщить об
+ * этом в чате — предмет физически не трогаем (docs/rules.md §11).
+ * @param {boolean} epic                        Result of {@link resolveHit}'s `.epic`.
+ * @param {Array<{level: number}>} equippedArmor Same shape as {@link resolveArmorItemMultiplier}.
+ * @returns {Array<{level: number}>}   The subset that breaks — empty if not epic or none qualify.
+ */
+export function resolveDestroyedArmor(epic, equippedArmor) {
+  if (!epic) return [];
+  return equippedArmor.filter((item) => item.level >= 1 && item.level <= 4);
 }
 
 /**
