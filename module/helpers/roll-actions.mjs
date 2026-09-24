@@ -26,6 +26,8 @@ import {
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
+  moraleCheckVariant,
+  MORALE_CHECK_THRESHOLD,
   resolveTargetStateMultiplier,
   resolveAttackResolution,
   canConfirmAttack,
@@ -384,25 +386,35 @@ export async function rollAttack(actor, weapon = null, { ranged = false } = {}) 
     buildAttackContext(actor, flags),
   );
 
-  // The chat-bar mode is respected, except `self` is raised to the
-  // attacker's owners + GM so the GM can still confirm the damage. A
-  // whispered card carries no `rolls`: Foundry shows non-recipients of a
-  // whispered roll a "rolled privately" stub (ChatMessage#visible returns
-  // true for any roll), and a private attack must not show up for them at
-  // all. The dice values are already in the card's own text.
-  const mode = resolveAttackMessageMode(game.settings.get('core', 'messageMode'));
-  const whispered = !['public', 'ic'].includes(mode);
-  const data = {
-    speaker: ChatMessage.getSpeaker({ actor }),
+  return createAttackVisibilityCard(actor, {
     content,
     flags: { [FLAG_SCOPE]: { reroll: flags } },
-  };
-  if (!whispered) data.rolls = [mainRoll, ...epicCascade.rolls];
+  }, [mainRoll, ...epicCascade.rolls]);
+}
+
+/**
+ * Post an actor's card with the attack cards' visibility (rules.md §10):
+ * the chat-bar mode is respected, except `self` is raised to the actor's
+ * owners + GM so the GM still sees it (and can confirm an attack's damage).
+ * A whispered card carries no `rolls`: Foundry shows non-recipients of a
+ * whispered roll a "rolled privately" stub (ChatMessage#visible returns
+ * true for any roll), and a private card must not show up for them at
+ * all. The dice values are already in the card's own text.
+ * @param {Actor} actor
+ * @param {object} data   Message data without `speaker`/`rolls`.
+ * @param {Roll[]} rolls
+ * @returns {Promise<ChatMessage>}
+ */
+async function createAttackVisibilityCard(actor, data, rolls) {
+  const mode = resolveAttackMessageMode(game.settings.get('core', 'messageMode'));
+  const whispered = !['public', 'ic'].includes(mode);
+  const message = { speaker: ChatMessage.getSpeaker({ actor }), ...data };
+  if (!whispered) message.rolls = rolls;
   if (mode === 'ownersAndGm') {
-    data.whisper = ownersAndGmIds(actor);
-    return ChatMessage.create(data);
+    message.whisper = ownersAndGmIds(actor);
+    return ChatMessage.create(message);
   }
-  return ChatMessage.create(data, { messageMode: mode });
+  return ChatMessage.create(message, { messageMode: mode });
 }
 
 /**
@@ -822,52 +834,44 @@ export async function rerollLuckDie(message, slot) {
 }
 
 /**
- * §5.8: a positive-Боевой-дух test at the end of the actor's own turn —
- * 4+ on d6 grants an extra turn. Spent by the actor's owner, capped at
- * {@link moraleAttemptsRemaining} attempts for the current battle.
- * @param {Actor} actor
- * @returns {Promise<ChatMessage|null>}   `null` if no attempts remain.
+ * §5.8 (pp. 24–25): roll whichever Боевой дух test the current user may
+ * roll for this actor (moraleCheckVariant, rolls.mjs) — the extra-turn
+ * test at positive Боевой дух (owner; d6 at the actor's threshold, 4+
+ * unless a creature's «Дикая мораль» sets another), or the skip-turn test
+ * at negative (GM only; 1–3 skips the turn). Each spends one of the
+ * battle's |Боевой дух| attempts. Does nothing when no test is allowed.
+ * @param {Actor} actor   A hero or a creature.
+ * @returns {Promise<ChatMessage|null>}
  */
-export async function rollPositiveMoraleCheck(actor) {
+export async function rollMoraleCheck(actor) {
   const used = actor.getFlag(FLAG_SCOPE, 'moraleUsed') ?? 0;
-  if (moraleAttemptsRemaining(actor.system.morale, used) <= 0) return null;
+  const morale = actor.system.morale ?? 0;
+  const variant = moraleCheckVariant({ morale, used, isOwner: actor.isOwner, isGM: game.user.isGM });
+  if (!variant) return null;
 
+  const negative = variant === 'negative';
+  const wildThreshold = negative ? null : (actor.system.moraleThreshold ?? null);
   const roll = new Roll('1d6');
   await roll.evaluate();
-  const result = resolveMoraleCheck(roll.dice[0].total);
+  const result = resolveMoraleCheck(roll.dice[0].total, wildThreshold ?? MORALE_CHECK_THRESHOLD);
   await actor.setFlag(FLAG_SCOPE, 'moraleUsed', used + 1);
 
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/morale-check.hbs',
-    { actorName: actor.name, die: result.die, negative: false, extraTurn: result.passed },
+    {
+      actorName: actor.name,
+      die: result.die,
+      threshold: result.threshold,
+      wild: wildThreshold !== null,
+      negative,
+      extraTurn: !negative && result.passed,
+      skipsTurn: negative && !result.passed,
+      remaining: moraleAttemptsRemaining(morale, used + 1),
+      total: Math.abs(morale),
+    },
   );
 
-  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
-}
-
-/**
- * §5.8: a negative-Боевой-дух test declared by an opponent or the
- * Рассказчик before the actor's turn — 1-3 on d6 skips that turn. Same
- * per-battle attempt cap as the positive case; the caller (GM-only sheet
- * action) is responsible for restricting who may trigger this.
- * @param {Actor} actor
- * @returns {Promise<ChatMessage|null>}   `null` if no attempts remain.
- */
-export async function rollNegativeMoraleCheck(actor) {
-  const used = actor.getFlag(FLAG_SCOPE, 'moraleUsed') ?? 0;
-  if (moraleAttemptsRemaining(actor.system.morale, used) <= 0) return null;
-
-  const roll = new Roll('1d6');
-  await roll.evaluate();
-  const result = resolveMoraleCheck(roll.dice[0].total);
-  await actor.setFlag(FLAG_SCOPE, 'moraleUsed', used + 1);
-
-  const content = await foundry.applications.handlebars.renderTemplate(
-    'systems/heroes-glory/templates/chat/morale-check.hbs',
-    { actorName: actor.name, die: result.die, negative: true, skipsTurn: !result.passed },
-  );
-
-  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), rolls: [roll], content });
+  return createAttackVisibilityCard(actor, { content }, [roll]);
 }
 
 /**

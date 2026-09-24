@@ -1,5 +1,5 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
-import { moraleAttemptsRemaining, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
+import { moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
 import { findSpellVariant, castSpell, spellLevelGate, wisdomRequiredKey, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
@@ -515,15 +515,18 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // picking a level actually does.
     context.canPickLevel = this.#canEdit;
 
-    // §5.8: how many Боевой дух tests are left this battle, for the
-    // sheet's morale-test buttons.
-    // `isGM`/`moraleRemaining` only ever drove the now-removed <details
-    // class="hero-paperdoll__more"> markup (templates/actor/actor-hero-sheet.hbs)
-    // — kept computed and working, just unread by the template until an
-    // edit-mode UI brings this back. Do not delete.
+    // §5.8: a click on the Боевой дух icon rolls the test this user may
+    // roll right now (extra turn — owner; skip turn — GM); with none
+    // allowed the icon has no action. The tooltip shows the attempts left.
     context.isGM = game.user.isGM;
     const moraleUsed = this.actor.getFlag('heroes-glory', 'moraleUsed') ?? 0;
     context.moraleRemaining = moraleAttemptsRemaining(system.morale, moraleUsed);
+    context.canRollMorale = !!moraleCheckVariant({
+      morale: system.morale, used: moraleUsed, isOwner: this.actor.isOwner, isGM: game.user.isGM,
+    });
+    context.moraleAttemptsLine = system.morale
+      ? game.i18n.format('HEROES_GLORY.Roll.MoraleAttemptsLeft', { remaining: context.moraleRemaining, total: Math.abs(system.morale) })
+      : null;
 
     // §5.9: warn on the sheet once Ранения have driven a max to 0.
     // Same as isGM/moraleRemaining above — only the removed <details>

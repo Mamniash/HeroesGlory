@@ -270,7 +270,7 @@
   </span>
   {{else}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
-    data-tooltip-trigger="morale" data-tooltip-click>
+    data-tooltip-trigger="morale"{{#if canRollMorale}} data-action="rollMoraleCheck"{{/if}}>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck" data-tooltip-click>
   {{/if}}
@@ -404,6 +404,7 @@
     <img class="hg-tooltip__icon" src="{{icons.moraleLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}</p>
     {{#each moraleLines}}<p>{{this}}</p>{{/each}}
+    {{#if moraleAttemptsLine}}<p>{{moraleAttemptsLine}}</p>{{/if}}
     <p>{{localize 'HEROES_GLORY.Tooltip.MoralePositiveHint'}}</p>
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="luck">

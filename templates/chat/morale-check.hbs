@@ -1,7 +1,8 @@
 <div class="heroes-glory-chat-card heroes-glory-chat-card--morale">
-  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Roll.MoraleTitle' actor=actorName}}</h3>
+  <h3 class="heroes-glory-chat-card__title">{{#if negative}}{{localize 'HEROES_GLORY.Roll.MoraleSkipTitle' actor=actorName}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleTitle' actor=actorName}}{{/if}}</h3>
   <p class="heroes-glory-chat-card__line">
     {{localize 'HEROES_GLORY.Roll.MoraleResult' die=die}}
+    ({{#if negative}}{{localize 'HEROES_GLORY.Roll.MoraleSkipRule'}}{{else if wild}}{{localize 'HEROES_GLORY.Roll.MoraleWildThreshold' threshold=threshold}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleThreshold' threshold=threshold}}{{/if}})
     —
     {{#if negative}}
       {{#if skipsTurn}}{{localize 'HEROES_GLORY.Roll.MoraleSkip'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleResist'}}{{/if}}
@@ -9,4 +10,5 @@
       {{#if extraTurn}}{{localize 'HEROES_GLORY.Roll.MoraleExtraTurn'}}{{else}}{{localize 'HEROES_GLORY.Roll.MoraleNoExtraTurn'}}{{/if}}
     {{/if}}
   </p>
+  <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.MoraleAttemptsLeft' remaining=remaining total=total}}</p>
 </div>

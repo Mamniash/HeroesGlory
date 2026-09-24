@@ -424,19 +424,44 @@ export function moraleAttemptsRemaining(morale, used) {
   return Math.max(0, Math.abs(morale) - used);
 }
 
+/** §5.8: the d6 threshold both morale tests use by default. */
+export const MORALE_CHECK_THRESHOLD = 4;
+
 /**
- * §5.8: the d6 both morale tests share — 4+ is the outcome favourable to
- * the acted-upon hero (an extra turn when Боевой дух is positive, or
- * resisting a forced skipped turn when it's negative). Callers attach
- * their own meaning to `passed` for the two directions.
+ * §5.8: the d6 both morale tests share — `threshold`+ (4+ by default) is
+ * the outcome favourable to the acted-upon side (an extra turn when Боевой
+ * дух is positive, or resisting a forced skipped turn when it's negative).
+ * Callers attach their own meaning to `passed` for the two directions.
+ * Only the extra-turn test ever passes a different threshold — a creature's
+ * «Дикая мораль» (rules.md §11); the skip-turn test is always 1–3.
  * @param {number} d6
- * @returns {{die: number, passed: boolean}}
+ * @param {number} [threshold]
+ * @returns {{die: number, threshold: number, passed: boolean}}
  */
-export function resolveMoraleCheck(d6) {
+export function resolveMoraleCheck(d6, threshold = MORALE_CHECK_THRESHOLD) {
   if (!Number.isInteger(d6) || d6 < 1 || d6 > 6) {
     throw new RangeError(`resolveMoraleCheck: d6 must be an integer 1-6, got ${d6}`);
   }
-  return { die: d6, passed: d6 >= 4 };
+  return { die: d6, threshold, passed: d6 >= threshold };
+}
+
+/**
+ * §5.8 (pp. 24–25): which Боевой дух test the current user may roll for
+ * an actor right now, if any. Positive Боевой дух — the actor's own
+ * extra-turn test, rolled by its owner. Negative — the skip-turn test,
+ * which the book has an opponent or the Рассказчик declare; only the GM
+ * rolls it. Either way capped at |Боевой дух| attempts per battle.
+ * @param {object} params
+ * @param {number} params.morale
+ * @param {number} params.used
+ * @param {boolean} params.isOwner
+ * @param {boolean} params.isGM
+ * @returns {'positive'|'negative'|null}
+ */
+export function moraleCheckVariant({ morale, used, isOwner, isGM }) {
+  if (moraleAttemptsRemaining(morale, used) <= 0) return null;
+  if (morale > 0) return isOwner ? 'positive' : null;
+  return isGM ? 'negative' : null;
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
+  moraleCheckVariant,
   resolveTargetStateMultiplier,
   combineHitAndState,
   resolveArmorItemMultiplier,
@@ -675,6 +676,12 @@ describe('resolveMoraleCheck — §5.8 the shared d6 gate', () => {
     assert.equal(resolveMoraleCheck(3).passed, false);
   });
 
+  test('Дикая мораль threshold replaces 4+', () => {
+    assert.equal(resolveMoraleCheck(5, 6).passed, false);
+    assert.equal(resolveMoraleCheck(6, 6).passed, true);
+    assert.equal(resolveMoraleCheck(5, 5).threshold, 5);
+  });
+
   test('rejects an out-of-range d6', () => {
     assert.throws(() => resolveMoraleCheck(0), RangeError);
     assert.throws(() => resolveMoraleCheck(7), RangeError);
@@ -1236,5 +1243,21 @@ describe('secondarySkillSlotCount — §3 стр.39 Экспертная Обу�
     ];
     assert.equal(owned.length, 9);
     assert.equal(secondarySkillSlotCount(owned, 8), 8);
+  });
+});
+
+describe('moraleCheckVariant — §5.8 who rolls which test', () => {
+  const base = { used: 0, isOwner: false, isGM: false };
+  test('positive: owner rolls the extra-turn test', () => {
+    assert.equal(moraleCheckVariant({ ...base, morale: 2, isOwner: true }), 'positive');
+    assert.equal(moraleCheckVariant({ ...base, morale: 2 }), null);
+  });
+  test('negative: only the GM rolls the skip-turn test', () => {
+    assert.equal(moraleCheckVariant({ ...base, morale: -1, isOwner: true }), null);
+    assert.equal(moraleCheckVariant({ ...base, morale: -1, isGM: true }), 'negative');
+  });
+  test('no attempts left or zero morale → nothing', () => {
+    assert.equal(moraleCheckVariant({ ...base, morale: 2, used: 2, isOwner: true, isGM: true }), null);
+    assert.equal(moraleCheckVariant({ ...base, morale: 0, isOwner: true, isGM: true }), null);
   });
 });
