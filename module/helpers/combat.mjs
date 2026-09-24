@@ -1,5 +1,8 @@
 /**
- * §5.8: "Боевой дух: после боя восстанавливается до 0" — reset every
+ * §5.8: "Боевой дух: после боя восстанавливается до 0" — for a hero,
+ * back to its base (Лидерство, Минотавр; rules.md §11): `system.morale`
+ * in the source is only the manual correction, so writing 0 there
+ * leaves the skill/race part in place. Reset every
  * fighting actor's Боевой дух and clear its per-battle attempt counter
  * once the encounter ends. Foundry has no explicit "combat ended" event;
  * a Combat document is deleted when the tracker's own end-combat control

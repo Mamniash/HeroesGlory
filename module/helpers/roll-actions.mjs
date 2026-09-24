@@ -19,6 +19,7 @@ import {
   canAffordSpell,
   resolveAbilityCheck,
   nextLuck,
+  spendLuck,
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
@@ -400,6 +401,20 @@ export async function rollAttack(actor, weapon = null, { ranged = false } = {}) 
 }
 
 /**
+ * §2.2: the stored `system.luck` after spending one Удача. A hero stores
+ * only its manual correction (actor-hero.mjs), so the step is computed
+ * from the derived parts — writing `nextLuck` of the derived total back
+ * would leave the total unchanged whenever a skill or artifact adds to
+ * it. Anything without those parts stores the plain value.
+ * @param {Actor} actor
+ * @returns {number}
+ */
+function luckAfterSpend(actor) {
+  const parts = actor.system.luckParts;
+  return parts ? spendLuck(parts) : nextLuck(actor.system.luck);
+}
+
+/**
  * §2.2: spend an attacking actor's Удача to reroll one die of an already-
  * posted attack card, then rebuild the whole card from the recomputed
  * result. Hit and defeat are independent inputs to the damage formula, so
@@ -450,7 +465,7 @@ export async function rerollAttackDie(message, slot) {
     return;
   }
 
-  await actor.update({ 'system.luck': nextLuck(actor.system.luck) });
+  await actor.update({ 'system.luck': luckAfterSpend(actor) });
 
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/attack-roll.hbs',
@@ -720,7 +735,7 @@ export async function rerollCheckDie(message) {
   const die = roll.dice[0].total;
   const result = resolveAbilityCheck(die, actor.system[flags.skillKey]);
 
-  await actor.update({ 'system.luck': nextLuck(actor.system.luck) });
+  await actor.update({ 'system.luck': luckAfterSpend(actor) });
 
   const nextFlags = { ...flags, previousDie: flags.die, die };
 

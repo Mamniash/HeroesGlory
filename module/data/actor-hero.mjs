@@ -1,6 +1,10 @@
 import HeroesGloryDataModel from "./base-model.mjs";
 import { applyWoundPenalty } from "../helpers/wounds.mjs";
 import { manaMultiplier } from "../helpers/mana.mjs";
+import {
+  highestSkillTier, tacticsSpeedBonus, pathfindingSpeedBonus,
+  luckSkillBase, leadershipMoraleBase, raceMoraleBonus, resolveLuckTotal,
+} from "../helpers/skill-bonuses.mjs";
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -41,6 +45,9 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       max: new fields.NumberField({ ...requiredInteger, initial: 10, min: 0 }),
     });
 
+    // Race base only — the hand-edited part. Expert Поиск пути and effects
+    // are added in prepareDerivedData(); Тактика never is (first round
+    // only, it goes into initiative through getRollData's `tactics`).
     schema.speed = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
     schema.vision = new fields.StringField({
@@ -48,7 +55,14 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       choices: CONFIG.HEROES_GLORY.visionTypes,
     });
 
-    schema.luck = new fields.NumberField({ ...requiredInteger, initial: 0, min: -3, max: 3 });
+    // §2.2/§3: both store only the GM's manual correction. The skill
+    // (Удача / Лидерство) and race (Минотавр) parts are added in
+    // prepareDerivedData(); Удача's TOTAL is clamped to ±3 there, so the
+    // correction itself is unbounded — with expert Удача spent down to
+    // −3 it has to reach −6. A reroll spends by moving this correction
+    // (rolls.mjs's spendLuck); the post-combat reset writes 0 here, which
+    // brings Боевой дух back to its base.
+    schema.luck = new fields.NumberField({ ...requiredInteger, initial: 0 });
     schema.morale = new fields.NumberField({ ...requiredInteger, initial: 0 });
 
     // §5.9: Ранения. Each one permanently lowers max Health/Mana by 5
@@ -224,6 +238,49 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     // Ранения floor at 0 is enforced here.
     this.health.max = applyWoundPenalty(this.health.base, this.wounds);
     this.mana.max = applyWoundPenalty(this.knowledge * this.#getManaMultiplier(), this.wounds);
+    this.#prepareSkillDerivedStats();
+  }
+
+  /**
+   * §3: Скорость / Удача / Боевой дух from secondary skills and race. By
+   * the time this runs, "initial"-phase Active Effects (artifacts, the
+   * leg wound) have already been applied on top of `_source`, so the
+   * difference between the two is the effects part. The `*Parts` objects
+   * are not schema fields — they exist only for the sheet's tooltips and
+   * for spending Удача.
+   */
+  #prepareSkillDerivedStats() {
+    const source = this._source;
+    const owned = (this.parent?.items ?? [])
+      .filter((i) => i.type === "skill")
+      .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+    const tier = (key) => highestSkillTier(owned, key);
+
+    const pathfinding = pathfindingSpeedBonus(tier("pathfinding"));
+    this.tactics = tacticsSpeedBonus(tier("tactics"));
+    this.speedParts = {
+      base: source.speed,
+      pathfinding,
+      effects: this.speed - source.speed,
+      tactics: this.tactics,
+    };
+    this.speed += pathfinding;
+    this.speedParts.total = this.speed;
+    this.speedParts.firstRound = this.speed + this.tactics;
+
+    const luckParts = { skill: luckSkillBase(tier("luck")), manual: source.luck, effects: this.luck - source.luck };
+    const luckTotal = resolveLuckTotal(luckParts);
+    this.luckParts = { ...luckParts, ...luckTotal };
+    this.luck = luckTotal.total;
+
+    this.moraleParts = {
+      skill: leadershipMoraleBase(tier("leadership")),
+      race: raceMoraleBonus(this.race),
+      manual: source.morale,
+      effects: this.morale - source.morale,
+    };
+    this.morale += this.moraleParts.skill + this.moraleParts.race;
+    this.moraleParts.total = this.morale;
   }
 
   /**
@@ -242,8 +299,9 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
   }
 
   /**
-   * Exposes `speed` at the top level of roll data so the default
-   * initiative formula `1d20 + @speed` (rules.md §5.1) resolves.
+   * Exposes `speed` and `tactics` at the top level of roll data so the
+   * initiative formula `1d20 + @speed + @tactics` (rules.md §5.1, §3
+   * Тактика) resolves.
    */
   getRollData() {
     return { ...this };
