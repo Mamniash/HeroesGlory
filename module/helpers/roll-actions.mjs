@@ -49,7 +49,7 @@ const FLAG_SCOPE = 'heroes-glory';
  * @param {Actor} actor
  * @returns {string[]}
  */
-function ownersAndGmIds(actor) {
+export function ownersAndGmIds(actor) {
   return ownersAndGmRecipients(game.users.map((u) => ({
     id: u.id,
     isGM: u.isGM,

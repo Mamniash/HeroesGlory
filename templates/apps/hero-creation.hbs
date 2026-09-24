@@ -1,0 +1,91 @@
+<div class="hg-creation">
+  {{!-- p. 16: the random second secondary skill. --}}
+  <section class="hg-creation__section">
+    <h3 class="hg-creation__heading">{{localize 'HEROES_GLORY.Creation.SkillSection'}}</h3>
+    <p>{{localize 'HEROES_GLORY.Creation.SkillRolled' die=pending.skillDie skill=(localize skillLabelKey)}}</p>
+    {{#if plan.skill.upgradesBase}}
+      <p>{{localize 'HEROES_GLORY.Creation.SkillUpgradesBase' skill=(localize baseSkillLabelKey)}}</p>
+    {{else if plan.skillAlreadyOwned}}
+      <p class="hg-creation__muted">{{localize 'HEROES_GLORY.Creation.SkillAlreadyOwned'}}</p>
+    {{else}}
+      <p class="hg-creation__muted">{{localize 'HEROES_GLORY.Creation.SkillNew'}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- p. 17: Книга Магии and 1st-level spells of choice. --}}
+  <section class="hg-creation__section">
+    <h3 class="hg-creation__heading">{{localize 'HEROES_GLORY.Creation.SpellbookSection'}}</h3>
+    {{#if plan.spellbook.book}}
+      <p>{{localize 'HEROES_GLORY.Creation.SpellbookGrant' count=plan.spellbook.spellChoices}}</p>
+      <div class="hg-creation__spells">
+        {{#each spells}}
+          <label class="hg-creation__spell">
+            <input type="checkbox" name="spell" value="{{name}}" {{#if checked}}checked{{/if}}> {{name}}
+          </label>
+        {{/each}}
+      </div>
+    {{else}}
+      <p class="hg-creation__muted">{{localize 'HEROES_GLORY.Creation.SpellbookNone'}}</p>
+    {{/if}}
+    {{#if raceItems}}
+      <p>{{localize 'HEROES_GLORY.Creation.DjinnGrant' items=raceItems}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- p. 17: starting weapon — name and type by the player, damage by class. --}}
+  <section class="hg-creation__section">
+    <h3 class="hg-creation__heading">{{localize 'HEROES_GLORY.Creation.WeaponSection'}}</h3>
+    {{#if raceWeaponKey}}<p class="hg-creation__muted">{{localize raceWeaponKey}}</p>{{/if}}
+    <label class="hg-creation__row">
+      <input type="checkbox" name="archer" {{#if archer}}checked{{/if}}> {{localize 'HEROES_GLORY.Creation.Archer'}}
+    </label>
+    {{#each weapons}}
+      <fieldset class="hg-creation__weapon" data-weapon-index="{{index}}">
+        <legend>
+          {{#if ranged}}{{localize 'HEROES_GLORY.Creation.WeaponRanged'}}{{else}}{{localize 'HEROES_GLORY.Creation.WeaponMelee'}}{{/if}}
+          — {{localize 'HEROES_GLORY.Creation.WeaponDamage' damage=damage}}
+        </legend>
+        <label class="hg-creation__row">
+          <span>{{localize 'HEROES_GLORY.Creation.WeaponName'}}</span>
+          <input type="text" name="weaponName" value="{{name}}">
+        </label>
+        {{#unless ranged}}
+          <label class="hg-creation__row">
+            <span>{{localize 'HEROES_GLORY.Creation.WeaponType'}}</span>
+            <select name="weaponType">
+              {{selectOptions @root.meleeTypes selected=weaponType localize=true blank=""}}
+            </select>
+          </label>
+          <label class="hg-creation__row">
+            <span>{{localize 'HEROES_GLORY.Creation.WeaponCategory'}}</span>
+            <select name="weaponCategory">
+              {{selectOptions @root.categories selected=category localize=true blank=""}}
+            </select>
+          </label>
+        {{/unless}}
+      </fieldset>
+    {{/each}}
+  </section>
+
+  {{!-- p. 18: 2d6 × 10 gold. --}}
+  <section class="hg-creation__section">
+    <h3 class="hg-creation__heading">{{localize 'HEROES_GLORY.Creation.GoldSection'}}</h3>
+    <p>{{localize 'HEROES_GLORY.Creation.GoldRolled' dice=goldDiceText sum=plan.goldSum gold=plan.gold}}</p>
+  </section>
+
+  {{!-- p. 18: d6 type, then the 2d6 row of that table. --}}
+  <section class="hg-creation__section">
+    <h3 class="hg-creation__heading">{{localize 'HEROES_GLORY.Creation.ArtifactSection'}}</h3>
+    <p>{{localize 'HEROES_GLORY.Creation.ArtifactType' die=pending.artifactTypeDie type=(localize artifactTypeLabelKey)}}</p>
+    {{#if artifactName}}
+      <p>{{localize 'HEROES_GLORY.Creation.ArtifactRow' row=pending.artifactRow name=artifactName}}{{#if pending.artifactRerolls}} {{localize 'HEROES_GLORY.Creation.ArtifactRerolls' count=pending.artifactRerolls}}{{/if}}</p>
+      {{#if artifactBonus}}<p class="hg-creation__muted">{{artifactBonus}}</p>{{/if}}
+    {{else}}
+      <p class="hg-creation__warning">{{localize 'HEROES_GLORY.Creation.ArtifactMissing'}}</p>
+    {{/if}}
+  </section>
+
+  <footer class="hg-creation__footer">
+    <button type="button" data-action="apply">{{localize 'HEROES_GLORY.Creation.Apply'}}</button>
+  </footer>
+</div>

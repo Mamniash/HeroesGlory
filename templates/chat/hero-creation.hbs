@@ -1,0 +1,20 @@
+<div class="heroes-glory-chat-card heroes-glory-chat-card--hero-creation">
+  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Creation.ChatTitle' actor=actorName}}</h3>
+  <p class="heroes-glory-chat-card__line">
+    {{localize 'HEROES_GLORY.Creation.SkillRolled' die=pending.skillDie skill=(localize skillLabelKey)}}{{#if plan.skill.upgradesBase}} — {{localize 'HEROES_GLORY.Creation.SkillUpgradesBase' skill=(localize baseSkillLabelKey)}}{{/if}}
+  </p>
+  {{#if plan.spellbook.book}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.ChatSpellbook' spells=spells}}</p>
+  {{/if}}
+  {{#if raceItems}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.DjinnGrant' items=raceItems}}</p>
+  {{/if}}
+  {{#each weapons}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.ChatWeapon' name=name damage=damage}}</p>
+  {{/each}}
+  <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.GoldRolled' dice=goldDiceText sum=plan.goldSum gold=plan.gold}}</p>
+  <p class="heroes-glory-chat-card__line">
+    {{localize 'HEROES_GLORY.Creation.ArtifactType' die=pending.artifactTypeDie type=(localize artifactTypeLabelKey)}};
+    {{localize 'HEROES_GLORY.Creation.ArtifactRow' row=pending.artifactRow name=artifactName}}{{#if pending.artifactRerolls}} {{localize 'HEROES_GLORY.Creation.ArtifactRerolls' count=pending.artifactRerolls}}{{/if}}
+  </p>
+</div>

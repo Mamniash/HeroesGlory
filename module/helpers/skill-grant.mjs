@@ -36,9 +36,12 @@ let cachedRuStringsPromise = null;
  * @param {Actor} actor
  * @param {string} skillKey   A CONFIG.HEROES_GLORY.secondarySkills key.
  * @param {string} [tier='base']
+ * @param {object} [options]
+ * @param {object} [options.flags]   `heroes-glory`-scope flags for the new
+ *   item (the class base-skill or creation-grant marker).
  * @returns {Promise<Item[]>}
  */
-export async function grantSecondarySkill(actor, skillKey, tier = 'base') {
+export async function grantSecondarySkill(actor, skillKey, tier = 'base', { flags = null } = {}) {
   const pack = game.packs.get('heroes-glory.skills');
   const index = await pack?.getIndex({ fields: ['system.skillKey'] });
   const entry = index?.find((e) => e.system?.skillKey === skillKey);
@@ -62,5 +65,6 @@ export async function grantSecondarySkill(actor, skillKey, tier = 'base') {
     ui.notifications?.warn(game.i18n.format('HEROES_GLORY.Hero.SkillGrantFallbackWarning', { skill: name }));
     data = { name, type: 'skill', system: { skillKey, tier } };
   }
+  if (flags) data.flags = { ...data.flags, 'heroes-glory': { ...data.flags?.['heroes-glory'], ...flags } };
   return actor.createEmbeddedDocuments('Item', [data]);
 }

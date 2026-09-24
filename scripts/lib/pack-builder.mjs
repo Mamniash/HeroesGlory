@@ -121,9 +121,10 @@ export function safeFilename(name) {
  * @param {string} [params.seed]      Id seed; defaults to `name` (matches
  *   every pack built before this refactor — changing it would reshuffle
  *   already-committed ids for no reason).
+ * @param {object} [params.flags]     Document flags.
  * @returns {object}
  */
-export function buildItemDocument({ name, type, system, img, index, seed }) {
+export function buildItemDocument({ name, type, system, img, index, seed, flags = {} }) {
   const id = stableId(seed ?? name);
   return {
     _id: id,
@@ -135,7 +136,7 @@ export function buildItemDocument({ name, type, system, img, index, seed }) {
     folder: null,
     sort: (index + 1) * 10000,
     ownership: { default: 0 },
-    flags: {},
+    flags,
     _stats: {
       compendiumSource: null,
       duplicateSource: null,

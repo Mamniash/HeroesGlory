@@ -27,6 +27,7 @@
   @import 'components/actor-sheet';
   @import 'components/hero-paperdoll';
   @import 'components/lvlup';
+  @import 'components/hero-creation';
   @import 'components/spellbook';
   // The hover-tooltip layer (module/helpers/tooltip.mjs) now lives as a
   // child of whichever canvas is showing — a real descendant here, not a

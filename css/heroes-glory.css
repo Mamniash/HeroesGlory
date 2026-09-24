@@ -2078,6 +2078,68 @@
 .heroes-glory .hg-lvlup__confirm.hg-lvlup__slot--pressed {
   background-image: url("../assets/buttons/iok6432/iok6432_g00_f001.png");
 }
+.hg-creation-app .window-content {
+  overflow-y: auto;
+}
+
+.heroes-glory .hg-creation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 5px;
+}
+.heroes-glory .hg-creation p {
+  margin: 0 0 5px;
+}
+.heroes-glory .hg-creation__section {
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.2));
+  padding-bottom: 5px;
+}
+.heroes-glory .hg-creation__heading {
+  margin: 0 0 5px;
+  font-size: 1.1em;
+  font-weight: bold;
+  border: none;
+}
+.heroes-glory .hg-creation__muted {
+  opacity: 0.75;
+  font-style: italic;
+}
+.heroes-glory .hg-creation__warning {
+  color: var(--color-level-error, #c33);
+}
+.heroes-glory .hg-creation__spells {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 10px;
+}
+.heroes-glory .hg-creation__spell, .heroes-glory .hg-creation__row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.heroes-glory .hg-creation__row {
+  margin-bottom: 5px;
+}
+.heroes-glory .hg-creation__row > span {
+  flex: 0 0 110px;
+}
+.heroes-glory .hg-creation__row > input[type=text],
+.heroes-glory .hg-creation__row > select {
+  flex: 1 1 auto;
+}
+.heroes-glory .hg-creation__weapon {
+  margin: 0 0 5px;
+  padding: 5px 10px;
+}
+.heroes-glory .hg-creation__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.heroes-glory .hg-creation__footer button {
+  flex: 0 0 auto;
+  min-width: 140px;
+}
 .heroes-glory .hero-spellbook {
   aspect-ratio: 600 / 473;
 }

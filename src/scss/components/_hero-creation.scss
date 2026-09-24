@@ -1,0 +1,81 @@
+// Hero-creation window (module/apps/hero-creation-app.mjs) — a plain
+// Foundry form, no paperdoll art.
+
+// Foundry caps the window at the viewport height; scroll the rest so the
+// apply button stays reachable on short screens. `.heroes-glory` and
+// `.hg-creation-app` sit on the same element, hence @at-root.
+@at-root .hg-creation-app .window-content {
+  overflow-y: auto;
+}
+.hg-creation {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-md;
+  padding: $padding-sm;
+
+  p {
+    margin: 0 0 $padding-sm;
+  }
+
+  &__section {
+    border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.2));
+    padding-bottom: $padding-sm;
+  }
+
+  &__heading {
+    margin: 0 0 $padding-sm;
+    font-size: 1.1em;
+    font-weight: bold;
+    border: none;
+  }
+
+  &__muted {
+    opacity: 0.75;
+    font-style: italic;
+  }
+
+  &__warning {
+    color: var(--color-level-error, #c33);
+  }
+
+  &__spells {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px $padding-md;
+  }
+
+  &__spell,
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: $padding-sm;
+  }
+
+  &__row {
+    margin-bottom: $padding-sm;
+
+    > span {
+      flex: 0 0 110px;
+    }
+
+    > input[type="text"],
+    > select {
+      flex: 1 1 auto;
+    }
+  }
+
+  &__weapon {
+    margin: 0 0 $padding-sm;
+    padding: $padding-sm $padding-md;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+
+    button {
+      flex: 0 0 auto;
+      min-width: 140px;
+    }
+  }
+}

@@ -35,6 +35,7 @@
  * оказаться неверным.
  */
 
+import { ARTIFACT_TABLE_ROW_FLAG } from '../../module/helpers/hero-creation.mjs';
 import { buildItemDocument } from '../lib/pack-builder.mjs';
 
 // --- Зачарованное оружие, стр. 46 — 11 записей (2-12) ---
@@ -245,15 +246,19 @@ const ICONS = {
   magicItem: 'icons/svg/item-bag.svg',
 };
 
+// bookTable: записи из книжной таблицы 2d6 — им пишется номер строки
+// (flags.heroes-glory.tableRow, 2 + позиция), по нему окно создания героя
+// находит случайный стартовый артефакт (стр. 18). Небрендированные
+// «Доспех/Щит (N уровень)» в книжных таблицах нет — строки у них нет.
 const GROUPS = [
-  { artifactType: 'enchantedWeapon', entries: ENCHANTED_WEAPONS },
-  { artifactType: 'enchantedArmor', entries: ENCHANTED_ARMOR },
-  { artifactType: 'enchantedArmor', entries: PLAIN_ARMOR },
-  { artifactType: 'enchantedShield', entries: ENCHANTED_SHIELDS },
-  { artifactType: 'enchantedShield', entries: PLAIN_SHIELDS },
-  { artifactType: 'necklace', entries: NECKLACES },
-  { artifactType: 'magicClothing', entries: MAGIC_CLOTHING },
-  { artifactType: 'magicItem', entries: MAGIC_ITEMS },
+  { artifactType: 'enchantedWeapon', entries: ENCHANTED_WEAPONS, bookTable: true },
+  { artifactType: 'enchantedArmor', entries: ENCHANTED_ARMOR, bookTable: true },
+  { artifactType: 'enchantedArmor', entries: PLAIN_ARMOR, bookTable: false },
+  { artifactType: 'enchantedShield', entries: ENCHANTED_SHIELDS, bookTable: true },
+  { artifactType: 'enchantedShield', entries: PLAIN_SHIELDS, bookTable: false },
+  { artifactType: 'necklace', entries: NECKLACES, bookTable: true },
+  { artifactType: 'magicClothing', entries: MAGIC_CLOTHING, bookTable: true },
+  { artifactType: 'magicItem', entries: MAGIC_ITEMS, bookTable: true },
 ];
 
 /**
@@ -264,8 +269,8 @@ const GROUPS = [
 export function buildArtifactDocuments() {
   const documents = [];
   let index = 0;
-  for (const { artifactType, entries } of GROUPS) {
-    for (const entry of entries) {
+  for (const { artifactType, entries, bookTable } of GROUPS) {
+    for (const [position, entry] of entries.entries()) {
       const isWeapon = artifactType === 'enchantedWeapon';
       documents.push(buildItemDocument({
         name: entry.name,
@@ -284,6 +289,7 @@ export function buildArtifactDocuments() {
           twoHanded: isWeapon ? entry.twoHanded : false,
           epicTable: Array(6).fill(''),
         },
+        flags: bookTable ? { 'heroes-glory': { [ARTIFACT_TABLE_ROW_FLAG]: 2 + position } } : {},
         index,
       }));
       index += 1;

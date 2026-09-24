@@ -45,3 +45,23 @@ export function raceGrantedItems(raceKey, subchoiceKey, { hasSpellbook }) {
   }
   return [];
 }
+
+/**
+ * Races whose grant is decided in the hero-creation window rather than at
+ * the race pick: Джинн's spell depends on whether the hero STARTS with a
+ * Книга Магии, which the class (or a rolled Мудрость) decides — known only
+ * once creation runs (apps/hero-creation-app.mjs).
+ */
+export const CREATION_TIME_RACE_GRANTS = new Set(['djinn']);
+
+/**
+ * The grant applied right at the race pick (hero-sheet.mjs's
+ * #syncRaceGrantedItems) — everything except the creation-time races.
+ * @param {string} raceKey
+ * @param {string|null} subchoiceKey
+ * @param {{hasSpellbook: boolean}} params
+ * @returns {ReturnType<typeof raceGrantedItems>}
+ */
+export function raceGrantedItemsAtPick(raceKey, subchoiceKey, params) {
+  return CREATION_TIME_RACE_GRANTS.has(raceKey) ? [] : raceGrantedItems(raceKey, subchoiceKey, params);
+}

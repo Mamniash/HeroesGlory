@@ -5,6 +5,10 @@ import { findSpellVariant, castSpell, SPELL_VARIANT_LABELS } from '../../helpers
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
+  HeroesGloryCreationApp, resetHeroCreation, creationGrantedItemNames,
+} from '../../apps/hero-creation-app.mjs';
+import { CLASS_BASE_SKILL_FLAG } from '../../helpers/hero-creation.mjs';
+import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
 } from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
@@ -18,7 +22,7 @@ import {
   statsForRace, raceDiff, RACE_FEATURE_NOTES, raceIconPath, raceTextKeysFor,
   subchoiceOptionsFor, subchoiceModifiersFor,
 } from '../../helpers/race-stats.mjs';
-import { raceGrantedItems } from '../../helpers/race-granted-items.mjs';
+import { raceGrantedItemsAtPick } from '../../helpers/race-granted-items.mjs';
 import { availableSpecializations, specializationEffectTextKey } from '../../helpers/specializations.mjs';
 import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-icons.mjs';
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
@@ -161,6 +165,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       pickLevel: this.#onPickLevel,
       pickSpecialization: this.#onPickSpecialization,
       unsetSpecialization: this.#onUnsetSpecialization,
+      openHeroCreation: this.#onOpenHeroCreation,
+      resetHeroCreation: this.#onResetHeroCreation,
     },
   };
 
@@ -186,6 +192,22 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       label: 'HEROES_GLORY.Hero.PanelColor',
       visible: this.#canEdit,
       action: 'pickPanelColor',
+    });
+    // §2–§8, book pp. 16–18: the hero-creation window — for the owner
+    // while creation isn't complete; the paperdoll itself has no free
+    // spot for another button, so it lives here with Цвет панели. `visible`
+    // is a function: the menu re-reads it on every open.
+    controls.push({
+      icon: 'fa-solid fa-dice',
+      label: 'HEROES_GLORY.Creation.Open',
+      visible: () => this.actor.isOwner && !this.actor.system.creation.complete,
+      action: 'openHeroCreation',
+    });
+    controls.push({
+      icon: 'fa-solid fa-rotate-left',
+      label: 'HEROES_GLORY.Creation.Reset',
+      visible: () => game.user.isGM && this.actor.system.creation.complete,
+      action: 'resetHeroCreation',
     });
     return controls;
   }
@@ -1418,6 +1440,18 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
+   * §2–§8: header-control actions for hero creation (apps/hero-creation-app.mjs).
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onOpenHeroCreation(event, target) {
+    return HeroesGloryCreationApp.open(this.actor);
+  }
+
+  static #onResetHeroCreation(event, target) {
+    return resetHeroCreation(this.actor);
+  }
+
+  /**
    * §4.2: open the level-up window — available to any owner, not just
    * the GM, and not gated on #editMode: unlike the identity pickers
    * above, this isn't an edit-mode workflow action, it's the level-up
@@ -1610,6 +1644,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       weaponKey: raceTextKeys?.weaponKey ?? null,
       featureNoteKey: RACE_FEATURE_NOTES[raceKey] ?? null,
       subchoiceModifiers,
+      creationWarning: true,
     });
 
     return {
@@ -1698,7 +1733,18 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const alreadyHasSkill = stats
       ? this.actor.items.some((i) => i.type === 'skill' && i.system.skillKey === stats.secondarySkillKey)
       : false;
-    const ownedSkills = this.actor.items.filter((i) => i.type === 'skill');
+    // §3: the previous class's base skill (flagged when granted) is
+    // replaced — removed while still at base tier; one already raised (by
+    // the creation roll's coincidence or a level-up) stays, and the GM is
+    // warned instead.
+    const staleBaseSkills = stats
+      ? this.actor.items.filter((i) => i.type === 'skill'
+        && i.getFlag('heroes-glory', CLASS_BASE_SKILL_FLAG)
+        && i.system.skillKey !== stats.secondarySkillKey)
+      : [];
+    const removableBaseSkills = staleBaseSkills.filter((i) => i.system.tier === 'base');
+    const keptBaseSkills = staleBaseSkills.filter((i) => i.system.tier !== 'base');
+    const ownedSkills = this.actor.items.filter((i) => i.type === 'skill' && !removableBaseSkills.includes(i));
     // §3 стр.39: 8, or 10 with Экспертная Обучаемость — secondarySkillSlotCount
     // (rolls.mjs) re-derives this fresh from the owned list every call, so
     // a lapsed Экспертная Обучаемость (9-10 owned, tier lowered since) is
@@ -1719,6 +1765,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       descriptionKey: isFactionChange ? factionDescriptionKey(newFaction) : classDescriptionKey(newConcreteKey),
       baseSkillKey: stats?.secondarySkillKey ?? null,
       skillGrantInfo: stats ? { skillKey: alreadyHasSkill ? null : stats.secondarySkillKey, blocked: slotsFull } : null,
+      removedBaseSkills: removableBaseSkills.map((i) => i.name),
+      keptBaseSkills: keptBaseSkills.map((i) => i.name),
+      creationWarning: true,
     });
 
     // A faction change shows that FACTION's own crest (unaffected by
@@ -1742,7 +1791,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         const statUpdate = {};
         for (const [stat, { after }] of Object.entries(diff)) statUpdate[`system.${stat}`] = after;
         await this.actor.update({ ...fieldUpdate, ...statUpdate });
+        const removeIds = removableBaseSkills.map((i) => i.id).filter((id) => this.actor.items.has(id));
+        if (removeIds.length) await this.actor.deleteEmbeddedDocuments('Item', removeIds);
         if (stats && !alreadyHasSkill && !slotsFull) await this.#grantSecondarySkillIfMissing(stats.secondarySkillKey);
+        for (const item of keptBaseSkills) {
+          ui.notifications.warn(game.i18n.format('HEROES_GLORY.Hero.BaseSkillKeptWarning', { skill: item.name }));
+        }
       },
     };
   }
@@ -1804,7 +1858,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const {
       descriptionKey = null, weaponKey = null, featureNoteKey = null,
       skillGrantInfo = null, baseSkillKey = null, subchoiceModifiers = [],
+      removedBaseSkills = [], keptBaseSkills = [], creationWarning = false,
     } = options;
+    const escape = foundry.utils.escapeHTML;
     const config = CONFIG.HEROES_GLORY;
     const STAT_LABEL_KEYS = {
       attack: 'HEROES_GLORY.Hero.Attack', defense: 'HEROES_GLORY.Hero.Defense',
@@ -1852,6 +1908,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       const value = modifier.value >= 0 ? `+${modifier.value}` : `${modifier.value}`;
       rows.push(`<li>${game.i18n.format('HEROES_GLORY.Hero.RaceSubchoiceBonusLine', { stat: label, value })}</li>`);
     }
+    // §3: the previous class's base skill — removed, or kept with a warning.
+    for (const name of removedBaseSkills) {
+      rows.push(`<li>${game.i18n.format('HEROES_GLORY.Hero.BaseSkillRemoveLine', { skill: escape(name) })}</li>`);
+    }
     let changesHtml = rows.length
       ? `<ul class="hg-confirm__stat-list">${rows.join('')}</ul>`
       : `<p class="hg-confirm__block-text">${game.i18n.localize('HEROES_GLORY.Hero.StatBeforeAfterNone')}</p>`;
@@ -1860,6 +1920,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       changesHtml += skillGrantInfo.blocked
         ? `<p class="hg-confirm__block-text">${game.i18n.format('HEROES_GLORY.Hero.SecondarySkillSlotsFullWarning', { skill: skillLabel })}</p>`
         : `<p class="hg-confirm__block-text">${game.i18n.format('HEROES_GLORY.Hero.SecondarySkillGrantHint', { skill: skillLabel })}</p>`;
+    }
+    for (const name of keptBaseSkills) {
+      changesHtml += `<p class="hg-confirm__block-text">${game.i18n.format('HEROES_GLORY.Hero.BaseSkillKeptWarning', { skill: escape(name) })}</p>`;
     }
 
     let html = '';
@@ -1876,7 +1939,31 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         `<p class="hg-confirm__block-text">${game.i18n.localize(featureNoteKey)}</p>`);
     }
     html += this.#buildConfirmBlock('HEROES_GLORY.Hero.ConfirmBlockChanges', changesHtml);
+    if (creationWarning) html += this.#buildCreationWarningHtml();
     return html;
+  }
+
+  /**
+   * §2–§8 (task): after creation is complete, a race/class change neither
+   * takes back nor re-grants what creation handed out — the dialog lists
+   * it so the GM can fix it by hand (or use «Сбросить создание»). Empty
+   * before creation is complete.
+   * @this {HeroesGloryHeroSheet}
+   * @returns {string}
+   */
+  #buildCreationWarningHtml() {
+    const creation = this.actor.system.creation;
+    if (!creation.complete) return '';
+    const escape = foundry.utils.escapeHTML;
+    const lines = creationGrantedItemNames(this.actor).map((name) => `<li>${escape(name)}</li>`);
+    if (creation.gold) lines.push(`<li>${game.i18n.format('HEROES_GLORY.Creation.WarningGold', { gold: creation.gold })}</li>`);
+    if (creation.upgradedSkillKey) {
+      const skill = game.i18n.localize(CONFIG.HEROES_GLORY.secondarySkills[creation.upgradedSkillKey] ?? creation.upgradedSkillKey);
+      lines.push(`<li>${game.i18n.format('HEROES_GLORY.Creation.WarningSkill', { skill })}</li>`);
+    }
+    return this.#buildConfirmBlock('HEROES_GLORY.Creation.WarningTitle',
+      `<ul class="hg-confirm__stat-list">${lines.join('')}</ul>`
+      + `<p class="hg-confirm__block-text">${game.i18n.localize('HEROES_GLORY.Creation.WarningText')}</p>`);
   }
 
   /**
@@ -1895,7 +1982,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // function's own comment (rolls.mjs) for why this is re-derived here
     // rather than read from a cached/stored value.
     if (ownedSkills.length >= secondarySkillSlotCount(ownedSkills.map((i) => i.system), config.secondarySkillSlotCount)) return;
-    return grantSecondarySkill(this.actor, skillKey);
+    // Flagged so a later class change can replace it (#buildClassEffectiveConfirmScreen).
+    return grantSecondarySkill(this.actor, skillKey, 'base', { flags: { [CLASS_BASE_SKILL_FLAG]: skillKey } });
   }
 
   /**
@@ -1957,7 +2045,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     if (stale.length) await this.actor.deleteEmbeddedDocuments('Item', stale.map((i) => i.id));
 
     const hasSpellbook = this.actor.items.some((i) => i.type === 'spellbook');
-    const wanted = raceGrantedItems(newRaceKey, newSubchoiceKey, { hasSpellbook });
+    // Джинн's grant waits for the creation window (race-granted-items.mjs).
+    const wanted = raceGrantedItemsAtPick(newRaceKey, newSubchoiceKey, { hasSpellbook });
     const grantFlag = { [RACE_GRANTED_ITEM_FLAG[0]]: { [RACE_GRANTED_ITEM_FLAG[1]]: { race: newRaceKey, subchoice: newSubchoiceKey } } };
 
     for (const want of wanted) {

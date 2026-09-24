@@ -45,3 +45,13 @@ describe('raceGrantedItems — §2.3 p.12 Элементаль/Воздух and 
     assert.deepEqual(raceGrantedItems('elemental', 'not-a-subchoice', { hasSpellbook: false }), []);
   });
 });
+
+describe('raceGrantedItemsAtPick — Джинн moved to the creation window', async () => {
+  const { raceGrantedItemsAtPick } = await import('../module/helpers/race-granted-items.mjs');
+  test('Джинн gets nothing at the race pick', () => {
+    assert.deepEqual(raceGrantedItemsAtPick('djinn', null, { hasSpellbook: false }), []);
+  });
+  test('Элементаль Воздуха still gets «Полет» at the pick', () => {
+    assert.deepEqual(raceGrantedItemsAtPick('elemental', 'air', { hasSpellbook: false }), [{ itemType: 'spell', spellName: 'Полет' }]);
+  });
+});
