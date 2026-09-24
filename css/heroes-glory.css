@@ -637,6 +637,16 @@
 }
 .heroes-glory .actor-sheet__special-skills .actor-sheet__special-skill {
   flex: 1 1 140px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.heroes-glory .actor-sheet__special-skills .actor-sheet__special-skill input {
+  flex: 1 1 140px;
+}
+.heroes-glory .actor-sheet__special-skills .actor-sheet__special-skill .content-link {
+  white-space: nowrap;
 }
 .heroes-glory .hero-sheet__columns {
   display: grid;

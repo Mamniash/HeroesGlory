@@ -7,6 +7,8 @@ import {
   resolveDamage,
   resolvePotentialDamage,
   epicTableHasContent,
+  isCreatureArcher,
+  resolveAttackEpicTable,
   planEpicCascade,
   resolveEpicTableRow,
   resolveEpicSeverity,
@@ -408,6 +410,45 @@ describe('epicTableHasContent — §5.4/§8.1 real table vs an absent/blank one'
 
   test('whitespace-only rows count as blank, not content', () => {
     assert.equal(epicTableHasContent(['  ', '\t', '', '', '', '']), false);
+  });
+});
+
+describe('resolveAttackEpicTable — §5.4/§11 melee vs ranged branch', () => {
+  const table = ['a', 'b', 'c', 'd', 'e', 'f'];
+  const archer = ['Летает', 'Стрелок'];
+
+  test('isCreatureArcher: only the exact «Стрелок» tag', () => {
+    assert.equal(isCreatureArcher(archer), true);
+    assert.equal(isCreatureArcher([' Стрелок ']), true);
+    assert.equal(isCreatureArcher(['Меткий Выстрел 6']), false);
+    assert.equal(isCreatureArcher(['Cтрелок']), false); // Latin C
+    assert.equal(isCreatureArcher([]), false);
+    assert.equal(isCreatureArcher(undefined), false);
+  });
+
+  test('archer melee: its own table', () => {
+    assert.equal(resolveAttackEpicTable({ creatureEpicTable: table, creatureSpecialSkills: archer }), table);
+  });
+
+  test('archer ranged: no table', () => {
+    assert.equal(resolveAttackEpicTable({ creatureEpicTable: table, creatureSpecialSkills: archer, ranged: true }), null);
+  });
+
+  test('ranged requested for a non-archer creature: stays melee', () => {
+    assert.equal(resolveAttackEpicTable({ creatureEpicTable: table, creatureSpecialSkills: ['Летает'], ranged: true }), table);
+  });
+
+  test('weapons: melee keeps its table, ranged has none, blank table is none', () => {
+    assert.equal(resolveAttackEpicTable({ weapon: { weaponType: 'slashing', epicTable: table } }), table);
+    assert.equal(resolveAttackEpicTable({ weapon: { weaponType: 'ranged', epicTable: table } }), null);
+    assert.equal(resolveAttackEpicTable({ weapon: { weaponType: 'slashing', epicTable: ['', '', '', '', '', ''] } }), null);
+  });
+
+  test('the ranged branch still rolls severity and «Куда попал» on an epic', () => {
+    const noTable = resolveAttackEpicTable({ creatureEpicTable: table, creatureSpecialSkills: archer, ranged: true });
+    const plan = planEpicCascade(resolveHit(6), noTable);
+    assert.equal(plan.rollFlavor, false);
+    assert.equal(plan.rollSeverity, true);
   });
 });
 

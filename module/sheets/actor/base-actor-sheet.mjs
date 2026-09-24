@@ -98,7 +98,7 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   static #onRollAttack(event, target) {
     const itemId = target.dataset.itemId;
     const weapon = itemId ? this.actor.items.get(itemId) : null;
-    return rollAttack(this.actor, weapon);
+    return rollAttack(this.actor, weapon, { ranged: target.dataset.ranged === 'true' });
   }
 
   /**

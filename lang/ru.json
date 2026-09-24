@@ -453,6 +453,10 @@
       "CheckHint": "Клик — проверка (d20 + значение)",
       "AttackHint": "Клик — бросок атаки",
       "AttackRow": "Атака {attack}, Урон {damage}, атак за раунд: {count}",
+      "AttackRowMelee": "Ближняя: Атака {attack}, Урон {damage}, атак за раунд: {count}",
+      "AttackRowRanged": "Дальняя: Атака {attack}, Урон {damage}, атак за раунд: {count}",
+      "AttackMelee": "Ближняя атака",
+      "AttackRanged": "Дальняя атака",
       "AttackTitle": "{attacker} атакует",
       "AttackTitleTarget": "{attacker} атакует «{target}»",
       "HeadlineDefeatFailed": "{hit}, поражение провалено",
@@ -476,6 +480,7 @@
       "DamageApplied": "Урон нанесён: {damage}",
       "DamagePotential": "Урон: {damage}, если поражение пройдёт",
       "EpicNoTable": "У этого оружия нет эпик-таблицы",
+      "EpicNoTableRanged": "Стрелковые атаки эпик-таблиц не имеют",
       "EpicRetreat": "Небольшая цель отступает на 1 клетку назад или по диагонали (на усмотрение атакующего), если путь свободен",
       "EpicSevere": "Существенное повреждение!",
       "Location": {

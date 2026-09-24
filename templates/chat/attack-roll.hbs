@@ -71,6 +71,11 @@
     {{#if weaponName}}
       <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.Weapon' weapon=weaponName}}</p>
     {{/if}}
+    {{#if (eq attackRange 'ranged')}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.AttackRanged'}}</p>
+    {{else if (eq attackRange 'melee')}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.AttackMelee'}}</p>
+    {{/if}}
 
     <p class="heroes-glory-chat-card__line">
       {{#if hit.previousDie}}
@@ -125,7 +130,7 @@
           <p class="heroes-glory-chat-card__line">{{epicRow}}</p>
         {{/if}}
       {{else}}
-        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.EpicNoTable'}}</p>
+        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize (ifThen (eq attackRange 'ranged') 'HEROES_GLORY.Roll.EpicNoTableRanged' 'HEROES_GLORY.Roll.EpicNoTable')}}</p>
       {{/if}}
       {{#if severe}}
         <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.EpicSevere'}}</p>

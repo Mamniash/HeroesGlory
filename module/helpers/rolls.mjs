@@ -127,6 +127,40 @@ export function epicTableHasContent(table) {
   return Array.isArray(table) && table.some((row) => typeof row === 'string' && row.trim() !== '');
 }
 
+/** §9/§11: the special-skill tag the book gives every shooting creature (p. 115). */
+export const CREATURE_ARCHER_TAG = 'Стрелок';
+
+/**
+ * §9/§11: whether a creature can choose between melee and ranged attacks —
+ * only one tagged exactly «Стрелок». Creatures that shoot without the tag
+ * are left melee-only: the book gave them just the melee epic table.
+ * @param {string[]|null|undefined} specialSkills
+ * @returns {boolean}
+ */
+export function isCreatureArcher(specialSkills) {
+  return (specialSkills ?? []).some((skill) => typeof skill === 'string' && skill.trim() === CREATURE_ARCHER_TAG);
+}
+
+/**
+ * §5.4/§11: which epic table an attack uses; `null` means no flavor row
+ * (the severity roll and «Куда попал» still happen — planEpicCascade).
+ * A ranged weapon has none; neither does a creature's ranged attack,
+ * which only an archer can make (its table is labelled «Атаки в ближнем
+ * бою»). A blank table (enchanted-weapon artifact) counts as none.
+ * @param {object} args
+ * @param {{weaponType: string, epicTable: string[]|null}|null} [args.weapon]  weapon.system, or null for a creature's own attack
+ * @param {string[]|null} [args.creatureEpicTable]
+ * @param {string[]|null} [args.creatureSpecialSkills]
+ * @param {boolean} [args.ranged]  creature ranged attack requested
+ * @returns {string[]|null}
+ */
+export function resolveAttackEpicTable({ weapon = null, creatureEpicTable = null, creatureSpecialSkills = null, ranged = false }) {
+  const raw = weapon
+    ? (weapon.weaponType === 'ranged' ? null : weapon.epicTable)
+    : (ranged && isCreatureArcher(creatureSpecialSkills) ? null : creatureEpicTable);
+  return epicTableHasContent(raw) ? raw : null;
+}
+
 /**
  * §5.4: which of the epic cascade's two independent d6 rolls should even
  * happen. The book ties only the flavor-text table roll to the weapon

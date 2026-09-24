@@ -7,7 +7,8 @@
 import {
   resolveHit,
   resolveEpicTableRow,
-  epicTableHasContent,
+  resolveAttackEpicTable,
+  isCreatureArcher,
   planEpicCascade,
   resolveEpicSeverity,
   resolveHitLocation,
@@ -234,6 +235,7 @@ function buildAttackContext(actor, flags) {
   return {
     attackerName: actor.name,
     weaponName: flags.weaponName,
+    attackRange: flags.attackRange ?? null,
     targetName: flags.targetName,
     hit: { ...hit, labelKey: HIT_LABELS[hit.key], previousDie: flags.previousHitDie ?? null },
     defeat: { ...defeat, previousDie: flags.previousDefeatDie ?? null },
@@ -278,9 +280,12 @@ function buildAttackContext(actor, flags) {
  * @param {Actor} actor          The attacking hero or creature.
  * @param {Item|null} [weapon]   The weapon item, for a hero attack; omit
  *                               for a creature attacking with its own stats.
+ * @param {object} [options]
+ * @param {boolean} [options.ranged]  §11: a «Стрелок» creature's ranged
+ *                               attack — no flavor row; ignored for anyone else.
  * @returns {Promise<ChatMessage>}
  */
-export async function rollAttack(actor, weapon = null) {
+export async function rollAttack(actor, weapon = null, { ranged = false } = {}) {
   const targetToken = game.user.targets.first();
   const targetActor = targetToken?.actor ?? null;
 
@@ -290,19 +295,18 @@ export async function rollAttack(actor, weapon = null) {
   }
 
   const baseDamage = weapon ? weapon.system.damage : actor.system.damage;
-  // §5.4: ranged weapons have no epic table, and neither does an
-  // enchanted-weapon artifact (the book's "Зачарованное оружие" table has
-  // no epic-table column at all) — `epicTableHasContent` catches both:
-  // a ranged weapon's `epicTable` is nulled out below already, and an
-  // enchanted weapon's is a present-but-all-blank array (item-artifact.mjs
-  // keeps the same 6-string shape item-weapon.mjs uses), which would
-  // otherwise still read as "has a table" and run the severity/"Куда
-  // попал" cascade with empty flavor text. Creatures always have their
-  // own real table — the data model has no "ranged" concept for them.
-  const rawEpicTable = weapon
-    ? (weapon.system.weaponType === 'ranged' ? null : weapon.system.epicTable)
-    : actor.system.epicTable;
-  const epicTable = epicTableHasContent(rawEpicTable) ? rawEpicTable : null;
+  // §5.4/§11: which epic table applies — ranged weapon, enchanted-weapon
+  // artifact (blank table) and a creature archer's ranged attack have
+  // none; see resolveAttackEpicTable. `attackRange` is recorded only for
+  // archers, who choose between the two on the sheet.
+  const archer = !weapon && isCreatureArcher(actor.system.specialSkills);
+  const epicTable = resolveAttackEpicTable({
+    weapon: weapon ? weapon.system : null,
+    creatureEpicTable: actor.system.epicTable,
+    creatureSpecialSkills: actor.system.specialSkills,
+    ranged,
+  });
+  const attackRange = archer ? (ranged ? 'ranged' : 'melee') : null;
   const legendary = weapon ? false : !!actor.system.legendary;
   const targetDefense = targetActor?.system?.defense ?? null;
 
@@ -347,6 +351,7 @@ export async function rollAttack(actor, weapon = null) {
     actorId: actor.id,
     targetActorId: targetActor?.id ?? null,
     weaponName: weapon?.name ?? null,
+    attackRange,
     targetName: targetActor?.name ?? null,
     attackerAttack: actor.system.attack,
     baseDamage,

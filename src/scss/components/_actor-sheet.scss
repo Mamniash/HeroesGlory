@@ -126,6 +126,18 @@
 
   .actor-sheet__special-skill {
     flex: 1 1 140px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $padding-sm;
+
+    input {
+      flex: 1 1 140px;
+    }
+
+    .content-link {
+      white-space: nowrap;
+    }
   }
 }
 

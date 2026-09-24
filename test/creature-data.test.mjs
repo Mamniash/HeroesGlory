@@ -131,3 +131,53 @@ describe('creature abilities journal (book pp. 113-116)', async () => {
     assert.deepEqual(abilityPages([{ name: 'X', text: 'a < b' }]), [{ name: 'X', content: '<p>a &lt; b</p>' }]);
   });
 });
+
+describe('creature tag → ability page (§9)', async () => {
+  const { readAbilities } = await import('../scripts/data/creature-abilities-compendium-data.mjs');
+  const { normalizeAbilityName, resolveTagAbilities, ABILITY_TAG_ALIASES } = await import('../module/helpers/creature-abilities.mjs');
+  const names = readAbilities().map((a) => a.name);
+  const tags = [...new Set(FACTIONS.flatMap((f) => readFaction(f).entries.flatMap((e) => e.creatures.flatMap((c) => c.specialSkills))))];
+
+  test('page names stay distinct after normalization', () => {
+    const norm = names.map(normalizeAbilityName);
+    assert.equal(new Set(norm).size, norm.length);
+  });
+
+  test('every alias target is a real page', () => {
+    for (const targets of Object.values(ABILITY_TAG_ALIASES)) {
+      for (const t of targets) assert.ok(names.includes(t), t);
+    }
+  });
+
+  test('numbers and brackets dropped, case and ё ignored', () => {
+    assert.deepEqual(resolveTagAbilities('Регенерация 2d6', names), ['Регенерация']);
+    assert.deepEqual(resolveTagAbilities('Яд 4+ (3d6 урона ядом)', names), ['Яд']);
+    assert.deepEqual(resolveTagAbilities('Вампиризм 50%', names), ['Вампиризм 50%']);
+    assert.deepEqual(resolveTagAbilities('Ответная Атака (Неограничено)', names), ['Ответная атака']);
+    assert.deepEqual(resolveTagAbilities('Магия (Воскрешение, 1 заряд)', names), ['Магия']);
+    assert.deepEqual(resolveTagAbilities('Трехголовый удар', names), ['Трёхголовый удар']);
+  });
+
+  test('aliases, including a tag naming two abilities', () => {
+    assert.deepEqual(resolveTagAbilities('Летает', names), ['Полёт']);
+    assert.deepEqual(resolveTagAbilities('Атакует Магией (Стрела 6d6, 3 заряда)', names), ['Атака магией']);
+    assert.deepEqual(resolveTagAbilities('Проклятье Выстрел 5+', names), ['Проклятие']);
+    assert.deepEqual(resolveTagAbilities('Иммунитет к Ослеплению и Окаменению', names), ['Иммунитет к ослеплению', 'Иммунитет к окаменению']);
+  });
+
+  test('empty or unknown tag: no link', () => {
+    assert.deepEqual(resolveTagAbilities('', names), []);
+    assert.deepEqual(resolveTagAbilities('Придуманный навык', names), []);
+  });
+
+  test('only tags the book has no article for stay plain text', () => {
+    const unlinked = tags.filter((t) => resolveTagAbilities(t, names).length === 0).sort();
+    assert.deepEqual(unlinked, [
+      'Иммунитет к заклинаниям',
+      'Ледяная Молния и Кольцо Холода',
+      'Наносит 4d6+4 урона при промахе',
+      'Наносит 8d6+8 урона при промахе',
+      'Огненный Щит (3d6)',
+    ]);
+  });
+});

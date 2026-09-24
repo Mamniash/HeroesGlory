@@ -49,10 +49,21 @@
     <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageStrong'}}: {{damageStrong}}</p>
   </div>
 
-  <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
-    title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
-    {{localize 'HEROES_GLORY.Roll.AttackRow' attack=system.attack damage=system.damage count=system.attacksCount}}
-  </div>
+  {{#if isArcher}}
+    <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
+      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
+      {{localize 'HEROES_GLORY.Roll.AttackRowMelee' attack=system.attack damage=system.damage count=system.attacksCount}}
+    </div>
+    <div class="actor-sheet__attack-row" data-action="rollAttack" data-ranged="true" role="button" tabindex="0"
+      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
+      {{localize 'HEROES_GLORY.Roll.AttackRowRanged' attack=system.attack damage=system.damage count=system.attacksCount}}
+    </div>
+  {{else}}
+    <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
+      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
+      {{localize 'HEROES_GLORY.Roll.AttackRow' attack=system.attack damage=system.damage count=system.attacksCount}}
+    </div>
+  {{/if}}
 
   <div class="actor-sheet__field">
     <span class="actor-sheet__label">
@@ -68,10 +79,15 @@
 
   <fieldset class="actor-sheet__special-skills">
     <legend>{{localize 'HEROES_GLORY.Creature.SpecialSkills'}}</legend>
-    {{#each system.specialSkills}}
-      <input type="text" class="actor-sheet__special-skill" name="system.specialSkills.{{@index}}" value="{{this}}">
+    {{#each specialSkillRows}}
+      <div class="actor-sheet__special-skill">
+        <input type="text" name="system.specialSkills.{{@index}}" value="{{tag}}">
+        {{#each links}}{{{this}}}{{/each}}
+      </div>
     {{/each}}
-    <input type="text" class="actor-sheet__special-skill" name="system.specialSkills.{{system.specialSkills.length}}" value="">
+    <div class="actor-sheet__special-skill">
+      <input type="text" name="system.specialSkills.{{system.specialSkills.length}}" value="">
+    </div>
   </fieldset>
 
   <fieldset class="item-sheet__epic-table">
