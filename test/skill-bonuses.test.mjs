@@ -11,7 +11,7 @@ import {
   clampLuck,
   resolveLuckTotal,
 } from '../module/helpers/skill-bonuses.mjs';
-import { spendLuck, maxSpellLevel, canCastSpellLevel } from '../module/helpers/rolls.mjs';
+import { spendLuck, maxSpellLevel, canCastSpellLevel, wisdomTierForSpellLevel } from '../module/helpers/rolls.mjs';
 
 describe('highestSkillTier', () => {
   test('not owned → null', () => {
@@ -102,6 +102,9 @@ describe('Мудрость — p. 38, spell level gate', () => {
   test('advanced: 4 castable, 5 not', () => {
     assert.equal(canCastSpellLevel({ spellLevel: 4, wisdomTier: 'advanced' }), true);
     assert.equal(canCastSpellLevel({ spellLevel: 5, wisdomTier: 'advanced' }), false);
+  });
+  test('required tier: levels 1–5 → none/none/base/advanced/expert', () => {
+    assert.deepEqual([1, 2, 3, 4, 5].map(wisdomTierForSpellLevel), [null, null, 'base', 'advanced', 'expert']);
   });
   test('race-granted spell is exempt', () => {
     assert.equal(canCastSpellLevel({ spellLevel: 5, wisdomTier: null, raceGranted: true }), true);

@@ -368,6 +368,19 @@ export function canCastSpellLevel({ spellLevel, wisdomTier, raceGranted = false 
 }
 
 /**
+ * The lowest Мудрость tier that unlocks a spell level — `null` for levels
+ * 1–2, which need none. For the "requires Мудрость (…)" message.
+ * @param {number} spellLevel
+ * @returns {'base'|'advanced'|'expert'|null}
+ */
+export function wisdomTierForSpellLevel(spellLevel) {
+  if (spellLevel >= 5) return 'expert';
+  if (spellLevel === 4) return 'advanced';
+  if (spellLevel === 3) return 'base';
+  return null;
+}
+
+/**
  * §2.2: who may spend an actor's Удача to reroll one of its dice.
  * Positive Удача is the player's own resource, spent by whoever owns the
  * actor. Negative Удача hands the *reroll* decision to the Рассказчик —

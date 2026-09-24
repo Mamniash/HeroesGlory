@@ -439,7 +439,8 @@
       "SpellMeta": "{level} ур. Мана: {cost}",
       "SpellMetaNoCost": "{level} ур. Мана: —",
       "SchoolPickTitle": "Школа заклинания",
-      "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте"
+      "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте",
+      "NeedsWisdom": "Недоступно: нужна Мудрость ({tier})"
     },
     "Effect": {
       "Source": "Источник",
@@ -513,6 +514,7 @@
       "ManaCost": "Стоимость: {cost} Маны",
       "ManaRemaining": "Осталось Маны: {mana}",
       "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",
+      "SpellNeedsWisdom": "«{spell}» ({level}-й уровень) недоступно: нужна Мудрость ({tier})",
       "CheckTitle": "{actor}: проверка «{skill}»",
       "CheckResult": "{die} + {value} = {total}",
       "RerollLuckHint": "Перебросить (Удача)",

@@ -19,6 +19,7 @@
           <p>{{localize this.variantLabelKey}}</p>
           <p>{{localize 'HEROES_GLORY.Roll.ManaCost' cost=this.variantData.manaCost}}</p>
           <p>{{this.variantData.description}}</p>
+          {{#if this.wisdomLockLine}}<p>{{this.wisdomLockLine}}</p>{{/if}}
           {{#if this.ambiguous}}
             {{!-- §6.2/§11: Универсальные, 2+ schools tied at the same max
               tier — school/variant/cost above are a PREVIEW (first tied

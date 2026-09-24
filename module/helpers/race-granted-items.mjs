@@ -65,3 +65,18 @@ export const CREATION_TIME_RACE_GRANTS = new Set(['djinn']);
 export function raceGrantedItemsAtPick(raceKey, subchoiceKey, params) {
   return CREATION_TIME_RACE_GRANTS.has(raceKey) ? [] : raceGrantedItems(raceKey, subchoiceKey, params);
 }
+
+/**
+ * §2.3: the flag namespace/key marking a spell or spellbook item this
+ * system auto-granted from a race/subchoice feature (Элементаль/Воздух's
+ * "Полет", Джинн's spell ± Книга Магии) — see hero-sheet.mjs's #syncRaceGrantedItems.
+ * Stores `{race, subchoice}` (subchoice `null` for a non-subchoice race
+ * like Джинн) so a later race/subchoice change can tell exactly which of
+ * its OWN grants are now stale, without ever touching an item a player
+ * obtained some other way (manually added, learned, looted — none of
+ * those carry this flag).
+ *
+ * Also read by roll-actions.mjs's castSpell: a race-granted spell is
+ * exempt from the Мудрость level gate (rules.md §11).
+ */
+export const RACE_GRANTED_ITEM_FLAG = ['heroes-glory', 'raceGrantedItem'];

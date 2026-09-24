@@ -1,7 +1,7 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { findSpellVariant, castSpell, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant, castSpell, spellLevelGate, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
@@ -23,7 +23,7 @@ import {
   statsForRace, raceDiff, RACE_FEATURE_NOTES, raceIconPath, raceTextKeysFor,
   subchoiceOptionsFor, subchoiceModifiersFor,
 } from '../../helpers/race-stats.mjs';
-import { raceGrantedItemsAtPick } from '../../helpers/race-granted-items.mjs';
+import { raceGrantedItemsAtPick, RACE_GRANTED_ITEM_FLAG } from '../../helpers/race-granted-items.mjs';
 import { availableSpecializations, specializationEffectTextKey } from '../../helpers/specializations.mjs';
 import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-icons.mjs';
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
@@ -109,18 +109,6 @@ const REFERENCE_CANVAS_WIDTH_PX = 758;
 
 /** Item types that can be dragged into a paperdoll slot or the backpack. */
 const EQUIPABLE_TYPES = ['weapon', 'artifact', 'spellbook'];
-
-/**
- * §2.3: the flag namespace/key marking a spell or spellbook item this
- * system auto-granted from a race/subchoice feature (Элементаль/Воздух's
- * "Полет", Джинн's spell ± Книга Магии) — see #syncRaceGrantedItems.
- * Stores `{race, subchoice}` (subchoice `null` for a non-subchoice race
- * like Джинн) so a later race/subchoice change can tell exactly which of
- * its OWN grants are now stale, without ever touching an item a player
- * obtained some other way (manually added, learned, looted — none of
- * those carry this flag).
- */
-const RACE_GRANTED_ITEM_FLAG = ['heroes-glory', 'raceGrantedItem'];
 
 /**
  * §2.3-2.5 identity block only — a short form for the one concrete class
@@ -716,9 +704,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // identical across every tied candidate by construction).
       const { variant, variantData, resolvedSchool, ambiguous } = findSpellVariant(this.actor, spell);
       const iconSrc = (!spell.img || spell.img === defaultSpellIcon) ? config.unknownSpellIcon : spell.img;
+      // §11 (Мудрость): a tooltip line only — castSpell itself refuses.
+      const gate = spellLevelGate(this.actor, spell);
       return {
         item: spell,
         iconSrc,
+        wisdomLockLine: gate.allowed ? null : game.i18n.format('HEROES_GLORY.Spellbook.NeedsWisdom', {
+          tier: game.i18n.localize(config.skillTiers[gate.requiredTier]),
+        }),
         variantLabelKey: SPELL_VARIANT_LABELS[variant],
         variantData,
         ambiguous,

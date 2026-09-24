@@ -20,6 +20,8 @@ import {
   resolveAbilityCheck,
   nextLuck,
   spendLuck,
+  canCastSpellLevel,
+  wisdomTierForSpellLevel,
   canRerollWithLuck,
   moraleAttemptsRemaining,
   resolveMoraleCheck,
@@ -39,6 +41,8 @@ import {
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
 import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
+import { highestSkillTier } from './skill-bonuses.mjs';
+import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
 
@@ -618,6 +622,27 @@ export function findSpellVariant(actor, spell, chosenSchool = null) {
 }
 
 /**
+ * §6.1/§11 (Мудрость, p. 38): whether this hero may cast this spell at
+ * all, and if not, which Мудрость tier it needs. Creatures own no skills
+ * and are never gated. Shared by castSpell and the spellbook tooltip.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @returns {{allowed: boolean, requiredTier: 'base'|'advanced'|'expert'|null}}
+ */
+export function spellLevelGate(actor, spell) {
+  if (actor.type !== 'hero') return { allowed: true, requiredTier: null };
+  const owned = actor.items
+    .filter((i) => i.type === 'skill')
+    .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+  const allowed = canCastSpellLevel({
+    spellLevel: spell.system.level,
+    wisdomTier: highestSkillTier(owned, 'wisdom'),
+    raceGranted: !!spell.getFlag(...RACE_GRANTED_ITEM_FLAG),
+  });
+  return { allowed, requiredTier: allowed ? null : wisdomTierForSpellLevel(spell.system.level) };
+}
+
+/**
  * §6.3/§4.3: cast a spell — pick the variant matching the hero's school
  * mastery, and spend its Mana cost if affordable. The Воскрешение
  * specialization's -4 Мана discount (specializations.mjs's
@@ -640,6 +665,17 @@ export function findSpellVariant(actor, spell, chosenSchool = null) {
  *   school is still ambiguous — nothing is cast either way.
  */
 export async function castSpell(actor, spell, chosenSchool = null) {
+  // §11: above the Мудрость level nobody casts, GM included — no Mana spent.
+  const gate = spellLevelGate(actor, spell);
+  if (!gate.allowed) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNeedsWisdom', {
+      spell: spell.name,
+      level: spell.system.level,
+      tier: game.i18n.localize(CONFIG.HEROES_GLORY.skillTiers[gate.requiredTier]),
+    }));
+    return null;
+  }
+
   const { variant, variantData, resolvedSchool, ambiguous } = findSpellVariant(actor, spell, chosenSchool);
   if (ambiguous) return null;
 
