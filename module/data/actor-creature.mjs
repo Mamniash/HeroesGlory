@@ -57,10 +57,11 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
   }
 
   /**
-   * Exposes `speed` at the top level of roll data so the default
-   * initiative formula `1d20 + @speed` (rules.md §5.1) resolves.
+   * Exposes `speed` at the top level of roll data so the initiative
+   * formula `1d20 + @speed + @tactics` (rules.md §5.1) resolves.
+   * Creatures own no secondary skills, so `tactics` is always 0.
    */
   getRollData() {
-    return { ...this };
+    return { ...this, tactics: 0 };
   }
 }
