@@ -1964,14 +1964,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       if (want.itemType === 'spellbook') {
         if (this.actor.items.some((i) => i.type === 'spellbook')) continue;
         // Literal name, not a `TYPES.Item.spellbook` lookup (Foundry's
-        // own default-name-for-a-new-document key, which is what a
-        // hand-created spellbook would otherwise get its name from too):
-        // lang/en.json's own TYPES.Item block is simply missing a
-        // "spellbook" entry (has weapon/spell/artifact/skill, not
-        // spellbook — lang/ru.json's does have all five) — a narrow,
-        // pre-existing content gap affecting an English-language client
-        // specifically, unrelated to this feature and out of scope to
-        // fix here (separate task). Every OTHER literal here (spell
+        // own default-name-for-a-new-document key): the item's name is
+        // persisted, so it must not depend on the granting client's
+        // language. Every OTHER literal here (spell
         // names below) is already a plain Cyrillic string for the same
         // reason spell names aren't looked up by key either — this just
         // keeps that same approach consistent, and sidesteps the gap
