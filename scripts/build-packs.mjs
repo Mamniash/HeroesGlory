@@ -30,6 +30,7 @@ import { buildArtifactDocuments } from './data/artifact-compendium-data.mjs';
 import { buildSpellDocuments } from './data/spell-compendium-data.mjs';
 import { buildPriceListDocuments } from './data/price-list-compendium-data.mjs';
 import { buildCreatureDocuments } from './data/creature-compendium-data.mjs';
+import { buildCreatureAbilityDocuments } from './data/creature-abilities-compendium-data.mjs';
 
 /** @type {Record<string, () => object[]>} */
 const PACKS = {
@@ -39,6 +40,7 @@ const PACKS = {
   spells: buildSpellDocuments,
   'price-list': buildPriceListDocuments,
   creatures: buildCreatureDocuments,
+  'creature-abilities': buildCreatureAbilityDocuments,
 };
 
 async function main() {

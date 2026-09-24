@@ -567,7 +567,8 @@
       "Artifacts": "Артефакты",
       "Spells": "Заклинания",
       "PriceList": "Справочник цен",
-      "Creatures": "Бестиарий"
+      "Creatures": "Бестиарий",
+      "CreatureAbilities": "Способности существ"
     }
   },
 

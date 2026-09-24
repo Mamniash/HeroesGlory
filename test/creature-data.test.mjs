@@ -109,3 +109,25 @@ describe('creature compendium mapping', () => {
     }
   });
 });
+
+describe('creature abilities journal (book pp. 113-116)', async () => {
+  const { readAbilities, abilityPages, buildCreatureAbilityDocuments } = await import('../scripts/data/creature-abilities-compendium-data.mjs');
+
+  test('55 abilities, unique names, non-empty text', () => {
+    const a = readAbilities();
+    assert.equal(a.length, 55);
+    assert.equal(new Set(a.map((x) => x.name)).size, 55);
+    for (const x of a) assert.ok(x.text.trim().length > 0, x.name);
+  });
+
+  test('one journal, one page per ability, pages alphabetical', () => {
+    const [doc] = buildCreatureAbilityDocuments();
+    assert.equal(doc.pages.length, 55);
+    const names = doc.pages.map((p) => p.name);
+    assert.deepEqual(names, [...names].sort((x, y) => x.localeCompare(y, 'ru')));
+  });
+
+  test('page text is HTML-escaped', () => {
+    assert.deepEqual(abilityPages([{ name: 'X', text: 'a < b' }]), [{ name: 'X', content: '<p>a &lt; b</p>' }]);
+  });
+});

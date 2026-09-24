@@ -122,6 +122,17 @@
         "PLAYER": "NONE",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "creature-abilities",
+      "label": "HEROES_GLORY.Compendium.CreatureAbilities",
+      "path": "packs/creature-abilities",
+      "type": "JournalEntry",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [],
