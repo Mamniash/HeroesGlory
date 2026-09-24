@@ -59,6 +59,8 @@ PICTOGRAM_SRC = 'systems/heroes-glory/assets/bestiary/{}'
 # Book page N is PDF page index N (the PDF has one extra leading page).
 # Legs/arms pictogram wording: "слева/справа" as seen on the drawing.
 LEG_OR_LEG_IS_TORSO = 'фигура с закрашенной ногой слева · «Или» · фигура с закрашенной ногой справа · «=» · фигура с закрашенным торсом'
+HEAD_EXCLUDED = '«Искл.» · фигура с закрашенной головой'
+ARMS_IS_LEGS = 'фигура с закрашенными руками · «=» · фигура с закрашенными ногами'
 
 FACTIONS = {
     'castle': {
@@ -128,6 +130,65 @@ FACTIONS = {
             {'creature': 'Властилели Пропасти', 'field': 'name',
              'from': 'Властилели', 'to': 'Властители', 'reason': 'орфография'},
         ],
+    },
+    'necropolis': {
+        'pages': (89, 92),
+        # Book order == HOMM3 order (ids 56-69), checked portrait by portrait.
+        'entries': [
+            ('Скелеты', 'skeletons'), ('Живые мертвецы', 'zombies'), ('Духи', 'wights'), ('Вампиры', 'vampires'),
+            ('Личи', 'liches'), ('Черные рыцари', 'blackknights'), ('Костяные и призрачные драконы', 'bonedragons'),
+        ],
+        'portraitFrames': list(range(58, 72)),
+        'legendary': set(),
+        'pictogramText': {
+            'Скелеты': HEAD_EXCLUDED,
+            'Живые мертвецы': HEAD_EXCLUDED,
+            'Духи': 'фигура с закрашенными ногами · «=» · фигура с закрашенным торсом · ' + HEAD_EXCLUDED,
+            'Вампиры': HEAD_EXCLUDED,
+            'Личи': HEAD_EXCLUDED,
+            'Черные рыцари': HEAD_EXCLUDED,
+            'Костяные и призрачные драконы': HEAD_EXCLUDED,
+        },
+        'fixes': [
+            {'entry': 'Духи', 'field': 'epicTable', 'rows': [1, 2],
+             'from': 'Атакая', 'to': 'Атакуя', 'reason': 'орфография'},
+            {'creature': 'Вампиры', 'field': 'specialSkillsRaw',
+             'from': 'Удар2+', 'to': 'Удар 2+', 'reason': 'нет пробела (у Лордов Вампиров он есть)'},
+            {'entry': 'Черные рыцари', 'field': 'epicTable', 'rows': [6],
+             'from': 'колит', 'to': 'колет', 'reason': 'орфография'},
+        ],
+    },
+    'dungeon': {
+        'pages': (93, 96),
+        # Book order == HOMM3 order (ids 70-83), checked portrait by portrait.
+        'entries': [
+            ('Троглодиты', 'troglodytes'), ('Гарпии', 'harpies'), ('Созерцатели', 'beholders'), ('Медузы', 'medusas'),
+            ('Минотавр', 'minotaurs'), ('Мантикоры', 'manticores'), ('Красные и чёрные драконы', 'dragons'),
+        ],
+        'portraitFrames': list(range(72, 86)),
+        'legendary': set(),
+        'pictogramText': {
+            'Созерцатели': 'фигура с закрашенными руками · «+» · фигура с закрашенными ногами · «=» · фигура с закрашенным торсом',
+            'Медузы': '«Искл.» · фигура с закрашенным торсом',
+            'Минотавр': ARMS_IS_LEGS,
+        },
+        'fixes': [],
+    },
+    'citadel': {
+        'pages': (97, 100),
+        # Book order == HOMM3 order (ids 84-97), checked portrait by portrait.
+        'entries': [
+            ('Гоблины', 'goblins'), ('Наездники на волках', 'wolfriders'), ('Орки', 'orcs'), ('Огры', 'ogres'),
+            ('Рухи', 'rocs'), ('Циклопы', 'cyclopes'), ('Чудища', 'behemoths'),
+        ],
+        'portraitFrames': list(range(86, 100)),
+        # p.99: «Но величественней всех легендарная и таинственная птица
+        # грома» — named legendary outright in the prose (docs/rules.md §11).
+        'legendary': {'Птицы Грома'},
+        'pictogramText': {
+            'Рухи': ARMS_IS_LEGS,
+        },
+        'fixes': [],
     },
     'tower': {
         'pages': (81, 84),
@@ -478,9 +539,16 @@ def main():
     headings = []
     for page_no in range(cfg['pages'][0], cfg['pages'][1] + 1):
         page = doc[page_no]
-        found = [(page_no, r, line_text(s)) for r, s in page_lines(page)
-                 if all(is_bold(sp) and abs(sp['size'] - HEADING_SIZE) < 0.6 for sp in s)]
-        headings.extend(sorted(found, key=lambda h: h[1].y0))
+        found = sorted(((page_no, r, line_text(s)) for r, s in page_lines(page)
+                        if all(is_bold(sp) and abs(sp['size'] - HEADING_SIZE) < 0.6 for sp in s)),
+                       key=lambda h: h[1].y0)
+        # A heading can wrap onto a second line (p.92 «Костяные» / «и
+        # призрачные драконы»): lines closer than a line gap are one heading.
+        for h in found:
+            if headings and headings[-1][0] == page_no and h[1].y0 - headings[-1][1].y1 < 6:
+                prev = headings.pop()
+                h = (page_no, prev[1] | h[1], f'{prev[2]} {h[2]}')
+            headings.append(h)
     expected = [h for h, _ in cfg['entries']]
     if [h for _, _, h in headings] != expected:
         flags.add('error', args.faction, f'заголовки не совпали с FACTIONS: {[h for _, _, h in headings]}')
