@@ -13,8 +13,9 @@
 export function resetMoraleAfterCombat(combat) {
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
   for (const actor of actors) {
-    if (actor.system.morale === undefined) continue;
-    actor.update({ 'system.morale': 0 });
+    // A creature's `system.morale` is the GM's own value for it, not a
+    // correction on top of a base — only its attempt counter resets.
+    if (actor.type === 'hero') actor.update({ 'system.morale': 0 });
     actor.unsetFlag('heroes-glory', 'moraleUsed');
   }
 }

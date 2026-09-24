@@ -57,3 +57,18 @@ export function resolveTagAbilities(tag, pageNames) {
   const match = pageNames.find((name) => normalizeAbilityName(name) === key);
   return match ? [match] : [];
 }
+
+/**
+ * §11 «Дикая мораль»: the extra-turn test's d6 threshold a creature's
+ * statblock tag gives — «Дикая Мораль 6» → 6, «Дикая Мораль 5+» → 5;
+ * `null` without such a tag (the ordinary 4+).
+ * @param {string[]} specialSkills
+ * @returns {number|null}
+ */
+export function wildMoraleThreshold(specialSkills) {
+  for (const tag of specialSkills ?? []) {
+    const match = /^дикая мораль\s+([1-6])\+?$/i.exec(String(tag).trim());
+    if (match) return Number(match[1]);
+  }
+  return null;
+}

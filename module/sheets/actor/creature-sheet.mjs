@@ -1,5 +1,5 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
-import { isCreatureArcher } from '../../helpers/rolls.mjs';
+import { isCreatureArcher, moraleAttemptsRemaining, moraleCheckVariant } from '../../helpers/rolls.mjs';
 import { resolveTagAbilities } from '../../helpers/creature-abilities.mjs';
 
 const ABILITIES_PACK = 'heroes-glory.creature-abilities';
@@ -48,6 +48,18 @@ export class HeroesGloryCreatureSheet extends HeroesGloryActorSheet {
       tag,
       links: resolveTagAbilities(tag, pageNames).map((name) => pages.get(name).toAnchor().outerHTML),
     }));
+    // §5.8: the Боевой дух test row — shown only while this user may roll
+    // one (extra turn — owner; skip turn — GM).
+    const moraleUsed = this.actor.getFlag('heroes-glory', 'moraleUsed') ?? 0;
+    const moraleVariant = moraleCheckVariant({
+      morale: system.morale, used: moraleUsed, isOwner: this.actor.isOwner, isGM: game.user.isGM,
+    });
+    context.moraleCheck = moraleVariant && {
+      negative: moraleVariant === 'negative',
+      threshold: system.moraleThreshold ?? 4,
+      remaining: moraleAttemptsRemaining(system.morale, moraleUsed),
+      total: Math.abs(system.morale),
+    };
     context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       system.description, { relativeTo: this.actor },
     );

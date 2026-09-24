@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildActorDocument, ROOT } from '../lib/pack-builder.mjs';
+import { wildMoraleThreshold } from '../../module/helpers/creature-abilities.mjs';
 
 /** Factions extracted and accepted so far, in book order. */
 export const FACTIONS = ['castle', 'stronghold', 'tower', 'inferno', 'necropolis', 'dungeon', 'citadel', 'fortress', 'nexus', 'haven'];
@@ -69,6 +70,7 @@ export function creatureEntries(faction, data) {
       attacksCount: c.attacksCount,
       health: { value: c.health, max: c.health },
       speed: c.speed,
+      moraleThreshold: wildMoraleThreshold(c.specialSkills),
       specialSkills: c.specialSkills,
       level: c.level,
       faction,

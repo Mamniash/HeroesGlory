@@ -26,6 +26,15 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
 
     schema.speed = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
+    // §5.8: Боевой дух — the book's statblocks carry none; the GM sets it by
+    // hand (e.g. a hero's «Кулон разорения», p. 49). Per-battle attempts are
+    // counted in the `moraleUsed` flag, like a hero's.
+    schema.morale = new fields.NumberField({ ...requiredInteger, initial: 0 });
+    // §11 «Дикая мораль» (p. 114; statblocks «Дикая Мораль 6» / «5+»): the
+    // d6 threshold of the extra-turn test instead of 4+. `null` — the
+    // ordinary 4+. The skip-turn test is unaffected.
+    schema.moraleThreshold = new fields.NumberField({ integer: true, required: true, nullable: true, initial: null, min: 2, max: 6 });
+
     // §9 says "текст/список" for Особые навыки — modeled as a tag list.
     // Entries are blank-ok so the sheet can render one extra empty input
     // to append a new tag without that blank slot failing validation on

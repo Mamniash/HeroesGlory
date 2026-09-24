@@ -65,6 +65,30 @@
     </div>
   {{/if}}
 
+  <div class="grid grid-2col">
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">
+        {{localize 'HEROES_GLORY.Hero.Morale'}}
+        {{#unless (eq source.morale system.morale)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.morale}}</span>{{/unless}}
+      </span>
+      <input type="number" name="system.morale" value="{{source.morale}}">
+    </label>
+    <label class="actor-sheet__field">
+      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.MoraleThreshold'}}</span>
+      <input type="number" name="system.moraleThreshold" value="{{source.moraleThreshold}}" min="2" max="6" placeholder="4">
+    </label>
+  </div>
+
+  {{#if moraleCheck}}
+    <div class="actor-sheet__attack-row" data-action="rollMoraleCheck" role="button" tabindex="0">
+      {{#if moraleCheck.negative}}
+        {{localize 'HEROES_GLORY.Roll.MoraleSkipRow' remaining=moraleCheck.remaining total=moraleCheck.total}}
+      {{else}}
+        {{localize 'HEROES_GLORY.Roll.MoraleRow' threshold=moraleCheck.threshold remaining=moraleCheck.remaining total=moraleCheck.total}}
+      {{/if}}
+    </div>
+  {{/if}}
+
   <div class="actor-sheet__field">
     <span class="actor-sheet__label">
       {{localize 'HEROES_GLORY.Creature.Health'}}

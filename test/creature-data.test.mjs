@@ -181,3 +181,21 @@ describe('creature tag → ability page (§9)', async () => {
     ]);
   });
 });
+
+describe('Дикая мораль — §11 threshold from the statblock tag', async () => {
+  const { wildMoraleThreshold } = await import('../module/helpers/creature-abilities.mjs');
+
+  test('«Дикая Мораль 6» → 6, «5+» → 5, no tag → null', () => {
+    assert.equal(wildMoraleThreshold(['Дикая Мораль 6']), 6);
+    assert.equal(wildMoraleThreshold(['Большое существо', 'Дикая Мораль 5+']), 5);
+    assert.equal(wildMoraleThreshold(['Стрелок']), null);
+  });
+
+  test('bestiary: only Минотавры (6) and Короли Минотавров (5) carry one', () => {
+    const all = FACTIONS.flatMap((faction) => creatureEntries(faction, readFaction(faction)));
+    const withThreshold = all
+      .filter((entry) => entry.system.moraleThreshold !== null)
+      .map((entry) => [entry.name, entry.system.moraleThreshold]);
+    assert.deepEqual(withThreshold, [['Минотавры', 6], ['Короли Минотавров', 5]]);
+  });
+});
