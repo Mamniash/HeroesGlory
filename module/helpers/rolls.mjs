@@ -368,6 +368,20 @@ export function canCastSpellLevel({ spellLevel, wisdomTier, raceGranted = false 
 }
 
 /**
+ * §6.1 (p. 32: "Для сотворения заклинаний необходимо прежде всего иметь
+ * Книгу заклинаний"): without a Книга Магии only race-granted spells
+ * cast — Элементаль Воздуха's «Полет», p. 12: "Даже если у вас нет Книги
+ * Магии, вы все равно можете его использовать".
+ * @param {object} params
+ * @param {boolean} params.hasSpellbook
+ * @param {boolean} [params.raceGranted]
+ * @returns {boolean}
+ */
+export function canCastWithoutSpellbook({ hasSpellbook, raceGranted = false }) {
+  return hasSpellbook || raceGranted;
+}
+
+/**
  * The lowest Мудрость tier that unlocks a spell level — `null` for levels
  * 1–2, which need none. For the "requires Мудрость (…)" message.
  * @param {number} spellLevel

@@ -415,7 +415,8 @@
 
   {{!-- ==================== Paperdoll (19 slots) ==================== --}}
   {{#each paperdollSlots}}
-    <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}">
+    <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}"
+      {{#if this.opensRaceSpells}}data-action="openSpellbook" title="{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}"{{/if}}>
       {{#if this.item}}
         {{!-- §5.3: a weapon only attacks on click while equipped (always
           true here — a paperdoll slot only ever holds an equipped item —

@@ -107,6 +107,9 @@ const VALUE_INPUT_MAX_LENGTH = 7;
  */
 const REFERENCE_CANVAS_WIDTH_PX = 758;
 
+/** §8.2: paperdoll slot 10 — книга магии. */
+const SPELLBOOK_PAPERDOLL_SLOT = 10;
+
 /** Item types that can be dragged into a paperdoll slot or the backpack. */
 const EQUIPABLE_TYPES = ['weapon', 'artifact', 'spellbook'];
 
@@ -539,9 +542,16 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // equipped AND has that exact slot assigned. Body-part meaning per
     // slot is documented in docs/rules.md, not enforced here — this
     // iteration accepts any weapon/artifact in any slot.
+    // §6.1/p. 12: a hero with no Книга Магии but a race-granted spell
+    // (Элементаль Воздуха's «Полет») opens the spellbook overlay — limited
+    // to those spells — from the empty book slot instead.
+    const ownsSpellbook = this.actor.items.some((i) => i.type === 'spellbook');
+    const raceSpellsWithoutBook = !ownsSpellbook
+      && this.actor.items.some((i) => i.type === 'spell' && i.getFlag(...RACE_GRANTED_ITEM_FLAG));
     context.paperdollSlots = Array.from({ length: PAPERDOLL_SLOT_COUNT }, (_, i) => {
       const index = i + 1;
-      return { index, item: equipable.find((it) => it.system.equipped && it.system.paperdollSlot === index) ?? null };
+      const item = equipable.find((it) => it.system.equipped && it.system.paperdollSlot === index) ?? null;
+      return { index, item, opensRaceSpells: !item && index === SPELLBOOK_PAPERDOLL_SLOT && raceSpellsWithoutBook };
     });
 
     // Backpack membership: everything NOT shown on the paperdoll above —
@@ -668,8 +678,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // §6.3: sorted once (level, then school order, then name — see
     // spellbook.mjs), then paged 12-per-spread like the backpack's own
     // 5-per-page pattern above.
+    // Without a book only race-granted spells can be cast (castSpell), so
+    // only they are listed.
     const sortedSpells = this.actor.items
-      .filter((i) => i.type === 'spell')
+      .filter((i) => i.type === 'spell' && (ownsSpellbook || i.getFlag(...RACE_GRANTED_ITEM_FLAG)))
       .sort((a, b) => compareSpellsForBook(
         { level: a.system.level, school: a.system.school, name: a.name },
         { level: b.system.level, school: b.system.school, name: b.name },

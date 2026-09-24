@@ -445,7 +445,8 @@
       "SpellMetaNoCost": "{level} ур. Мана: —",
       "SchoolPickTitle": "Школа заклинания",
       "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте",
-      "NeedsWisdom": "Недоступно: нужна {wisdom}"
+      "NeedsWisdom": "Недоступно: нужна {wisdom}",
+      "RaceSpellsHint": "Заклинания расы (без Книги Магии)"
     },
     "Effect": {
       "Source": "Источник",
@@ -519,6 +520,7 @@
       "ManaCost": "Стоимость: {cost} Маны",
       "ManaRemaining": "Осталось Маны: {mana}",
       "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",
+      "SpellNeedsSpellbook": "«{spell}» недоступно: нужна Книга Магии",
       "SpellNeedsWisdom": "«{spell}» ({level}-й уровень) недоступно: нужна {wisdom}",
       "CheckTitle": "{actor}: проверка «{skill}»",
       "CheckResult": "{die} + {value} = {total}",

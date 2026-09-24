@@ -21,6 +21,7 @@ import {
   nextLuck,
   spendLuck,
   canCastSpellLevel,
+  canCastWithoutSpellbook,
   wisdomTierForSpellLevel,
   canRerollWithLuck,
   moraleAttemptsRemaining,
@@ -674,6 +675,15 @@ export function spellLevelGate(actor, spell) {
  *   school is still ambiguous — nothing is cast either way.
  */
 export async function castSpell(actor, spell, chosenSchool = null) {
+  // §6.1 (p. 32): no Книга Магии → only race-granted spells; no Mana spent.
+  if (actor.type === 'hero' && !canCastWithoutSpellbook({
+    hasSpellbook: actor.items.some((i) => i.type === 'spellbook'),
+    raceGranted: !!spell.getFlag(...RACE_GRANTED_ITEM_FLAG),
+  })) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNeedsSpellbook', { spell: spell.name }));
+    return null;
+  }
+
   // §11: above the Мудрость level nobody casts, GM included — no Mana spent.
   const gate = spellLevelGate(actor, spell);
   if (!gate.allowed) {

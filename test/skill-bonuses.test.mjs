@@ -11,7 +11,7 @@ import {
   clampLuck,
   resolveLuckTotal,
 } from '../module/helpers/skill-bonuses.mjs';
-import { spendLuck, maxSpellLevel, canCastSpellLevel, wisdomTierForSpellLevel } from '../module/helpers/rolls.mjs';
+import { spendLuck, maxSpellLevel, canCastSpellLevel, wisdomTierForSpellLevel, canCastWithoutSpellbook } from '../module/helpers/rolls.mjs';
 
 describe('highestSkillTier', () => {
   test('not owned → null', () => {
@@ -108,5 +108,17 @@ describe('Мудрость — p. 38, spell level gate', () => {
   });
   test('race-granted spell is exempt', () => {
     assert.equal(canCastSpellLevel({ spellLevel: 5, wisdomTier: null, raceGranted: true }), true);
+  });
+});
+
+describe('Книга Магии — p. 32, race-granted exception p. 12', () => {
+  test('with a book → any spell', () => {
+    assert.equal(canCastWithoutSpellbook({ hasSpellbook: true }), true);
+  });
+  test('without a book → ordinary spell refused', () => {
+    assert.equal(canCastWithoutSpellbook({ hasSpellbook: false }), false);
+  });
+  test('without a book → race-granted spell allowed', () => {
+    assert.equal(canCastWithoutSpellbook({ hasSpellbook: false, raceGranted: true }), true);
   });
 });
