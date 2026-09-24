@@ -12,6 +12,7 @@ import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
 } from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
+import { highestSkillTier } from '../../helpers/skill-bonuses.mjs';
 import { experienceToNextLevel, experienceForLevel } from '../../helpers/experience.mjs';
 import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
 import { PRESS_HOLD_MS } from '../../helpers/button-press.mjs';
@@ -498,6 +499,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // §5.9: the Health tooltip's wound-breakdown line.
     context.healthAfterWounds = applyWoundPenalty(system.health.base, system.wounds);
 
+    // §3: Скорость / Удача / Боевой дух breakdown lines for their tooltips —
+    // the parts come from actor-hero.mjs's prepareDerivedData().
+    Object.assign(context, this.#skillStatLines(system));
+
     // §4.1: the Experience tooltip's "XP to next level" line.
     context.experienceToNext = experienceToNextLevel(system.level, system.experience);
     // §4.1: the Experience row's "value / next-threshold" display, same
@@ -737,6 +742,66 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     );
 
     return context;
+  }
+
+  /**
+   * §3: pre-localized breakdown lines for the Скорость / Удача / Боевой
+   * дух tooltips. Parts that are zero are left out, except the base and
+   * the manual correction, which the GM edits and so always sees.
+   * @param {object} system   The hero's derived `actor.system`.
+   * @returns {{speedLines: string[], luckLines: string[], moraleLines: string[]}}
+   */
+  #skillStatLines(system) {
+    const config = CONFIG.HEROES_GLORY;
+    const i18n = game.i18n;
+    const signed = (n) => (n > 0 ? `+${n}` : String(n));
+    const owned = this.actor.items
+      .filter((i) => i.type === 'skill')
+      .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+    const skillLine = (key, value) => i18n.format('HEROES_GLORY.Tooltip.SkillPart', {
+      skill: i18n.localize(config.secondarySkills[key]),
+      tier: i18n.localize(config.skillTiers[highestSkillTier(owned, key)]),
+      value: signed(value),
+    });
+    const effectsLine = (value) => i18n.format('HEROES_GLORY.Tooltip.EffectsPart', { value: signed(value) });
+    const manualLine = (value) => i18n.format('HEROES_GLORY.Tooltip.ManualPart', { value: signed(value) });
+    const totalLine = (value) => i18n.format('HEROES_GLORY.Tooltip.TotalPart', { value });
+
+    const speed = system.speedParts;
+    const speedLines = [i18n.format('HEROES_GLORY.Tooltip.SpeedBasePart', { value: speed.base })];
+    if (speed.pathfinding) speedLines.push(skillLine('pathfinding', speed.pathfinding));
+    if (speed.effects) speedLines.push(effectsLine(speed.effects));
+    speedLines.push(totalLine(speed.total));
+    if (speed.tactics) {
+      speedLines.push(i18n.format('HEROES_GLORY.Tooltip.FirstRoundPart', {
+        bonus: signed(speed.tactics),
+        tier: i18n.localize(config.skillTiers[highestSkillTier(owned, 'tactics')]),
+        value: speed.firstRound,
+      }));
+    }
+
+    const luck = system.luckParts;
+    const luckLines = [];
+    if (luck.skill) luckLines.push(skillLine('luck', luck.skill));
+    luckLines.push(manualLine(luck.manual));
+    if (luck.effects) luckLines.push(effectsLine(luck.effects));
+    luckLines.push(totalLine(luck.total));
+    if (luck.clamped) luckLines.push(i18n.format('HEROES_GLORY.Tooltip.LuckClamped', { raw: luck.raw }));
+
+    const morale = system.moraleParts;
+    const moraleLines = [];
+    if (morale.skill) moraleLines.push(skillLine('leadership', morale.skill));
+    if (morale.race) {
+      moraleLines.push(i18n.format('HEROES_GLORY.Tooltip.RacePart', {
+        race: i18n.localize(config.races[system.race]),
+        value: signed(morale.race),
+      }));
+    }
+    moraleLines.push(manualLine(morale.manual));
+    if (morale.effects) moraleLines.push(effectsLine(morale.effects));
+    moraleLines.push(totalLine(morale.total));
+
+    return { speedLines, luckLines, moraleLines };
   }
 
   /** @override */

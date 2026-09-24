@@ -132,8 +132,14 @@
   <div class="hero-paperdoll__slot hero-paperdoll__slot--stat_backdrop hero-paperdoll__stat-backdrop" aria-hidden="true"></div>
   <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_speed hero-paperdoll__identity-block"
     data-tooltip-trigger="stat-speed">
-    <input class="hero-paperdoll__name-input" type="number" name="system.speed" value="{{system.speed}}" min="0"
-      {{#unless editMode}}readonly{{/unless}}>
+    {{!-- Edit mode edits the race base (`source`); otherwise the derived
+      total is shown with no `name`, so submitOnChange never writes it
+      back into the base (see base-actor-sheet.mjs's `context.source`). --}}
+    {{#if editMode}}
+    <input class="hero-paperdoll__name-input" type="number" name="system.speed" value="{{source.speed}}" min="0">
+    {{else}}
+    <input class="hero-paperdoll__name-input" type="number" value="{{system.speed}}" readonly>
+    {{/if}}
   </span>
   <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_vision hero-paperdoll__identity-block{{#if editMode}} hero-paperdoll__name-pick{{/if}}"
     {{#if editMode}}data-action="pickVision" role="button" tabindex="0"
@@ -141,6 +147,7 @@
     data-tooltip-trigger="stat-vision">{{localize visionLabel}}</span>
   <template class="hg-tooltip-tpl" data-tooltip-key="stat-speed">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Speed'}}</p>
+    {{#each speedLines}}<p>{{this}}</p>{{/each}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="stat-vision">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Vision'}}</p>
@@ -241,14 +248,31 @@
     data-tooltip-trigger="mana" data-tooltip-click>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--mana_desc">
     <span class="hero-paperdoll__value-label">{{localize 'HEROES_GLORY.Hero.Mana'}}</span>
-    <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.mana.value}}</span><input class="hero-paperdoll__value-input" type="number" name="system.mana.value" value="{{system.mana.value}}" min="0"></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{system.mana.max}}</span></span>
+    <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.mana.value}}</span><input class="hero-paperdoll__value-input" type="number" name="system.mana.value" value="{{source.mana.value}}" min="0"></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{system.mana.max}}</span></span>
   </div>
 
-  {{!-- ==================== Morale / Luck (read display — editable in the details fallback) ==================== --}}
+  {{!-- ==================== Morale / Luck ====================
+    Icons show the derived total. In edit mode each slot shows the GM's
+    manual correction instead (the only stored part, rules.md §3/§11),
+    edited through the same display→input swap as the primary skills
+    (editPrimaryStat). --}}
+  {{#if editMode}}
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--morale hero-paperdoll__correction"
+    data-tooltip-trigger="morale" title="{{localize 'HEROES_GLORY.Hero.MoraleCorrection'}}">
+    <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{source.morale}}</span>
+    <input class="hero-paperdoll__primary-value" type="number" name="system.morale" value="{{source.morale}}" hidden>
+  </span>
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--luck hero-paperdoll__correction"
+    data-tooltip-trigger="luck" title="{{localize 'HEROES_GLORY.Hero.LuckCorrection'}}">
+    <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{source.luck}}</span>
+    <input class="hero-paperdoll__primary-value" type="number" name="system.luck" value="{{source.luck}}" hidden>
+  </span>
+  {{else}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
     data-tooltip-trigger="morale" data-tooltip-click>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck" data-tooltip-click>
+  {{/if}}
 
   {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
     see _hero-paperdoll.scss's own comment on
@@ -378,11 +402,13 @@
   <template class="hg-tooltip-tpl" data-tooltip-key="morale">
     <img class="hg-tooltip__icon" src="{{icons.moraleLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}</p>
+    {{#each moraleLines}}<p>{{this}}</p>{{/each}}
     <p>{{localize 'HEROES_GLORY.Tooltip.MoralePositiveHint'}}</p>
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="luck">
     <img class="hg-tooltip__icon" src="{{icons.luckLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Luck'}}: {{system.luck}}</p>
+    {{#each luckLines}}<p>{{this}}</p>{{/each}}
     <p>{{localize 'HEROES_GLORY.Tooltip.LuckHint'}}</p>
   </template>
 

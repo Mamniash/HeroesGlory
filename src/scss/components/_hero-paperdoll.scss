@@ -1362,6 +1362,15 @@ $hg-value-input-max-ch: 7;
   object-fit: contain;
 }
 
+// Edit mode only: the morale/luck slot holds the manual-correction
+// display/input pair instead of the icon — layout only, both children
+// keep the primary-skill value styling they already have.
+.hero-paperdoll__correction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 // Secondary-skill lines — native SmallFont height ($hg-font-h3-small-height,
 // utils/_fonts.scss), same as every other one-off `hg-pixel-font` call site
 // on the sheet now. Used to be its own hand-picked 18px (`$hg-secondary-

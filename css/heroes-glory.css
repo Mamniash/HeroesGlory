@@ -1589,6 +1589,11 @@
 .heroes-glory .hero-paperdoll__slot--morale {
   object-fit: contain;
 }
+.heroes-glory .hero-paperdoll__correction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .heroes-glory .hero-paperdoll__slot--skill_desc_1,
 .heroes-glory .hero-paperdoll__slot--skill_desc_2,
 .heroes-glory .hero-paperdoll__slot--skill_desc_3,
