@@ -622,6 +622,15 @@ export function findSpellVariant(actor, spell, chosenSchool = null) {
 }
 
 /**
+ * The "нужна базовая/продвинутая/экспертная Мудрость" phrase for a tier.
+ * @param {'base'|'advanced'|'expert'} tier
+ * @returns {string}   A lang key.
+ */
+export function wisdomRequiredKey(tier) {
+  return `HEROES_GLORY.WisdomRequired.${tier.charAt(0).toUpperCase()}${tier.slice(1)}`;
+}
+
+/**
  * §6.1/§11 (Мудрость, p. 38): whether this hero may cast this spell at
  * all, and if not, which Мудрость tier it needs. Creatures own no skills
  * and are never gated. Shared by castSpell and the spellbook tooltip.
@@ -671,7 +680,7 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNeedsWisdom', {
       spell: spell.name,
       level: spell.system.level,
-      tier: game.i18n.localize(CONFIG.HEROES_GLORY.skillTiers[gate.requiredTier]),
+      wisdom: game.i18n.localize(wisdomRequiredKey(gate.requiredTier)),
     }));
     return null;
   }

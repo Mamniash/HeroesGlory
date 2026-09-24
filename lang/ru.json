@@ -138,6 +138,11 @@
       "Advanced": "Продвинутый",
       "Expert": "Эксперт"
     },
+    "WisdomRequired": {
+      "Base": "базовая Мудрость",
+      "Advanced": "продвинутая Мудрость",
+      "Expert": "экспертная Мудрость"
+    },
     "SheetLabels": {
       "Item": "Лист предмета Heroes & Glory",
       "Weapon": "Лист оружия Heroes & Glory",
@@ -440,7 +445,7 @@
       "SpellMetaNoCost": "{level} ур. Мана: —",
       "SchoolPickTitle": "Школа заклинания",
       "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте",
-      "NeedsWisdom": "Недоступно: нужна Мудрость: {tier}"
+      "NeedsWisdom": "Недоступно: нужна {wisdom}"
     },
     "Effect": {
       "Source": "Источник",
@@ -514,7 +519,7 @@
       "ManaCost": "Стоимость: {cost} Маны",
       "ManaRemaining": "Осталось Маны: {mana}",
       "NotEnoughMana": "Не хватает Маны для «{spell}»: нужно {cost}, есть {mana}",
-      "SpellNeedsWisdom": "«{spell}» ({level}-й уровень) недоступно: нужна Мудрость: {tier}",
+      "SpellNeedsWisdom": "«{spell}» ({level}-й уровень) недоступно: нужна {wisdom}",
       "CheckTitle": "{actor}: проверка «{skill}»",
       "CheckResult": "{die} + {value} = {total}",
       "RerollLuckHint": "Перебросить (Удача)",

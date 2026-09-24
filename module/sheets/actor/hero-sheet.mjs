@@ -1,7 +1,7 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { findSpellVariant, castSpell, spellLevelGate, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant, castSpell, spellLevelGate, wisdomRequiredKey, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
@@ -710,7 +710,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         item: spell,
         iconSrc,
         wisdomLockLine: gate.allowed ? null : game.i18n.format('HEROES_GLORY.Spellbook.NeedsWisdom', {
-          tier: game.i18n.localize(config.skillTiers[gate.requiredTier]),
+          wisdom: game.i18n.localize(wisdomRequiredKey(gate.requiredTier)),
         }),
         variantLabelKey: SPELL_VARIANT_LABELS[variant],
         variantData,
