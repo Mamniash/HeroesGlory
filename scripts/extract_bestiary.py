@@ -154,6 +154,8 @@ FACTIONS = {
              'from': 'Атакая', 'to': 'Атакуя', 'reason': 'орфография'},
             {'creature': 'Вампиры', 'field': 'specialSkillsRaw',
              'from': 'Удар2+', 'to': 'Удар 2+', 'reason': 'нет пробела (у Лордов Вампиров он есть)'},
+            {'entry': 'Вампиры', 'field': 'lore',
+             'from': 'они приобретает', 'to': 'они приобретают', 'reason': 'согласование (решение Сени)'},
             {'entry': 'Черные рыцари', 'field': 'epicTable', 'rows': [6],
              'from': 'колит', 'to': 'колет', 'reason': 'орфография'},
         ],
@@ -172,7 +174,10 @@ FACTIONS = {
             'Медузы': '«Искл.» · фигура с закрашенным торсом',
             'Минотавр': ARMS_IS_LEGS,
         },
-        'fixes': [],
+        'fixes': [
+            {'entry': 'Созерцатели', 'field': 'epicTable', 'rows': [3],
+             'from': 'щупальцами и ударяя ее', 'to': 'щупальцами и ударяет ее', 'reason': 'грамматика (решение Сени)'},
+        ],
     },
     'citadel': {
         'pages': (97, 100),
@@ -188,7 +193,10 @@ FACTIONS = {
         'pictogramText': {
             'Рухи': ARMS_IS_LEGS,
         },
-        'fixes': [],
+        'fixes': [
+            {'entry': 'Гоблины', 'field': 'lore',
+             'from': 'гоблины становятся зовутся', 'to': 'гоблины зовутся', 'reason': 'лишнее слово (решение Сени)'},
+        ],
     },
     'tower': {
         'pages': (81, 84),
@@ -571,6 +579,16 @@ def main():
     # Fixes (book typos), then derived fields. A fix names either a
     # creature (statblock fields) or an entry + epic row (shared table).
     for fix in cfg['fixes']:
+        if fix.get('field') == 'lore':
+            entry = next((e for e in entries if e['heading'] == fix['entry']), None)
+            hits = [i for i, p in enumerate(entry['lore'])] if entry else []
+            hits = [i for i in hits if fix['from'] in entry['lore'][i]]
+            if len(hits) != 1:
+                flags.add('error', fix['entry'], f'исправление текста статьи не применилось: «{fix["from"]}» найдено {len(hits)} раз')
+                continue
+            entry['lore'][hits[0]] = entry['lore'][hits[0]].replace(fix['from'], fix['to'])
+            flags.add('fixed', fix['entry'], f'огрех книги в тексте статьи ({fix["reason"]}): «{fix["from"]}» → «{fix["to"]}»')
+            continue
         if 'entry' in fix:
             # One book row can fill several of the 6 d6 rows ("1-3"), so a
             # fix lists every row it covers; `from` is a substring.
