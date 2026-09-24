@@ -27,6 +27,15 @@ HEADER = struct.Struct("<IIII")
 BLOCK = struct.Struct("<IIII")
 FRAME = struct.Struct("<IIIIIIii")
 
+# HotA "D32F" (32-bit DEF). Layout follows homm3data's deffile.py
+# (github.com/Laserlicht/homm3data, MIT) -- __parse_d32: file header,
+# per group a header + 13-byte names + offsets, per frame a 40-byte header
+# then raw BGRA pixels stored bottom-up.
+D32_MAGIC = b"D32F"
+D32_HEADER = struct.Struct("<8I")
+D32_GROUP = struct.Struct("<4I")
+D32_FRAME = struct.Struct("<10I")
+
 # Sluzhebnye indeksy palitry v DEF.
 # 0 - polnaya prozrachnost
 # 1 - kray teni      (alpha 0x40)
@@ -46,6 +55,9 @@ def read_def(path):
     """
     with open(path, "rb") as fh:
         data = fh.read()
+
+    if data[:4] == D32_MAGIC:
+        return None, read_d32(data)
 
     if len(data) < 16 + 768:
         raise ValueError("fayl slishkom malenkiy, eto ne .def")
@@ -70,6 +82,41 @@ def read_def(path):
         for idx, off in enumerate(offs):
             frames.append(_read_frame(data, off, group_id, idx))
     return palette, frames
+
+
+def read_d32(data):
+    """HotA D32F -> frames in the same shape as read_def(), except the
+    pixels are already RGBA (key "rgba", top-down rows) and fmt is "d32"."""
+    (_magic, version, hdr_size, _w, _h, n_groups, u6, _u7) = D32_HEADER.unpack_from(data, 0)
+    if version != 1 or hdr_size != 24 or u6 != 8:
+        raise ValueError("neozhidannyy zagolovok D32F: %d %d %d" % (version, hdr_size, u6))
+    pos = D32_HEADER.size
+    frames = []
+    for _ in range(n_groups):
+        grp_hdr_size, group_id, n_frames, u_b = D32_GROUP.unpack_from(data, pos)
+        if grp_hdr_size != 17 * n_frames + 16 or u_b != 4:
+            raise ValueError("neozhidannyy zagolovok gruppy D32F")
+        pos += D32_GROUP.size + 13 * n_frames
+        offs = struct.unpack_from("<%dI" % n_frames, data, pos)
+        pos += 4 * n_frames
+        for idx, off in enumerate(offs):
+            bpp, size, fw, fh, w, h, lm, tm, u1, _u2 = D32_FRAME.unpack_from(data, off)
+            if bpp != 32 or size != w * h * 4 or w > fw or h > fh or u1 != 8:
+                raise ValueError("neozhidannyy kadr D32F: gruppa %d kadr %d" % (group_id, idx))
+            start = off + D32_FRAME.size
+            sprite = Image.frombytes("RGBA", (w, h), data[start:start + size], "raw", "BGRA")
+            frames.append({
+                "group": group_id,
+                "index": idx,
+                "offset": off,
+                "fmt": "d32",
+                "canvas": (fw, fh),
+                "size": (w, h),
+                "margin": (lm, tm),
+                "pixels": None,
+                "rgba": sprite.transpose(Image.FLIP_TOP_BOTTOM).tobytes(),
+            })
+    return frames
 
 
 def _read_frame(data, off, group_id, idx):
@@ -169,6 +216,10 @@ def frame_to_image(info, palette, keep_shadow=True):
     lm, tm = info["margin"]
 
     canvas = Image.new("RGBA", (max(fw, 1), max(fh, 1)), (0, 0, 0, 0))
+    if info.get("rgba") is not None:
+        sprite = Image.frombytes("RGBA", (w, h), info["rgba"])
+        canvas.paste(sprite, (lm, tm))
+        return canvas
     if info["pixels"] is None:
         return canvas
 
