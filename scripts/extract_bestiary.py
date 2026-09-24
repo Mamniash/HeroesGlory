@@ -53,7 +53,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PDF = os.path.join(ROOT, 'docs', 'OKP_Heroes_Glory_v2_1.pdf')
 DATA_DIR = os.path.join(ROOT, 'scripts', 'data', 'bestiary')
 PICTOGRAM_DIR = os.path.join(ROOT, 'assets', 'bestiary')
-PORTRAIT_SRC = 'systems/heroes-glory/assets/twcrport/twcrport_g00_f{:03d}.png'
+PORTRAIT_SRC = {
+    # SoD TwCrPort.def (h3sprite).
+    'sod': 'systems/heroes-glory/assets/twcrport/twcrport_g00_f{:03d}.png',
+    # HotA's own copy of the same strip (HotA_1.8, D32F, 202 frames) —
+    # a separate folder: its frames 0-150 are partly redrawn, not SoD's.
+    'hota': 'systems/heroes-glory/assets/twcrport-hota/twcrport-hota_g00_f{:03d}.png',
+}
 PICTOGRAM_SRC = 'systems/heroes-glory/assets/bestiary/{}'
 
 # Book page N is PDF page index N (the PDF has one extra leading page).
@@ -254,6 +260,36 @@ FACTIONS = {
              'from': 'Армагедону', 'to': 'Армагеддону', 'reason': 'орфография (у Элементалей Магмы верно)'},
             {'creature': 'Огненные Злементали', 'field': 'name',
              'from': 'Злементали', 'to': 'Элементали', 'reason': 'орфография («З» вместо «Э»)'},
+        ],
+    },
+    'haven': {
+        'pages': (109, 112),
+        # HotA's own portrait strip (HotA_1.8 D32F, 202 frames; frames 0-150
+        # keep SoD's numbering). Cove creatures picked by eye: Морской Волк
+        # is f153, the rest f155-f168 in HotA order.
+        'portraitSource': 'hota',
+        'entries': [
+            ('Нимфы', 'nymphs'), ('Матросы', 'sailors'), ('Корсары', 'pirates'), ('Духи океана', 'oceanspirits'),
+            ('Жрицы моря', 'seawitches'), ('Никсы', 'nixes'), ('Морские змеи', 'seaserpents'),
+        ],
+        'portraitFrames': [155, 156, 157, 158, 159, 160, 153, 161, 162, 163, 164, 165, 166, 167, 168],
+        'legendary': set(),
+        'pictogramText': {
+            'Нимфы': 'фигура с закрашенными руками · «=» · фигура с закрашенным торсом',
+        },
+        'fixes': [
+            {'creature': 'Корсар', 'field': 'specialSkillsRaw',
+             'from': 'Cтрелок', 'to': 'Стрелок', 'reason': 'латинская «C» вместо кириллической «С»'},
+            {'creature': 'Морской Волк', 'field': 'specialSkillsRaw',
+             'from': 'Cтрелок', 'to': 'Стрелок', 'reason': 'латинская «C» вместо кириллической «С»'},
+            {'entry': 'Корсары', 'field': 'epicTable', 'rows': [1, 2],
+             'from': 'Колит', 'to': 'Колет', 'reason': 'орфография'},
+            {'entry': 'Духи океана', 'field': 'epicTable', 'rows': [6],
+             'from': 'С яростными кличем', 'to': 'С яростным кличем', 'reason': 'согласование'},
+            {'entry': 'Жрицы моря', 'field': 'epicTable', 'rows': [1, 2],
+             'from': 'Колит', 'to': 'Колет', 'reason': 'орфография'},
+            {'creature': 'Асид', 'field': 'name',
+             'from': 'Асид', 'to': 'Аспид', 'reason': 'пропущена «п»; в тексте статьи — «Аспид»'},
         ],
     },
     'tower': {
@@ -667,6 +703,18 @@ def main():
         target[fix['field']] = target[fix['field']].replace(fix['from'], fix['to'])
         flags.add('fixed', fix['creature'], f'опечатка книги ({fix["reason"]}): «{fix["from"]}» → «{fix["to"]}»')
 
+    # Words mixing Latin and Cyrillic letters (p.110 «Cтрелок» with a Latin
+    # C) look right on the page and in a crop, but never match the real
+    # word — invisible to the by-eye layer, so checked here.
+    mixed_re = re.compile(r'\w*(?:[A-Za-z][А-Яа-яЁё]|[А-Яа-яЁё][A-Za-z])\w*')
+    for e in entries:
+        texts = [e['heading']] + (e['epicTable'] or []) + [re.sub(r'<[^>]+>', ' ', p) for p in e['lore']]
+        for c in e['creatures']:
+            texts += [c['name'], c['specialSkillsRaw']]
+        for t in texts:
+            for word in mixed_re.findall(t):
+                flags.add('error', f'{e["heading"]} (стр. {e["page"]})', f'слово из латиницы и кириллицы вперемешку: «{word}»')
+
     frames = iter(cfg['portraitFrames'])
     for e in entries:
         where = f'{e["heading"]} (стр. {e["page"]})'
@@ -717,7 +765,7 @@ def main():
                 'name': c['name'], 'attack': c['attack'], 'defense': c['defense'], 'damage': c['damage'],
                 'attacksCount': c['attacksCount'], 'health': c['health'], 'speed': c['speed'], 'level': c['level'],
                 'specialSkills': c['specialSkills'], 'legendary': c['legendary'],
-                'img': PORTRAIT_SRC.format(c['portraitFrame']) if c['portraitFrame'] is not None else None,
+                'img': PORTRAIT_SRC[cfg.get('portraitSource', 'sod')].format(c['portraitFrame']) if c['portraitFrame'] is not None else None,
             } for c in e['creatures']],
         } for e in entries],
     }
