@@ -61,6 +61,7 @@ PICTOGRAM_SRC = 'systems/heroes-glory/assets/bestiary/{}'
 LEG_OR_LEG_IS_TORSO = 'фигура с закрашенной ногой слева · «Или» · фигура с закрашенной ногой справа · «=» · фигура с закрашенным торсом'
 HEAD_EXCLUDED = '«Искл.» · фигура с закрашенной головой'
 ARMS_IS_LEGS = 'фигура с закрашенными руками · «=» · фигура с закрашенными ногами'
+LEGS_IS_TORSO = 'фигура с закрашенными ногами · «=» · фигура с закрашенным торсом'
 
 FACTIONS = {
     'castle': {
@@ -143,7 +144,7 @@ FACTIONS = {
         'pictogramText': {
             'Скелеты': HEAD_EXCLUDED,
             'Живые мертвецы': HEAD_EXCLUDED,
-            'Духи': 'фигура с закрашенными ногами · «=» · фигура с закрашенным торсом · ' + HEAD_EXCLUDED,
+            'Духи': LEGS_IS_TORSO + ' · ' + HEAD_EXCLUDED,
             'Вампиры': HEAD_EXCLUDED,
             'Личи': HEAD_EXCLUDED,
             'Черные рыцари': HEAD_EXCLUDED,
@@ -196,6 +197,63 @@ FACTIONS = {
         'fixes': [
             {'entry': 'Гоблины', 'field': 'lore',
              'from': 'гоблины становятся зовутся', 'to': 'гоблины зовутся', 'reason': 'лишнее слово (решение Сени)'},
+        ],
+    },
+    'fortress': {
+        'pages': (101, 104),
+        # HOMM3 order is gnolls, lizardmen, GORGONS, serpent flies,
+        # basilisks, wyverns, hydras (frames 100-113); the book puts Змии and
+        # Василиски before Горгоны, so frames are listed per creature.
+        'entries': [
+            ('Гноллы', 'gnolls'), ('Ящеры', 'lizardmen'), ('Змии', 'serpentflies'), ('Василиски', 'basilisks'),
+            ('Горгоны', 'gorgons'), ('Виверны', 'wyverns'), ('Гидры', 'hydras'),
+        ],
+        'portraitFrames': [100, 101, 102, 103, 106, 107, 108, 109, 104, 105, 110, 111, 112, 113],
+        # p.103: «Могучая горгона — существо легендарное». Змии (p.102) are
+        # named legendary in prose too, but deliberately NOT flagged
+        # (Сеня's ruling, docs/rules.md §11).
+        'legendary': {'Могучие Горгоны'},
+        'pictogramText': {
+            'Змии': ARMS_IS_LEGS,
+            'Василиски': ARMS_IS_LEGS,
+            'Горгоны': ARMS_IS_LEGS,
+            'Виверны': ARMS_IS_LEGS,
+        },
+        'fixes': [
+            {'entry': 'Гноллы', 'field': 'lore',
+             'from': 'В тоже время', 'to': 'В то же время', 'reason': 'орфография'},
+            {'creature': 'Змии', 'field': 'specialSkillsRaw',
+             'from': 'Снятия Заклинаний', 'to': 'Снятие Заклинаний',
+             'reason': 'падеж; способность на стр. 115 — «Снятие заклинаний»'},
+            {'creature': 'Ядовитые Змии', 'field': 'specialSkillsRaw',
+             'from': 'Снятия Заклинаний', 'to': 'Снятие Заклинаний',
+             'reason': 'падеж; способность на стр. 115 — «Снятие заклинаний»'},
+        ],
+    },
+    'nexus': {
+        'pages': (105, 108),
+        # HOMM3 scatters these: the four basic elementals are 114-117, the
+        # upgraded ones and the rest 120-133 with gaps — frames listed per
+        # creature, each checked by eye.
+        'entries': [
+            ('Пикси', 'pixies'), ('Элементали Воздуха', 'airelementals'), ('Элементали Воды', 'waterelementals'),
+            ('Элементали Огня', 'fireelementals'), ('Элементали Земли', 'earthelementals'),
+            ('Психические Элементали', 'psychicelementals'), ('Огненные птицы', 'firebirds'),
+        ],
+        'portraitFrames': [120, 121, 114, 129, 117, 125, 116, 131, 115, 127, 122, 123, 132, 133],
+        'legendary': set(),
+        'pictogramText': {
+            'Элементали Воздуха': LEGS_IS_TORSO,
+            'Элементали Воды': LEGS_IS_TORSO,
+            'Психические Элементали': LEGS_IS_TORSO + ' · ' + HEAD_EXCLUDED,
+        },
+        'fixes': [
+            {'entry': 'Пикси', 'field': 'epicTable', 'rows': [1, 2, 3],
+             'from': 'и нанося по ним', 'to': 'и наносит по ним', 'reason': 'грамматика'},
+            {'creature': 'Элементали Земли', 'field': 'specialSkillsRaw',
+             'from': 'Армагедону', 'to': 'Армагеддону', 'reason': 'орфография (у Элементалей Магмы верно)'},
+            {'creature': 'Огненные Злементали', 'field': 'name',
+             'from': 'Злементали', 'to': 'Элементали', 'reason': 'орфография («З» вместо «Э»)'},
         ],
     },
     'tower': {

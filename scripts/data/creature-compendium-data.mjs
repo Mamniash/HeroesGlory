@@ -18,7 +18,7 @@ import path from 'node:path';
 import { buildActorDocument, ROOT } from '../lib/pack-builder.mjs';
 
 /** Factions extracted and accepted so far, in book order. */
-export const FACTIONS = ['castle', 'stronghold', 'tower', 'inferno', 'necropolis', 'dungeon', 'citadel'];
+export const FACTIONS = ['castle', 'stronghold', 'tower', 'inferno', 'necropolis', 'dungeon', 'citadel', 'fortress', 'nexus'];
 
 /**
  * @param {string} faction
