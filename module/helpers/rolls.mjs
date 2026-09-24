@@ -6,6 +6,7 @@
  * Rolling the actual dice and posting to chat lives in roll-actions.mjs.
  */
 import { SCHOOL_ORDER } from './spellbook.mjs';
+import { resolveLuckTotal } from './skill-bonuses.mjs';
 
 /**
  * §5.3 hit table. Index 0 is unused so `HIT_TABLE[d6]` reads naturally.
@@ -320,6 +321,50 @@ export function nextLuck(luck) {
   if (luck > 0) return luck - 1;
   if (luck < 0) return luck + 1;
   return 0;
+}
+
+/**
+ * §2.2: the new stored manual correction after spending one Удача on a
+ * hero whose total is skill + manual + effects, clamped to ±3. Only the
+ * manual part is stored, so it must move by whatever brings the TOTAL
+ * one step toward 0 — subtracting 1 from the manual part alone would do
+ * nothing while the raw sum sits above the clamp (skill 3 + artifact +1).
+ * A zero total spends nothing.
+ * @param {{skill: number, manual: number, effects: number}} parts
+ * @returns {number}
+ */
+export function spendLuck({ skill, manual, effects }) {
+  const { total } = resolveLuckTotal({ skill, manual, effects });
+  if (total === 0) return manual;
+  return nextLuck(total) - skill - effects;
+}
+
+/**
+ * Мудрость, p. 38: "Позволяет использовать заклинания 3-го уровня" / 4 /
+ * 5 — without it, levels 1–2 (rules.md §11).
+ * @param {'base'|'advanced'|'expert'|null} wisdomTier
+ * @returns {number}
+ */
+export function maxSpellLevel(wisdomTier) {
+  switch (wisdomTier) {
+    case 'base': return 3;
+    case 'advanced': return 4;
+    case 'expert': return 5;
+    default: return 2;
+  }
+}
+
+/**
+ * §6.1/§11: whether a hero may cast a spell of this level. Race-granted
+ * spells (Элементаль Воздуха's «Полет», p. 12) are exempt.
+ * @param {object} params
+ * @param {number} params.spellLevel
+ * @param {'base'|'advanced'|'expert'|null} params.wisdomTier
+ * @param {boolean} [params.raceGranted]
+ * @returns {boolean}
+ */
+export function canCastSpellLevel({ spellLevel, wisdomTier, raceGranted = false }) {
+  return raceGranted || spellLevel <= maxSpellLevel(wisdomTier);
 }
 
 /**
