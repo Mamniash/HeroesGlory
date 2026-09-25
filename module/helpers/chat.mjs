@@ -1,5 +1,5 @@
 import { canRerollWithLuck, hadUnconfirmedAttackBefore } from './rolls.mjs';
-import { rerollLuckDie, confirmAttackOutcome } from './roll-actions.mjs';
+import { rerollLuckDie, confirmAttackOutcome, rollNextAttack } from './roll-actions.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
 
@@ -39,8 +39,11 @@ export function activateChatListeners(message, html) {
   const flags = message.getFlag(FLAG_SCOPE, 'reroll');
   const confirmed = !!flags?.confirmed;
 
+  // An unlinked token's attack card names its own actor by uuid.
+  const cardActor = flags?.actorUuid ? cardActorFromUuid(flags.actorUuid) : null;
+
   for (const button of html.querySelectorAll('[data-action="hg-reroll-luck"]')) {
-    const actor = game.actors.get(button.dataset.actorId);
+    const actor = cardActor ?? game.actors.get(button.dataset.actorId);
     const luck = actor?.system.luck ?? 0;
     const allowed = !confirmed && !!actor && canRerollWithLuck({ luck, isOwner: actor.isOwner, isGM: game.user.isGM });
 
@@ -57,6 +60,21 @@ export function activateChatListeners(message, html) {
       confirmButton.addEventListener('click', () => {
         confirmButton.disabled = true;
         confirmAttackOutcome(message);
+      });
+    }
+  }
+
+  // §11 attack series: the attacker's owners and the GM may roll the next
+  // attack; everyone else doesn't see the button.
+  const nextButton = html.querySelector('[data-action="hg-next-attack"]');
+  if (nextButton) {
+    const actor = cardActor ?? game.actors.get(nextButton.dataset.actorId);
+    const allowed = !!actor && (actor.isOwner || game.user.isGM);
+    nextButton.hidden = !allowed;
+    if (allowed) {
+      nextButton.addEventListener('click', () => {
+        nextButton.disabled = true;
+        rollNextAttack(message);
       });
     }
   }
@@ -79,6 +97,15 @@ export function activateChatListeners(message, html) {
       else expandedMessages.delete(message.id);
     });
   }
+}
+
+/**
+ * @param {string} uuid   An Actor's or Token's uuid.
+ * @returns {Actor|null}
+ */
+function cardActorFromUuid(uuid) {
+  const doc = fromUuidSync(uuid);
+  return (doc?.documentName === 'Token' ? doc.actor : doc) ?? null;
 }
 
 /**

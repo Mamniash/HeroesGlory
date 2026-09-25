@@ -76,6 +76,9 @@
     {{else if (eq attackRange 'melee')}}
       <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.AttackMelee'}}</p>
     {{/if}}
+    {{#if series}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.SeriesLine' index=series.index total=series.total}}</p>
+    {{/if}}
 
     <p class="heroes-glory-chat-card__line">
       {{#if hit.previousDie}}
@@ -87,8 +90,31 @@
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
     </p>
+    {{#if hitModifierLine}}
+      <p class="heroes-glory-chat-card__line">{{hitModifierLine}}</p>
+    {{/if}}
+    {{#if adjacencyUnknown}}
+      <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.AdjacencyUnknown'}}</p>
+    {{/if}}
 
-    {{#if defeat.known}}
+    {{#if contestedDefeat}}
+      {{#if contestedDefeat.known}}
+        <p class="heroes-glory-chat-card__line">
+          {{#if defeat.previousDie}}
+            <s class="heroes-glory-chat-card__reroll-old">{{localize 'HEROES_GLORY.Roll.RerolledFrom' die=defeat.previousDie}}</s>
+          {{/if}}
+          {{localize 'HEROES_GLORY.Roll.DefeatContested' die=contestedDefeat.die attack=attackerAttack attackerTotal=contestedDefeat.attackerTotal targetDie=contestedDefeat.targetDie defense=targetDefense targetTotal=contestedDefeat.targetTotal}}
+          —
+          {{#if contestedDefeat.success}}{{localize 'HEROES_GLORY.Roll.DefeatSuccess'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefeatFail'}}{{/if}}
+          <button type="button" class="heroes-glory-chat-card__reroll-btn" data-action="hg-reroll-luck"
+            data-actor-id="{{actorId}}" data-slot="defeat" title="{{localize 'HEROES_GLORY.Roll.RerollLuckHint'}}">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+        </p>
+      {{else}}
+        <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.DefeatUnknown'}}</p>
+      {{/if}}
+    {{else if defeat.known}}
       {{#if defeat.auto}}
         <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.DefeatAuto'}}</p>
       {{else}}
@@ -145,5 +171,15 @@
     </button>
   {{else if confirmed}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">{{localize 'HEROES_GLORY.Roll.Applied'}}</p>
+  {{/if}}
+
+  {{!-- §11 attack series: shown to the attacker's owners and the GM only
+    (chat.mjs). --}}
+  {{#if nextAttack.show}}
+    <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-next-attack" data-actor-id="{{actorId}}">
+      {{localize 'HEROES_GLORY.Roll.NextAttack' index=nextAttack.next total=series.total}}
+    </button>
+  {{else if nextAttack.stoppedByTarget}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.SeriesStopped'}}</p>
   {{/if}}
 </div>

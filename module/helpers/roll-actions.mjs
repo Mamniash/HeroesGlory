@@ -6,6 +6,9 @@
  */
 import {
   resolveHit,
+  resolveHitModifiers,
+  attackSeriesCount,
+  resolveNextAttack,
   resolveEpicTableRow,
   resolveAttackEpicTable,
   isCreatureArcher,
@@ -46,6 +49,7 @@ import { buildEffectChanges } from './modifiers.mjs';
 import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
+import { tokensAdjacent, attackerTokenFor } from './grid.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
 
@@ -205,6 +209,56 @@ async function killIncapacitatedTarget(actor, targetActor) {
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
 }
 
+/** Chat-card labels for the hit modifiers of resolveHitModifiers (rolls.mjs). */
+const HIT_MODIFIER_LABELS = {
+  defending: 'HEROES_GLORY.Roll.HitModifier.Defending',
+  adjacentShot: 'HEROES_GLORY.Roll.HitModifier.AdjacentShot',
+  legendary: 'HEROES_GLORY.Roll.HitModifier.Legendary',
+};
+
+/**
+ * An attack card's actor — by uuid when the card has it (an unlinked
+ * token's own actor), else the world actor by id (older cards).
+ * @param {string|null|undefined} uuid
+ * @param {string|null|undefined} id
+ * @returns {Actor|null}
+ */
+function actorFromCard(uuid, id) {
+  if (uuid) {
+    const doc = fromUuidSync(uuid);
+    const actor = doc?.documentName === 'Token' ? doc.actor : doc;
+    if (actor) return actor;
+  }
+  return id ? game.actors.get(id) ?? null : null;
+}
+
+/**
+ * §11 (series): whether the target can't be attacked on — dead
+ * (DEFEATED), unconscious, incapacitated, or at 0 Health.
+ * @param {Actor|null} target
+ * @returns {boolean}
+ */
+function isTargetOut(target) {
+  if (!target) return true;
+  const { unconscious, incapacitated } = CONFIG.HEROES_GLORY.statusEffects;
+  const statuses = target.statuses ?? new Set();
+  return statuses.has(unconscious) || statuses.has(incapacitated)
+    || statuses.has(CONFIG.specialStatusEffects.DEFEATED)
+    || (target.system?.health?.value ?? 1) <= 0;
+}
+
+/**
+ * The hit-modifier line of the card's details: "d6 5 − 2 (Защита цели) = 3".
+ * @param {{die: number, total: number}} hit
+ * @param {Array<{key: string, value: number}>} modifiers
+ * @returns {string|null}
+ */
+function hitModifierLine(hit, modifiers) {
+  if (!modifiers?.length) return null;
+  const parts = modifiers.map((m) => `${m.value < 0 ? '−' : '+'} ${Math.abs(m.value)} (${game.i18n.localize(HIT_MODIFIER_LABELS[m.key])})`);
+  return game.i18n.format('HEROES_GLORY.Roll.HitModifierLine', { die: hit.die, modifiers: parts.join(' '), total: hit.total });
+}
+
 /**
  * Rebuild the attack chat card's render context from the persisted
  * `heroes-glory.reroll` flag state. Pulled out of {@link rollAttack} so
@@ -279,6 +333,25 @@ function buildAttackContext(actor, flags) {
     confirmed,
     canConfirm: canConfirmAttack(flags),
     headlineOutcome: resolveAttackHeadlineOutcome(hit, defeat),
+    // §5.2/§5.3/§5.7: hit modifiers, adjacency the grid couldn't measure,
+    // the legendary contested defeat test.
+    hitModifierLine: hitModifierLine(hit, flags.hitModifiers),
+    adjacencyUnknown: flags.adjacencyUnknown ?? false,
+    contestedDefeat: defeat.contested ? defeat : null,
+    attackerAttack: flags.attackerAttack,
+    targetDefense: flags.targetDefense,
+    // §11: attack series — "Атака k из N", and «Следующая атака» once the
+    // GM confirmed this one. The target is read live, so a card re-rendered
+    // on confirm sees the damage/status it just received.
+    series: flags.seriesTotal > 1 ? { index: flags.seriesIndex, total: flags.seriesTotal } : null,
+    nextAttack: flags.nextRolled
+      ? { show: false, stoppedByTarget: false, next: null }
+      : resolveNextAttack({
+        confirmed,
+        index: flags.seriesIndex,
+        total: flags.seriesTotal,
+        targetOut: confirmed && isTargetOut(actorFromCard(flags.targetTokenUuid, flags.targetActorId)),
+      }),
   };
 }
 
@@ -293,9 +366,11 @@ function buildAttackContext(actor, flags) {
  *                               attack — no flavor row; ignored for anyone else.
  * @returns {Promise<ChatMessage>}
  */
-export async function rollAttack(actor, weapon = null, { ranged = false } = {}) {
-  const targetToken = game.user.targets.first();
-  const targetActor = targetToken?.actor ?? null;
+export async function rollAttack(actor, weapon = null, { ranged = false, series = null, targetTokenDoc = null } = {}) {
+  // A series' next attack passes its target in; the first one reads the
+  // user's current target.
+  const targetTokenDocument = targetTokenDoc ?? game.user.targets.first()?.document ?? null;
+  const targetActor = targetTokenDocument?.actor ?? null;
 
   // §5.9: an attack on an incapacitated target skips the dice entirely.
   if (targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.incapacitated)) {
@@ -317,6 +392,40 @@ export async function rollAttack(actor, weapon = null, { ranged = false } = {}) 
   const attackRange = archer ? (ranged ? 'ranged' : 'melee') : null;
   const legendary = weapon ? false : !!actor.system.legendary;
   const targetDefense = targetActor?.system?.defense ?? null;
+
+  // §5.2/§5.3/§5.7 (pp. 27, 30, 31): hit modifiers, frozen at roll time.
+  const isRanged = weapon ? weapon.system.weaponType === 'ranged' : (archer && ranged);
+  const ownedSkills = actor.items
+    .filter((i) => i.type === 'skill')
+    .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+  const archeryTier = highestSkillTier(ownedSkills, 'archery');
+  const adjacent = isRanged && targetTokenDocument
+    ? tokensAdjacent(attackerTokenFor(actor, targetTokenDocument), targetTokenDocument)
+    : null;
+  const { modifiers: hitModifiers, total: hitModifier } = resolveHitModifiers({
+    targetDefending: targetActor?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.defending) ?? false,
+    ranged: isRanged,
+    adjacent,
+    ignoreAdjacentPenalty: archeryTier === 'advanced' || archeryTier === 'expert',
+    attackerLegendary: legendary,
+  });
+  // "в сражении с легендарным существом" — either side legendary.
+  const contested = !!targetActor && (legendary || !!targetActor.system?.legendary);
+
+  // §11: the series this attack belongs to — sized once, at its first attack.
+  const seriesTotal = series?.total ?? attackSeriesCount(weapon
+    ? {
+      ranged: isRanged,
+      assaultTier: highestSkillTier(ownedSkills, 'assault'),
+      archeryTier,
+      specializationSkill: actor.system.specialization?.type === 'skill' ? actor.system.specialization.key : null,
+    }
+    : {
+      creatureAttacks: actor.system.attacksCount ?? 1,
+      vengeanceHurt: (actor.system.specialSkills ?? []).some((tag) => /^месть(\s|$)/i.test(String(tag).trim()))
+        && actor.system.health.value < actor.system.health.max,
+    });
+  const seriesIndex = series?.index ?? 1;
 
   // §5.6/§4.3: captured before this attack's consequence is even decided
   // (§task: no longer applied until the GM confirms — see
@@ -346,18 +455,33 @@ export async function rollAttack(actor, weapon = null, { ranged = false } = {}) 
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
-  const mainRoll = new Roll(targetActor ? '1d6 + 1d20' : '1d6');
+  // The legendary contested test adds the target's own d20 (§11: both on
+  // the attacker's card).
+  const mainRoll = new Roll(targetActor ? (contested ? '1d6 + 1d20 + 1d20' : '1d6 + 1d20') : '1d6');
   await mainRoll.evaluate();
 
   const hitDie = mainRoll.dice[0].total;
   const defeatDie = targetActor ? mainRoll.dice[1].total : null;
-  const hit = resolveHit(hitDie);
+  const targetDefeatDie = contested ? mainRoll.dice[2].total : null;
+  const hit = resolveHit(hitDie, hitModifier);
   const epicCascade = await rollEpicCascade(hit, epicTable, legendary);
 
   const flags = {
     kind: 'attack',
     actorId: actor.id,
+    actorUuid: actor.uuid,
     targetActorId: targetActor?.id ?? null,
+    targetTokenUuid: targetTokenDocument?.uuid ?? null,
+    weaponId: weapon?.id ?? null,
+    ranged,
+    hitModifiers,
+    hitModifier,
+    adjacencyUnknown: isRanged && !!targetTokenDocument && adjacent === null,
+    contested,
+    targetDefeatDie,
+    seriesIndex,
+    seriesTotal,
+    nextRolled: false,
     weaponName: weapon?.name ?? null,
     attackRange,
     targetName: targetActor?.name ?? null,
@@ -448,7 +572,7 @@ export async function rerollAttackDie(message, slot) {
   // alongside the button being hidden/removed once confirmed (chat.mjs).
   if (flags.confirmed) return;
 
-  const actor = game.actors.get(flags.actorId);
+  const actor = actorFromCard(flags.actorUuid, flags.actorId);
   if (!actor) return;
   if (!canRerollWithLuck({ luck: actor.system.luck ?? 0, isOwner: actor.isOwner, isGM: game.user.isGM })) return;
 
@@ -462,7 +586,7 @@ export async function rerollAttackDie(message, slot) {
     nextFlags.previousHitDie = flags.hitDie;
     nextFlags.hitDie = die.dice[0].total;
 
-    const cascade = await rollEpicCascade(resolveHit(nextFlags.hitDie), flags.epicTableData, flags.legendary);
+    const cascade = await rollEpicCascade(resolveHit(nextFlags.hitDie, flags.hitModifier ?? 0), flags.epicTableData, flags.legendary);
     nextFlags.epicRow = cascade.epicRow;
     nextFlags.severe = cascade.severe;
     nextFlags.location = cascade.location;
@@ -532,7 +656,9 @@ export async function confirmAttackOutcome(message) {
   const flags = message.getFlag(FLAG_SCOPE, 'reroll');
   if (!canConfirmAttack(flags)) return;
 
-  const targetActor = game.actors.get(flags.targetActorId);
+  // By token uuid when the card has it: an unlinked token's own actor, not
+  // the world actor it was made from.
+  const targetActor = actorFromCard(flags.targetTokenUuid, flags.targetActorId);
   if (!targetActor) {
     ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: flags.targetName ?? '' }));
     return;
@@ -555,7 +681,7 @@ export async function confirmAttackOutcome(message) {
     }]);
   }
 
-  const actor = game.actors.get(flags.actorId);
+  const actor = actorFromCard(flags.actorUuid, flags.actorId);
   // confirmedAt lets a later card tell it was rolled while this one was
   // still pending (hadUnconfirmedAttackBefore, rolls.mjs).
   const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
@@ -565,6 +691,44 @@ export async function confirmAttackOutcome(message) {
   );
 
   return message.update({ content, flags: { [FLAG_SCOPE]: { reroll: nextFlags } } });
+}
+
+/**
+ * §11: roll the next attack of a series from a confirmed card — same
+ * attacker, weapon and target, the target's state read fresh now. Allowed
+ * to the attacker's owners and the GM; the card is marked so its button
+ * can't roll the same next attack twice.
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage|null>}
+ */
+export async function rollNextAttack(message) {
+  const flags = message.getFlag(FLAG_SCOPE, 'reroll');
+  if (!flags || flags.kind !== 'attack' || flags.nextRolled) return null;
+  const actor = actorFromCard(flags.actorUuid, flags.actorId);
+  if (!actor || !(actor.isOwner || game.user.isGM)) return null;
+  const targetTokenDoc = flags.targetTokenUuid ? fromUuidSync(flags.targetTokenUuid) : null;
+  const next = resolveNextAttack({
+    confirmed: !!flags.confirmed,
+    index: flags.seriesIndex,
+    total: flags.seriesTotal,
+    targetOut: isTargetOut(targetTokenDoc?.actor ?? null),
+  });
+  if (!next.show || !targetTokenDoc) return null;
+  const weapon = flags.weaponId ? actor.items.get(flags.weaponId) ?? null : null;
+  if (flags.weaponId && !weapon) return null;
+
+  const nextFlags = { ...flags, nextRolled: true };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/attack-roll.hbs',
+    buildAttackContext(actor, nextFlags),
+  );
+  await message.update({ content, flags: { [FLAG_SCOPE]: { reroll: nextFlags } } });
+
+  return rollAttack(actor, weapon, {
+    ranged: !!flags.ranged,
+    series: { index: next.next, total: flags.seriesTotal },
+    targetTokenDoc,
+  });
 }
 
 /**
