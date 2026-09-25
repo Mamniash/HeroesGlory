@@ -23,16 +23,123 @@ export const HIT_TABLE = [
 ];
 
 /**
- * §5.3: resolve the d6 hit-table result.
+ * §5.3: resolve the d6 hit-table result. `modifier` (§11: «Защита» −2,
+ * shot at an adjacent target −1, legendary attacker +1) is added to the
+ * die and the table is read at the modified total: 2 or less — miss, 6 or
+ * more — epic. So a natural 6 at −2 reads as 4 with no epic, and a
+ * legendary 5 reads as 6, an epic.
  * @param {number} d6   A die face, 1-6.
- * @returns {{die: number, key: string, multiplier: number, epic: boolean}}
+ * @param {number} [modifier]
+ * @returns {{die: number, modifier: number, total: number, key: string, multiplier: number, epic: boolean}}
  */
-export function resolveHit(d6) {
+export function resolveHit(d6, modifier = 0) {
   if (!Number.isInteger(d6) || d6 < 1 || d6 > 6) {
     throw new RangeError(`resolveHit: d6 must be an integer 1-6, got ${d6}`);
   }
-  const entry = HIT_TABLE[d6];
-  return { die: d6, key: entry.key, multiplier: entry.multiplier, epic: d6 === 6 };
+  const total = d6 + modifier;
+  const entry = HIT_TABLE[Math.min(6, Math.max(1, total))];
+  return { die: d6, modifier, total, key: entry.key, multiplier: entry.multiplier, epic: total >= 6 };
+}
+
+/**
+ * §5.2/§5.3/§5.7 (pp. 27, 30, 31): the modifiers to an attack's hit d6.
+ * - «Защита»: "любой, кто атакует вас оружием, получает –2 к броску теста
+ *   на попадание" — any weapon or natural attack, melee or ranged (§11).
+ * - A shot at a target on an adjacent cell: −1, unless the shooter has
+ *   Стрельба at advanced or better (p. 36; tiers cumulative, §11). A
+ *   creature «Стрелок» shoots "используя общие правила стрельбы для
+ *   игроков" (p. 115) and has no such skill. `adjacent === null` — the
+ *   distance couldn't be measured (no token on the scene): no penalty.
+ * - A legendary attacker: "+1 к броску кубика".
+ * @param {object} params
+ * @param {boolean} [params.targetDefending]
+ * @param {boolean} [params.ranged]
+ * @param {boolean|null} [params.adjacent]
+ * @param {boolean} [params.ignoreAdjacentPenalty]
+ * @param {boolean} [params.attackerLegendary]
+ * @returns {{modifiers: Array<{key: string, value: number}>, total: number}}
+ */
+export function resolveHitModifiers({
+  targetDefending = false, ranged = false, adjacent = null,
+  ignoreAdjacentPenalty = false, attackerLegendary = false,
+} = {}) {
+  const modifiers = [];
+  if (targetDefending) modifiers.push({ key: 'defending', value: -2 });
+  if (ranged && adjacent === true && !ignoreAdjacentPenalty) modifiers.push({ key: 'adjacentShot', value: -1 });
+  if (attackerLegendary) modifiers.push({ key: 'legendary', value: 1 });
+  return { modifiers, total: modifiers.reduce((sum, m) => sum + m.value, 0) };
+}
+
+/**
+ * §5.7 (p. 31): "в сражении с легендарным существом тест на поражение
+ * выглядит как d20+Атака нападающего против d20+Зашита цели. Если
+ * результат нападающего больше — цели нанесен урон." A tie deals nothing.
+ * Both d20 are rolled on the attacker's card (§11).
+ * @param {object} params
+ * @param {number} params.attackerAttack
+ * @param {number|null|undefined} params.targetDefense
+ * @param {number|null} params.attackerDie
+ * @param {number|null} params.targetDie
+ * @returns {{known: boolean, contested: true, auto: false, attackerTotal: number|null, targetTotal: number|null, die: number|null, targetDie: number|null, success: boolean|null}}
+ */
+export function resolveContestedDefeat({ attackerAttack, targetDefense, attackerDie, targetDie }) {
+  if (targetDefense === null || targetDefense === undefined || attackerDie == null || targetDie == null) {
+    return { known: false, contested: true, auto: false, attackerTotal: null, targetTotal: null, die: null, targetDie: null, success: null };
+  }
+  const attackerTotal = attackerDie + attackerAttack;
+  const targetTotal = targetDie + targetDefense;
+  return {
+    known: true, contested: true, auto: false,
+    attackerTotal, targetTotal, die: attackerDie, targetDie,
+    success: attackerTotal > targetTotal,
+  };
+}
+
+/**
+ * §9/§3/§4.3: how many attacks one attack series has (§11 — the book
+ * gives the counts, not the procedure: each is a separate attack on the
+ * same target). A creature: its statblock «Кол-во атак», +1 for «Месть»
+ * while hurt ("Если у существа не полное здоровье, оно получает
+ * дополнительную атаку в раунд", p. 114). A hero: 1, +1 melee for
+ * Нападение at advanced or better, +1 ranged for Стрельба at any tier
+ * (p. 36; tiers cumulative, §11), +1 more for the matching
+ * specialization (p. 23).
+ * @param {object} params
+ * @param {number|null} [params.creatureAttacks]   `null` for a hero.
+ * @param {boolean} [params.vengeanceHurt]
+ * @param {boolean} [params.ranged]
+ * @param {'base'|'advanced'|'expert'|null} [params.assaultTier]
+ * @param {'base'|'advanced'|'expert'|null} [params.archeryTier]
+ * @param {string|null} [params.specializationSkill]   A specialization's skill key.
+ * @returns {number}
+ */
+export function attackSeriesCount({
+  creatureAttacks = null, vengeanceHurt = false, ranged = false,
+  assaultTier = null, archeryTier = null, specializationSkill = null,
+} = {}) {
+  if (creatureAttacks !== null) return Math.max(1, creatureAttacks) + (vengeanceHurt ? 1 : 0);
+  if (ranged) return 1 + (archeryTier ? 1 : 0) + (specializationSkill === 'archery' ? 1 : 0);
+  const assaultExtra = assaultTier === 'advanced' || assaultTier === 'expert' ? 1 : 0;
+  return 1 + assaultExtra + (specializationSkill === 'assault' ? 1 : 0);
+}
+
+/**
+ * §11 (series of attacks): whether a confirmed attack card offers «Следующая
+ * атака» — only once the GM confirmed it, only while attacks remain, and
+ * not when the target is out (dead, unconscious or incapacitated), in
+ * which case the card says why.
+ * @param {object} params
+ * @param {boolean} params.confirmed
+ * @param {number|null|undefined} params.index   1-based, of this attack.
+ * @param {number|null|undefined} params.total
+ * @param {boolean} [params.targetOut]
+ * @returns {{show: boolean, stoppedByTarget: boolean, next: number|null}}
+ */
+export function resolveNextAttack({ confirmed, index, total, targetOut = false }) {
+  const remaining = !!index && !!total && index < total;
+  if (!confirmed || !remaining) return { show: false, stoppedByTarget: false, next: null };
+  if (targetOut) return { show: false, stoppedByTarget: true, next: null };
+  return { show: true, stoppedByTarget: false, next: index + 1 };
 }
 
 /**
@@ -653,12 +760,21 @@ export function resolveLocationConsequenceType(location, protectingItem) {
  * }}
  */
 export function resolveAttackResolution(flags) {
-  const hit = resolveHit(flags.hitDie);
-  const defeat = resolveDefeat({
-    attackerAttack: flags.attackerAttack,
-    targetDefense: flags.targetDefense,
-    die: flags.defeatDie,
-  });
+  // Cards posted before hit modifiers / the legendary contested test
+  // existed carry neither field: no modifier, ordinary defeat test.
+  const hit = resolveHit(flags.hitDie, flags.hitModifier ?? 0);
+  const defeat = flags.contested
+    ? resolveContestedDefeat({
+      attackerAttack: flags.attackerAttack,
+      targetDefense: flags.targetDefense,
+      attackerDie: flags.defeatDie,
+      targetDie: flags.targetDefeatDie ?? null,
+    })
+    : resolveDefeat({
+      attackerAttack: flags.attackerAttack,
+      targetDefense: flags.targetDefense,
+      die: flags.defeatDie,
+    });
   const equippedArmor = flags.equippedArmor ?? [];
   const armorItemMultiplier = resolveArmorItemMultiplier(equippedArmor);
   const protectingItem = resolveArmorZoneProtection(flags.location, equippedArmor);
