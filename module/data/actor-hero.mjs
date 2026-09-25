@@ -1,6 +1,7 @@
 import HeroesGloryDataModel from "./base-model.mjs";
 import { applyWoundPenalty } from "../helpers/wounds.mjs";
 import { manaMultiplier } from "../helpers/mana.mjs";
+import { halveBase } from "../helpers/rolls.mjs";
 import {
   highestSkillTier, tacticsSpeedBonus, pathfindingSpeedBonus,
   luckSkillBase, leadershipMoraleBase, raceMoraleBonus, resolveLuckTotal,
@@ -236,9 +237,30 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     // artifacts can still grant bonus Health/Mana beyond this computed
     // cap, so `max` is informational rather than a hard ceiling; only the
     // Ранения floor at 0 is enforced here.
+    this.#prepareUnrested();
     this.health.max = applyWoundPenalty(this.health.base, this.wounds);
     this.mana.max = applyWoundPenalty(this.knowledge * this.#getManaMultiplier(), this.wounds);
     this.#prepareSkillDerivedStats();
+  }
+
+  /**
+   * §5.10 (p. 33): «Без отдыха» — "Базовые характристики… снижаются вдвое":
+   * each primary skill's stored base is halved (rounded down) and whatever
+   * "initial"-phase effects added is kept on top (§11). Runs first, so
+   * Mana's max below already follows the halved Знания. `unrestedParts`
+   * (not a schema field) feeds the sheet's tooltips; `null` when rested.
+   */
+  #prepareUnrested() {
+    this.unrestedParts = null;
+    const unrested = this.parent?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.unrested);
+    if (!unrested) return;
+    this.unrestedParts = {};
+    for (const key of ["attack", "defense", "magicPower", "knowledge"]) {
+      const base = this._source[key];
+      const halved = halveBase(base);
+      this[key] += halved - base;
+      this.unrestedParts[key] = { base, halved };
+    }
   }
 
   /**

@@ -321,6 +321,7 @@ HEROES_GLORY.statusEffects = {
   unconscious: 'hgUnconscious',
   incapacitated: 'hgIncapacitated',
   defending: 'hgDefending',
+  unrested: 'hgUnrested',
 };
 
 /**

@@ -362,24 +362,28 @@
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Attack'}}</p>
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.attack}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</p>
+    {{#if system.unrestedParts.attack}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.attack.base halved=system.unrestedParts.attack.halved}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-defense">
     <img class="hg-tooltip__icon" src="{{icons.defenseLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Defense'}}</p>
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.defense}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</p>
+    {{#if system.unrestedParts.defense}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.defense.base halved=system.unrestedParts.defense.halved}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-magicPower">
     <img class="hg-tooltip__icon" src="{{icons.magicPowerLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</p>
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.magicPower}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.magicPower}}</p>
+    {{#if system.unrestedParts.magicPower}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.magicPower.base halved=system.unrestedParts.magicPower.halved}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-knowledge">
     <img class="hg-tooltip__icon" src="{{icons.knowledgeLarge}}" width="82" height="93" alt="">
     <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</p>
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.knowledge}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.knowledge}}</p>
+    {{#if system.unrestedParts.knowledge}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.knowledge.base halved=system.unrestedParts.knowledge.halved}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="health">
     <img class="hg-tooltip__icon" src="{{icons.healthLarge}}" width="82" height="93" alt="">

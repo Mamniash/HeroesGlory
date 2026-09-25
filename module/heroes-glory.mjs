@@ -82,6 +82,9 @@ Hooks.once('init', function () {
       id: HEROES_GLORY.statusEffects.defending, name: 'HEROES_GLORY.Status.Defending', img: 'icons/svg/shield.svg',
       duration: { value: 1, units: 'turns', expiry: 'turnStart' },
     },
+    // §5.10 (p. 33): «Без отдыха» — set by the GM "на начало нового дня",
+    // lifted by a rest; halves the primary skills' base (actor-hero.mjs).
+    { id: HEROES_GLORY.statusEffects.unrested, name: 'HEROES_GLORY.Status.Unrested', img: 'icons/svg/sleep.svg' },
   );
 
   // Register sheet application classes.

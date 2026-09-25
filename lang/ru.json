@@ -460,7 +460,8 @@
       "Prone": "Падение",
       "Unconscious": "Без сознания",
       "Incapacitated": "Недееспособен",
-      "Defending": "Защита"
+      "Defending": "Защита",
+      "Unrested": "Без отдыха"
     },
     "Roll": {
       "CheckHint": "Клик — проверка (d20 + значение)",
@@ -605,6 +606,7 @@
       "TotalPart": "Итого: {value}",
       "FirstRoundPart": "В первом раунде: {bonus} (Тактика, {tier}) — Скорость {value}",
       "LuckClamped": "Ограничено пределом ±3 (сумма {raw})",
+      "UnrestedPart": "Без отдыха: база {base} → {halved}",
       "CloseHint": "Закрыть",
       "ConfirmYesHint": "Да",
       "ConfirmNoHint": "Нет"
