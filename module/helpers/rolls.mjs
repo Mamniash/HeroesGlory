@@ -1013,3 +1013,83 @@ export function secondarySkillSlotCount(ownedSkills, baseCount) {
   const hasExpertAptitude = ownedSkills.some((s) => s.skillKey === 'aptitude' && s.tier === 'expert');
   return hasExpertAptitude ? 10 : baseCount;
 }
+
+/** §5.10 (p. 33): "Отдых восстанавливает герою 10 единиц Маны…" */
+export const REST_MANA = 10;
+
+/**
+ * §5.10 (p. 33): a rest — "восстанавливает герою 10 единиц Маны и все очки
+ * Здоровья". Mana stops at its max (§11, as Мистицизм: "не может превысить
+ * максимум") but a value already above it is never lowered; Health comes
+ * back to max, same guard. Удача's manual correction returns to 0 — its
+ * base (§11, Сеня's ruling). Nothing else changes.
+ * @param {object} params
+ * @param {number} params.manaValue
+ * @param {number} params.manaMax
+ * @param {number} params.healthValue
+ * @param {number} params.healthMax
+ * @returns {{manaValue: number, healthValue: number, luckManual: number}}
+ */
+export function resolveRest({ manaValue, manaMax, healthValue, healthMax }) {
+  return {
+    manaValue: Math.max(manaValue, Math.min(manaMax, manaValue + REST_MANA)),
+    healthValue: Math.max(healthValue, healthMax),
+    luckManual: 0,
+  };
+}
+
+/**
+ * §5.10 (p. 33): "Базовые характристики героя, который не отдыхал,
+ * снижаются вдвое" — a primary skill's base, rounded down (§11).
+ * @param {number} base
+ * @returns {number}
+ */
+export function halveBase(base) {
+  return Math.floor(base / 2);
+}
+
+/**
+ * §3 Обучаемость (p. 39): extra experience per d6 of experience —
+ * base "еще 1 дополнительное очко", expert "еще 2 … вместо 1"; advanced
+ * keeps base's +1 (tiers cumulative, §11).
+ * @param {'base'|'advanced'|'expert'|null} tier
+ * @returns {number}
+ */
+export function aptitudeBonusPerDie(tier) {
+  if (tier === 'expert') return 2;
+  if (tier === 'base' || tier === 'advanced') return 1;
+  return 0;
+}
+
+/**
+ * §4.1 (p. 21): one hero's experience award — "ХD6 единиц опыта, где Х =
+ * уровню побежденного существа" per creature (a level-0 creature gives 0d6,
+ * §11), plus the Рассказчик's 1d6/2d6 bonus dice, plus Обучаемость for
+ * every d6 of either kind.
+ * @param {object} params
+ * @param {Array<{name: string, level: number, dice: number[]}>} [params.creatures]
+ * @param {number[]} [params.bonusDice]
+ * @param {'base'|'advanced'|'expert'|null} [params.aptitudeTier]
+ * @returns {{diceCount: number, diceTotal: number, aptitudeBonus: number, total: number}}
+ */
+export function experienceAward({ creatures = [], bonusDice = [], aptitudeTier = null } = {}) {
+  const dice = [...creatures.flatMap((c) => c.dice), ...bonusDice];
+  const diceTotal = dice.reduce((sum, d) => sum + d, 0);
+  const aptitudeBonus = dice.length * aptitudeBonusPerDie(aptitudeTier);
+  return { diceCount: dice.length, diceTotal, aptitudeBonus, total: diceTotal + aptitudeBonus };
+}
+
+/**
+ * §4.1/§11: whether a creature counts as "побежденное" by default in the
+ * experience window — at 0 Health, incapacitated, defeated or unconscious.
+ * The GM can still tick or untick it (a creature that fled, say).
+ * @param {object} params
+ * @param {number} params.healthValue
+ * @param {boolean} [params.incapacitated]
+ * @param {boolean} [params.defeated]
+ * @param {boolean} [params.unconscious]
+ * @returns {boolean}
+ */
+export function isDefeatedForExperience({ healthValue, incapacitated = false, defeated = false, unconscious = false }) {
+  return healthValue <= 0 || incapacitated || defeated || unconscious;
+}
