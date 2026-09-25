@@ -456,6 +456,19 @@
       "Passive": "Пассивные эффекты",
       "Inactive": "Неактивные эффекты"
     },
+    "Rest": {
+      "Button": "Отдых",
+      "MassButton": "Отдых всем героям",
+      "MassTitle": "Отдых всем героям",
+      "MassHint": "Отдохнут отмеченные герои: всё Здоровье, +10 Маны (не выше максимума), Удача к базе, снимается «Без отдыха».",
+      "MassConfirm": "Отдохнуть",
+      "Cancel": "Отмена",
+      "CardTitle": "{actor}: отдых",
+      "HealthLine": "Здоровье: {before} → {after} (макс. {max})",
+      "ManaLine": "Мана: {before} → {after} (макс. {max})",
+      "LuckLine": "Удача: {before} → {after}",
+      "UnrestedLifted": "Статус «Без отдыха» снят"
+    },
     "Status": {
       "Prone": "Падение",
       "Unconscious": "Без сознания",

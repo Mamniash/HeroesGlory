@@ -29,6 +29,7 @@ import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-ic
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../../helpers/skill-grant.mjs';
+import { restHero } from '../../helpers/rest.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
@@ -158,6 +159,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       pickSpecialization: this.#onPickSpecialization,
       unsetSpecialization: this.#onUnsetSpecialization,
       openHeroCreation: this.#onOpenHeroCreation,
+      restHero: this.#onRestHero,
       resetHeroCreation: this.#onResetHeroCreation,
     },
   };
@@ -200,6 +202,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       label: 'HEROES_GLORY.Creation.Reset',
       visible: () => game.user.isGM && this.actor.system.creation.complete,
       action: 'resetHeroCreation',
+    });
+    // §5.10: a rest — the hero's owner or the GM.
+    controls.push({
+      icon: 'fa-solid fa-bed',
+      label: 'HEROES_GLORY.Rest.Button',
+      visible: () => this.actor.isOwner,
+      action: 'restHero',
     });
     return controls;
   }
@@ -1522,6 +1531,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
   static #onResetHeroCreation(event, target) {
     return resetHeroCreation(this.actor);
+  }
+
+  /**
+   * §5.10: rest this hero (rest.mjs).
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onRestHero() {
+    return restHero(this.actor);
   }
 
   /**
