@@ -926,6 +926,7 @@ export async function rollAbilityCheck(actor, skillKey) {
   const flags = {
     kind: 'check',
     actorId: actor.id,
+    actorUuid: actor.uuid,
     skillKey,
     skillLabelKey: PRIMARY_SKILL_LABELS[skillKey],
     die,
@@ -957,7 +958,8 @@ export async function rerollCheckDie(message) {
   const flags = message.getFlag(FLAG_SCOPE, 'reroll');
   if (!flags || flags.kind !== 'check') return;
 
-  const actor = game.actors.get(flags.actorId);
+  // By uuid when the card has it: an unlinked token spends its own Удача.
+  const actor = actorFromCard(flags.actorUuid, flags.actorId);
   if (!actor) return;
   if (!canRerollWithLuck({ luck: actor.system.luck ?? 0, isOwner: actor.isOwner, isGM: game.user.isGM })) return;
 
