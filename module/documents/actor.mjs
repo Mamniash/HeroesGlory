@@ -33,6 +33,21 @@ export class HeroesGloryActor extends Actor {
    * approach is useful when you have actors & items that share a parent Document,
    * but have slightly different data preparation needs.
    */
+  /**
+   * A hero is a player's character: its token is linked by default, so
+   * damage, Mana, experience and the rest land on the hero's own sheet,
+   * not on a token copy. An explicit `prototypeToken.actorLink` in the
+   * creation data is kept.
+   * @override
+   */
+  async _preCreate(data, options, user) {
+    const allowed = await super._preCreate(data, options, user);
+    if (allowed === false) return false;
+    if (this.type === 'hero' && data.prototypeToken?.actorLink === undefined) {
+      this.updateSource({ 'prototypeToken.actorLink': true });
+    }
+  }
+
   getRollData() {
     return { ...super.getRollData(), ...this.system.getRollData?.() ?? null };
   }
