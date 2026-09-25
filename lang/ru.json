@@ -459,7 +459,8 @@
     "Status": {
       "Prone": "Падение",
       "Unconscious": "Без сознания",
-      "Incapacitated": "Недееспособен"
+      "Incapacitated": "Недееспособен",
+      "Defending": "Защита"
     },
     "Roll": {
       "CheckHint": "Клик — проверка (d20 + значение)",
@@ -543,6 +544,8 @@
       "MoraleThreshold": "нужно {threshold}+",
       "MoraleWildThreshold": "Дикая мораль: нужно {threshold}+",
       "MoraleSkipRule": "1–3 — пропуск хода",
+      "DefendingRow": "Защита (−2 к попаданию оружием по существу до начала его хода)",
+      "DefendingRowActive": "Защита активна — снять",
       "MoraleRow": "Тест на Боевой дух (d6, {threshold}+ — ходит снова) · попыток {remaining} из {total}",
       "MoraleSkipRow": "Тест на пропуск хода (d6, 1–3 — пропуск) · попыток {remaining} из {total}",
       "MoraleAttemptsLeft": "Попыток осталось: {remaining} из {total}",

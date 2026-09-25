@@ -30,9 +30,26 @@ export function resetMoraleAfterCombat(combat) {
  */
 export function clearCombatStatesAfterCombat(combat) {
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
-  const { prone, unconscious } = CONFIG.HEROES_GLORY.statusEffects;
+  const { prone, unconscious, defending } = CONFIG.HEROES_GLORY.statusEffects;
   for (const actor of actors) {
     if (actor.statuses.has(prone)) actor.toggleStatusEffect(prone, { active: false });
     if (actor.statuses.has(unconscious)) actor.toggleStatusEffect(unconscious, { active: false });
+    if (actor.effects.some((e) => e.statuses.has(defending))) actor.toggleStatusEffect(defending, { active: false });
   }
+}
+
+/**
+ * §5.2: «Защита» lasts "до начала следующего хода". The core effect
+ * registry only marks an effect `duration.expired` (CONFIG.ActiveEffect.
+ * expiryAction "update"), which already stops it applying; this removes
+ * the expired «Защита» outright so its token icon goes too. Run by the
+ * active GM only, once.
+ * @param {ActiveEffect} effect
+ * @param {object} changes
+ */
+export function expireDefending(effect, changes) {
+  if (!game.user.isActiveGM) return;
+  if (!changes?.duration?.expired) return;
+  if (!effect.statuses.has(CONFIG.HEROES_GLORY.statusEffects.defending)) return;
+  effect.delete();
 }

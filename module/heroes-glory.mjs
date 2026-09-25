@@ -13,7 +13,7 @@ import { HeroesGlorySpellbookSheet } from './sheets/item/spellbook-sheet.mjs';
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
-import { resetMoraleAfterCombat, clearCombatStatesAfterCombat } from './helpers/combat.mjs';
+import { resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending } from './helpers/combat.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -73,6 +73,15 @@ Hooks.once('init', function () {
     { id: HEROES_GLORY.statusEffects.prone, name: 'HEROES_GLORY.Status.Prone', img: 'icons/svg/falling.svg' },
     { id: HEROES_GLORY.statusEffects.unconscious, name: 'HEROES_GLORY.Status.Unconscious', img: 'icons/svg/unconscious.svg' },
     { id: HEROES_GLORY.statusEffects.incapacitated, name: 'HEROES_GLORY.Status.Incapacitated', img: 'icons/svg/blood.svg' },
+    // §5.2 (p. 27): «Защита» — "эффект длится до начала следующего хода".
+    // ActiveEffect.fromStatusEffect copies this duration into the effect,
+    // so the core registry expires it at the defender's next turn start,
+    // whether the status is toggled from the token HUD or by our code;
+    // expireDefending (combat.mjs) then deletes the expired effect.
+    {
+      id: HEROES_GLORY.statusEffects.defending, name: 'HEROES_GLORY.Status.Defending', img: 'icons/svg/shield.svg',
+      duration: { value: 1, units: 'turns', expiry: 'turnStart' },
+    },
   );
 
   // Register sheet application classes.
@@ -157,6 +166,7 @@ Hooks.on('deleteCombat', resetMoraleAfterCombat);
 
 // §5.6: Падение and Без сознания both clear at the end of the battle.
 Hooks.on('deleteCombat', clearCombatStatesAfterCombat);
+Hooks.on('updateActiveEffect', expireDefending);
 
 /* -------------------------------------------- */
 /*  Ready Hook                                  */

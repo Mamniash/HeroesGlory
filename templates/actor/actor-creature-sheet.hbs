@@ -65,6 +65,10 @@
     </div>
   {{/if}}
 
+  <div class="actor-sheet__attack-row" data-action="toggleDefending" role="button" tabindex="0">
+    {{#if defending}}{{localize 'HEROES_GLORY.Roll.DefendingRowActive'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefendingRow'}}{{/if}}
+  </div>
+
   <div class="grid grid-2col">
     <label class="actor-sheet__field">
       <span class="actor-sheet__label">

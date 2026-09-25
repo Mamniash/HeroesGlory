@@ -320,6 +320,7 @@ HEROES_GLORY.statusEffects = {
   prone: 'hgProne',
   unconscious: 'hgUnconscious',
   incapacitated: 'hgIncapacitated',
+  defending: 'hgDefending',
 };
 
 /**

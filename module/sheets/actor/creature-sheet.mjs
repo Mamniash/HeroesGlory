@@ -25,6 +25,21 @@ function abilityPages() {
 }
 
 export class HeroesGloryCreatureSheet extends HeroesGloryActorSheet {
+  static DEFAULT_OPTIONS = {
+    actions: {
+      toggleDefending: this.#onToggleDefending,
+    },
+  };
+
+  /**
+   * §5.2 (p. 27): take the «Защита» action — or drop it early. The status
+   * carries its own duration (heroes-glory.mjs), same as from the token HUD.
+   * @this {HeroesGloryCreatureSheet}
+   */
+  static #onToggleDefending() {
+    return this.actor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.defending);
+  }
+
   static PARTS = {
     header: { template: 'systems/heroes-glory/templates/actor/parts/actor-creature-header.hbs' },
     body: { template: 'systems/heroes-glory/templates/actor/actor-creature-sheet.hbs', scrollable: [''] },
@@ -60,6 +75,7 @@ export class HeroesGloryCreatureSheet extends HeroesGloryActorSheet {
       remaining: moraleAttemptsRemaining(system.morale, moraleUsed),
       total: Math.abs(system.morale),
     };
+    context.defending = this.actor.statuses.has(CONFIG.HEROES_GLORY.statusEffects.defending);
     context.enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       system.description, { relativeTo: this.actor },
     );
