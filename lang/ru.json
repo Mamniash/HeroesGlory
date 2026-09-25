@@ -456,6 +456,21 @@
       "Passive": "Пассивные эффекты",
       "Inactive": "Неактивные эффекты"
     },
+    "Experience": {
+      "Title": "Начислить опыт",
+      "ManualButton": "Начислить опыт",
+      "CreaturesHeading": "Побеждённые существа (опыт — Xd6, X = уровень)",
+      "HeroesHeading": "Герои (каждый бросает свой опыт)",
+      "BonusLabel": "Бонус Ведущего за отыгрыш:",
+      "LevelShort": "ур. {level}",
+      "Award": "Начислить",
+      "CardTitle": "{hero}: опыт",
+      "CreatureLine": "{name} (ур. {level}): {level}d6 = {faces} → {sum}",
+      "CreatureZero": "{name} (ур. 0): опыта не даёт",
+      "BonusLine": "Бонус Ведущего: {count}d6 = {faces} → {sum}",
+      "AptitudeLine": "Обучаемость: +{perDie} × {dice} куб. = +{bonus}",
+      "TotalLine": "Итого: +{total} (опыт {before} → {after})"
+    },
     "Rest": {
       "Button": "Отдых",
       "MassButton": "Отдых всем героям",

@@ -30,6 +30,7 @@ import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../../helpers/skill-grant.mjs';
 import { restHero } from '../../helpers/rest.mjs';
+import { openManualExperience } from '../../helpers/experience-award.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
@@ -160,6 +161,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       unsetSpecialization: this.#onUnsetSpecialization,
       openHeroCreation: this.#onOpenHeroCreation,
       restHero: this.#onRestHero,
+      awardExperience: this.#onAwardExperience,
       resetHeroCreation: this.#onResetHeroCreation,
     },
   };
@@ -209,6 +211,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       label: 'HEROES_GLORY.Rest.Button',
       visible: () => this.actor.isOwner,
       action: 'restHero',
+    });
+    // §4.1: award experience by hand (bonus dice) — GM only.
+    controls.push({
+      icon: 'fa-solid fa-star',
+      label: 'HEROES_GLORY.Experience.ManualButton',
+      visible: () => game.user.isGM,
+      action: 'awardExperience',
     });
     return controls;
   }
@@ -1539,6 +1548,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    */
   static #onRestHero() {
     return restHero(this.actor);
+  }
+
+  /**
+   * §4.1: the GM's manual experience award (experience-award.mjs).
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onAwardExperience() {
+    return openManualExperience(this.actor);
   }
 
   /**

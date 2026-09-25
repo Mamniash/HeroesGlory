@@ -1,0 +1,19 @@
+<div class="heroes-glory-chat-card heroes-glory-chat-card--experience">
+  <h3 class="heroes-glory-chat-card__title">{{localize 'HEROES_GLORY.Experience.CardTitle' hero=heroName}}</h3>
+  {{#each creatures}}
+    <p class="heroes-glory-chat-card__line">
+      {{#if this.dice.length}}
+        {{localize 'HEROES_GLORY.Experience.CreatureLine' name=this.name level=this.level faces=this.faces sum=this.sum}}
+      {{else}}
+        {{localize 'HEROES_GLORY.Experience.CreatureZero' name=this.name}}
+      {{/if}}
+    </p>
+  {{/each}}
+  {{#if bonus}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Experience.BonusLine' count=bonus.count faces=bonus.faces sum=bonus.sum}}</p>
+  {{/if}}
+  {{#if aptitude}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Experience.AptitudeLine' perDie=aptitude.perDie dice=aptitude.dice bonus=aptitude.bonus}}</p>
+  {{/if}}
+  <p class="heroes-glory-chat-card__line"><strong>{{localize 'HEROES_GLORY.Experience.TotalLine' total=total before=before after=after}}</strong></p>
+</div>

@@ -15,6 +15,7 @@ import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
 import { resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
+import { offerCombatExperience } from './helpers/experience-award.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -171,6 +172,9 @@ Hooks.on('deleteCombat', resetMoraleAfterCombat);
 // §5.6: Падение and Без сознания both clear at the end of the battle.
 Hooks.on('deleteCombat', clearCombatStatesAfterCombat);
 Hooks.on('updateActiveEffect', expireDefending);
+
+// §4.1: the GM's experience window for the battle that just ended.
+Hooks.on('deleteCombat', offerCombatExperience);
 
 // §5.10: «Отдых всем героям» in the Actors directory header, GM only.
 Hooks.on('renderActorDirectory', addMassRestButton);
