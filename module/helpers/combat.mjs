@@ -11,6 +11,8 @@
  * @param {Combat} combat
  */
 export function resetMoraleAfterCombat(combat) {
+  // deleteCombat fires on every client; only the active GM writes.
+  if (game.users.activeGM !== game.user) return;
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
   for (const actor of actors) {
     // A creature's `system.morale` is the GM's own value for it, not a
@@ -29,6 +31,7 @@ export function resetMoraleAfterCombat(combat) {
  * @param {Combat} combat
  */
 export function clearCombatStatesAfterCombat(combat) {
+  if (game.users.activeGM !== game.user) return;
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
   const { prone, unconscious, defending } = CONFIG.HEROES_GLORY.statusEffects;
   for (const actor of actors) {
@@ -48,7 +51,7 @@ export function clearCombatStatesAfterCombat(combat) {
  * @param {object} changes
  */
 export function expireDefending(effect, changes) {
-  if (!game.user.isActiveGM) return;
+  if (game.users.activeGM !== game.user) return;
   if (!changes?.duration?.expired) return;
   if (!effect.statuses.has(CONFIG.HEROES_GLORY.statusEffects.defending)) return;
   effect.delete();
