@@ -7,6 +7,7 @@ import path from 'node:path';
 import {
   resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow, ARTIFACT_TABLE_ROWS,
   ARTIFACT_TYPE_BY_D6, startingWeaponSpecs, startingSpellbookGrant, isValidSpellChoice,
+  isHeroCreated, missingIdentityFields, IDENTITY_FIELDS, pickFreeSlot, resolveCreationRollback,
 } from '../module/helpers/hero-creation.mjs';
 import { WEAPON_EPIC_TABLES, MELEE_WEAPON_CATEGORIES } from '../module/helpers/weapon-epic-tables.mjs';
 import { raceGrantedItems } from '../module/helpers/race-granted-items.mjs';
@@ -71,15 +72,43 @@ describe('starting artifact — p. 18, d6 type then 2d6 row', () => {
 });
 
 describe('startingWeaponSpecs — p. 17 damage by class', () => {
+  const shape = (specs) => specs.map(({ ranged, damage }) => ({ ranged, damage }));
+
   test('warrior 5, wizard 3', () => {
-    assert.deepEqual(startingWeaponSpecs({ classType: 'warrior', archer: false }), [{ ranged: false, damage: 5 }]);
-    assert.deepEqual(startingWeaponSpecs({ classType: 'mage', archer: false }), [{ ranged: false, damage: 3 }]);
+    assert.deepEqual(shape(startingWeaponSpecs({ classType: 'warrior', archer: false })), [{ ranged: false, damage: 5 }]);
+    assert.deepEqual(shape(startingWeaponSpecs({ classType: 'mage', archer: false })), [{ ranged: false, damage: 3 }]);
   });
 
   test('a shooter gets two weapons: ranged 5 and melee 3, whatever the class', () => {
     for (const classType of ['warrior', 'mage']) {
-      assert.deepEqual(startingWeaponSpecs({ classType, archer: true }),
+      assert.deepEqual(shape(startingWeaponSpecs({ classType, archer: true })),
         [{ ranged: true, damage: 5 }, { ranged: false, damage: 3 }]);
+    }
+  });
+
+  test('ready-made: melee is a blade (Колющий/рубящий, Клинковое), ranged is ranged', () => {
+    const [ranged, melee] = startingWeaponSpecs({ classType: 'warrior', archer: true });
+    assert.equal(ranged.weaponType, 'ranged');
+    assert.equal(ranged.category, 'ranged');
+    assert.equal(melee.weaponType, 'piercingSlashing');
+    assert.equal(melee.category, 'blade');
+    assert.ok(melee.weaponType in HEROES_GLORY.weaponTypes);
+  });
+
+  test('each weapon has its own name key, by class or by role for a shooter', () => {
+    assert.equal(startingWeaponSpecs({ classType: 'warrior', archer: false })[0].nameKey, 'HEROES_GLORY.Creation.WeaponWarriorName');
+    assert.equal(startingWeaponSpecs({ classType: 'mage', archer: false })[0].nameKey, 'HEROES_GLORY.Creation.WeaponMageName');
+    assert.deepEqual(startingWeaponSpecs({ classType: 'mage', archer: true }).map((s) => s.nameKey),
+      ['HEROES_GLORY.Creation.WeaponRangedName', 'HEROES_GLORY.Creation.WeaponMeleeName']);
+  });
+
+  test('the name keys exist in lang/ru.json', () => {
+    const ru = JSON.parse(fs.readFileSync(new URL('../lang/ru.json', import.meta.url), 'utf8'));
+    const keys = new Set(['warrior', 'mage'].flatMap((classType) => [true, false]
+      .flatMap((archer) => startingWeaponSpecs({ classType, archer }).map((s) => s.nameKey))));
+    for (const key of keys) {
+      const value = key.split('.').reduce((obj, part) => obj?.[part], ru);
+      assert.equal(typeof value, 'string', key);
     }
   });
 
@@ -124,5 +153,95 @@ describe('startingSpellbookGrant — p. 17 Книга Магии', () => {
     assert.equal(HEROES_GLORY.classByFactionAndType.tower.warrior, 'alchemist');
     assert.equal(HEROES_GLORY.classByFactionAndType.tower.mage, 'mage');
     assert.ok('wisdom' in HEROES_GLORY.secondarySkills);
+  });
+});
+
+describe('isHeroCreated — level 0 is "not created"', () => {
+  const hero = (over) => ({ level: 0, creation: { complete: false }, pendingCreation: null, ...over });
+
+  test('a new level-0 hero is not created', () => {
+    assert.equal(isHeroCreated(hero()), false);
+  });
+
+  test('a completed creation counts, at any level', () => {
+    assert.equal(isHeroCreated(hero({ creation: { complete: true } })), true);
+    assert.equal(isHeroCreated(hero({ level: 3, creation: { complete: true } })), true);
+  });
+
+  test('above level 0 without a completed creation: counts as created (older heroes)', () => {
+    assert.equal(isHeroCreated(hero({ level: 2 })), true);
+  });
+
+  test('a creation in progress is not created, even after its level-ups raised the level', () => {
+    assert.equal(isHeroCreated(hero({ level: 1, pendingCreation: { step: 'levels' } })), false);
+  });
+});
+
+describe('missingIdentityFields — what to pick before creation', () => {
+  test('all three missing, in sheet order', () => {
+    assert.deepEqual(missingIdentityFields({ race: '', faction: '', classType: '' }), ['race', 'faction', 'classType']);
+  });
+
+  test('only the blank ones', () => {
+    assert.deepEqual(missingIdentityFields({ race: 'human', faction: '', classType: 'mage' }), ['faction']);
+    assert.deepEqual(missingIdentityFields({ race: 'human', faction: 'castle', classType: 'mage' }), []);
+  });
+
+  test('each field has a label in lang/ru.json', () => {
+    const ru = JSON.parse(fs.readFileSync(new URL('../lang/ru.json', import.meta.url), 'utf8'));
+    for (const field of IDENTITY_FIELDS) {
+      assert.equal(typeof ru.HEROES_GLORY.Creation.MissingField[field], 'string', field);
+    }
+  });
+});
+
+describe('pickFreeSlot — equip granted items where possible', () => {
+  test('first free valid slot', () => {
+    assert.equal(pickFreeSlot([2, 7], []), 2);
+    assert.equal(pickFreeSlot([2, 7], [2]), 7);
+  });
+
+  test('none free (or none valid) → backpack', () => {
+    assert.equal(pickFreeSlot([6], [6]), null);
+    assert.equal(pickFreeSlot([], []), null);
+  });
+});
+
+describe('resolveCreationRollback — undo the level-ups made inside creation', () => {
+  const up = (over) => ({ primarySkillKey: 'attack', healthAdded: 0, grantedItemId: null, upgradedItemId: null, upgradedFromTier: null, ...over });
+
+  test('nothing recorded, nothing to undo', () => {
+    assert.deepEqual(resolveCreationRollback([]), { primaryDeltas: {}, healthDelta: 0, deleteItemIds: [], tierRestores: [] });
+  });
+
+  test('primary skills are subtracted per level-up, Защита also takes its +5 ОЗ back', () => {
+    const result = resolveCreationRollback([
+      up({ primarySkillKey: 'attack' }),
+      up({ primarySkillKey: 'defense', healthAdded: 5 }),
+      up({ primarySkillKey: 'attack' }),
+    ]);
+    assert.deepEqual(result.primaryDeltas, { attack: -2, defense: -1 });
+    assert.equal(result.healthDelta, -5);
+  });
+
+  test('a skill a level-up granted is deleted', () => {
+    assert.deepEqual(resolveCreationRollback([up({ grantedItemId: 'a' }), up({ grantedItemId: 'b' })]).deleteItemIds, ['a', 'b']);
+  });
+
+  test('a raised skill goes back to the tier before its first raise', () => {
+    const result = resolveCreationRollback([
+      up({ upgradedItemId: 'base', upgradedFromTier: 'base' }),
+      up({ upgradedItemId: 'base', upgradedFromTier: 'advanced' }),
+    ]);
+    assert.deepEqual(result.tierRestores, [{ itemId: 'base', tier: 'base' }]);
+  });
+
+  test('a skill granted and then raised inside creation is only deleted', () => {
+    const result = resolveCreationRollback([
+      up({ grantedItemId: 'new' }),
+      up({ upgradedItemId: 'new', upgradedFromTier: 'base' }),
+    ]);
+    assert.deepEqual(result.deleteItemIds, ['new']);
+    assert.deepEqual(result.tierRestores, []);
   });
 });

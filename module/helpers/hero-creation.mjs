@@ -1,7 +1,8 @@
 /**
  * §2/§3/§6.1/§8 (book pp. 16–18): what a new hero receives at creation.
- * Pure — no Foundry globals; the creation window (apps/hero-creation-app.mjs)
- * rolls the dice and turns these decisions into items and updates.
+ * Pure — no Foundry globals; the creation flow (helpers/hero-creation-flow.mjs,
+ * shown in the level-up window) rolls the dice and turns these decisions
+ * into items and updates.
  */
 import { resolveSecondarySkillRoll } from './rolls.mjs';
 
@@ -80,17 +81,100 @@ export function pickArtifactRow(totals, rowCount) {
 }
 
 /**
- * p. 17: starting weapon damage by class — a wizard's weapon 3, a
- * warrior's 5; a hero who takes a ranged weapon has it at 5 and carries a
- * melee weapon at 3 for close combat.
+ * p. 17: the starting weapon, ready-made — a wizard's weapon has damage 3,
+ * a warrior's 5; a shooter ("стрелок (имеет стрелковое оружие)") gets a
+ * ranged weapon at 5 and a melee weapon at 3 for close combat. The book
+ * names no concrete item (race profiles offer a choice, pp. 8–13), so the
+ * item is a standard one by class: a blade (Колющий/рубящий, the Клинковое
+ * epic table, p. 41) the player renames on the item sheet.
  * @param {object} args
  * @param {string} args.classType   'warrior' | 'mage'
  * @param {boolean} args.archer
- * @returns {Array<{ranged: boolean, damage: number}>}
+ * @returns {Array<{ranged: boolean, damage: number, weaponType: string, category: string, nameKey: string}>}
  */
 export function startingWeaponSpecs({ classType, archer }) {
-  if (archer) return [{ ranged: true, damage: 5 }, { ranged: false, damage: 3 }];
-  return [{ ranged: false, damage: classType === 'mage' ? 3 : 5 }];
+  const melee = (damage, nameKey) => ({ ranged: false, damage, weaponType: 'piercingSlashing', category: 'blade', nameKey });
+  if (archer) {
+    return [
+      { ranged: true, damage: 5, weaponType: 'ranged', category: 'ranged', nameKey: 'HEROES_GLORY.Creation.WeaponRangedName' },
+      melee(3, 'HEROES_GLORY.Creation.WeaponMeleeName'),
+    ];
+  }
+  return classType === 'mage'
+    ? [melee(3, 'HEROES_GLORY.Creation.WeaponMageName')]
+    : [melee(5, 'HEROES_GLORY.Creation.WeaponWarriorName')];
+}
+
+/**
+ * Whether the hero counts as created. A new hero sits at level 0 "not
+ * created" until the creation window completes; a hero already above level
+ * 0 without a completed creation (made before the window existed) counts
+ * as created, with nothing handed out — unless a creation is in progress
+ * (its level-ups raise the level before it completes).
+ * @param {{level: number, creation: {complete: boolean}, pendingCreation: object|null}} system
+ * @returns {boolean}
+ */
+export function isHeroCreated(system) {
+  if (system.creation?.complete) return true;
+  if (system.pendingCreation) return false;
+  return (system.level ?? 0) > 0;
+}
+
+/** Identity fields creation needs, in the order the sheet shows them. */
+export const IDENTITY_FIELDS = ['race', 'faction', 'classType'];
+
+/**
+ * The identity fields still blank — race, faction and class are all needed
+ * before creation (the class for the base skill, weapon and book, the
+ * faction for the concrete class and d20 row 20).
+ * @param {{race: string, faction: string, classType: string}} system
+ * @returns {string[]}   Subset of IDENTITY_FIELDS, in its order.
+ */
+export function missingIdentityFields(system) {
+  return IDENTITY_FIELDS.filter((field) => !system[field]);
+}
+
+/**
+ * The paperdoll slot a granted item goes into: the first of its valid
+ * slots nobody occupies, or null (then it goes into the backpack).
+ * @param {number[]} validSlots      paperdollValidSlots(item), in order
+ * @param {Iterable<number>} occupiedSlots
+ * @returns {number|null}
+ */
+export function pickFreeSlot(validSlots, occupiedSlots) {
+  const occupied = new Set(occupiedSlots);
+  return validSlots.find((slot) => !occupied.has(slot)) ?? null;
+}
+
+/**
+ * What «Сбросить создание» takes back from the level-ups made inside
+ * creation, given the record of each one (applied in order). Primary skills
+ * and the Защита +5 ОЗ are subtracted; a skill a level-up granted is
+ * deleted; a skill a level-up raised goes back to the tier it had before
+ * the first such raise — unless it is being deleted anyway.
+ * @param {Array<{primarySkillKey: string, healthAdded: number,
+ *   grantedItemId: string|null, upgradedItemId: string|null, upgradedFromTier: string|null}>} levelUps
+ * @returns {{primaryDeltas: Record<string, number>, healthDelta: number,
+ *   deleteItemIds: string[], tierRestores: Array<{itemId: string, tier: string}>}}
+ */
+export function resolveCreationRollback(levelUps) {
+  const primaryDeltas = {};
+  let healthDelta = 0;
+  const deleteItemIds = [];
+  const originalTiers = new Map();
+  for (const up of levelUps) {
+    if (up.primarySkillKey) primaryDeltas[up.primarySkillKey] = (primaryDeltas[up.primarySkillKey] ?? 0) - 1;
+    healthDelta -= up.healthAdded ?? 0;
+    if (up.grantedItemId) deleteItemIds.push(up.grantedItemId);
+    if (up.upgradedItemId && !originalTiers.has(up.upgradedItemId)) {
+      originalTiers.set(up.upgradedItemId, up.upgradedFromTier);
+    }
+  }
+  const deleted = new Set(deleteItemIds);
+  const tierRestores = [...originalTiers]
+    .filter(([itemId, tier]) => !deleted.has(itemId) && tier)
+    .map(([itemId, tier]) => ({ itemId, tier }));
+  return { primaryDeltas, healthDelta, deleteItemIds, tierRestores };
 }
 
 /**
