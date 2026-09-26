@@ -1019,6 +1019,7 @@
 }
 .heroes-glory .hero-paperdoll__stat-backdrop {
   background: rgba(0, 0, 0, 0.32);
+  box-shadow: 0 calc(-1 * 1.2633333333px * var(--hg-pixel-scale)) 0 0 rgb(118, 96, 79), 0 calc(1.2633333333px * var(--hg-pixel-scale)) 0 0 rgb(118, 96, 79), calc(-1 * 1.2633333333px * var(--hg-pixel-scale)) 0 0 0 rgb(98, 74, 54), calc(1.2633333333px * var(--hg-pixel-scale)) 0 0 0 rgb(92, 71, 53);
 }
 .heroes-glory .hero-paperdoll__slot--skill_name_1 {
   left: 2.167%;
@@ -1400,6 +1401,9 @@
   border-top-color: transparent;
   border-left-color: transparent;
 }
+.heroes-glory .hero-paperdoll__slot--stat_vision {
+  border-left-color: transparent;
+}
 .heroes-glory .hero-paperdoll__name-input {
   height: auto;
   line-height: 1;
@@ -1588,11 +1592,6 @@
 .heroes-glory .hero-paperdoll__slot--luck,
 .heroes-glory .hero-paperdoll__slot--morale {
   object-fit: contain;
-}
-.heroes-glory .hero-paperdoll__correction {
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .heroes-glory .hero-paperdoll__slot--skill_desc_1,
 .heroes-glory .hero-paperdoll__slot--skill_desc_2,

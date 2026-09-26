@@ -255,27 +255,13 @@
   </div>
 
   {{!-- ==================== Morale / Luck ====================
-    Icons show the derived total. In edit mode each slot shows the GM's
-    manual correction instead (the only stored part, rules.md §3/§11),
-    edited through the same display→input swap as the primary skills
-    (editPrimaryStat). --}}
-  {{#if editMode}}
-  <span class="hero-paperdoll__slot hero-paperdoll__slot--morale hero-paperdoll__correction"
-    data-tooltip-trigger="morale" title="{{localize 'HEROES_GLORY.Hero.MoraleCorrection'}}">
-    <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{source.morale}}</span>
-    <input class="hero-paperdoll__primary-value" type="number" name="system.morale" value="{{source.morale}}" hidden>
-  </span>
-  <span class="hero-paperdoll__slot hero-paperdoll__slot--luck hero-paperdoll__correction"
-    data-tooltip-trigger="luck" title="{{localize 'HEROES_GLORY.Hero.LuckCorrection'}}">
-    <span class="hero-paperdoll__primary-value-display" data-action="editPrimaryStat">{{source.luck}}</span>
-    <input class="hero-paperdoll__primary-value" type="number" name="system.luck" value="{{source.luck}}" hidden>
-  </span>
-  {{else}}
+    Icons show the derived total, the same in and out of edit mode. The
+    GM's manual correction (the only stored part, rules.md §2.2/§11) has
+    no field on the sheet. --}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
     data-tooltip-trigger="morale"{{#if canRollMorale}} data-action="rollMoraleCheck"{{/if}}>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck" data-tooltip-click>
-  {{/if}}
 
   {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
     see _hero-paperdoll.scss's own comment on

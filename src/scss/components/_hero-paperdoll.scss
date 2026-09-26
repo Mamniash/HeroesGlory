@@ -407,8 +407,27 @@ $hg-named-slots: (
 // the math for a small adjustment.
 $hg-stat-panel-darken: 0.32;
 
+// §task (Зрение/Скорость, take 3): the identity zone's recessed panel also
+// carries a bevel (фаска) baked into the sheet art — a line one art pixel
+// wide just outside the panel, lighter on the top/bottom edges than on the
+// sides. The stat zone's art has none, so it is drawn here with the same
+// width and colors, sampled from heroscr4_*.png (identical in every panel
+// color): top/bottom (118, 96, 79), left (98, 74, 54), right (92, 71, 53).
+// One art pixel in reference-canvas px, the same conversion as
+// $hg-identity-zone-h-native below.
+$hg-panel-bevel-top-bottom: rgb(118, 96, 79);
+$hg-panel-bevel-left: rgb(98, 74, 54);
+$hg-panel-bevel-right: rgb(92, 71, 53);
+$hg-panel-bevel-width: 1px / 600px * 758px;
+
 .hero-paperdoll__stat-backdrop {
+  $w: calc($hg-panel-bevel-width * var(--hg-pixel-scale));
   background: rgba(0, 0, 0, $hg-stat-panel-darken);
+  box-shadow:
+    0 calc(-1 * $w) 0 0 $hg-panel-bevel-top-bottom,
+    0 $w 0 0 $hg-panel-bevel-top-bottom,
+    calc(-1 * $w) 0 0 0 $hg-panel-bevel-left,
+    $w 0 0 0 $hg-panel-bevel-right;
 }
 
 // ---------------------------------------------------------------
@@ -831,6 +850,10 @@ $hg-debug-identity-zone: false;
 .hero-paperdoll__identity-block--class {
   border-top-color: transparent;
   border-left-color: transparent; // Фракция already draws this boundary
+}
+// Скорость/Зрение: the same one-line seam as Раса/Фракция/Класс.
+.hero-paperdoll__slot--stat_vision {
+  border-left-color: transparent; // Скорость already draws this boundary
 }
 
 // §3 (task, re-diagnosed): `field-sizing: content` — the previous
@@ -1360,15 +1383,6 @@ $hg-value-input-max-ch: 7;
 .hero-paperdoll__slot--luck,
 .hero-paperdoll__slot--morale {
   object-fit: contain;
-}
-
-// Edit mode only: the morale/luck slot holds the manual-correction
-// display/input pair instead of the icon — layout only, both children
-// keep the primary-skill value styling they already have.
-.hero-paperdoll__correction {
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 // Secondary-skill lines — native SmallFont height ($hg-font-h3-small-height,
