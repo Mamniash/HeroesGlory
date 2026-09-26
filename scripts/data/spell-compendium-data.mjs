@@ -62,10 +62,10 @@ import { buildItemDocument } from '../lib/pack-builder.mjs';
 const DEFAULT_RANGE = 24; // §6.1: дальность любого заклинания 24 клетки, если не сказано иное — ни у одного из 39 заклинаний иного не указано.
 
 /**
- * @param {{desc: string, cost: number}} base           "Без Навыка".
+ * @param {{desc: string, cost: number, effect?: object}} base   "Без Навыка".
  * @param {number} basicCost                            "Базовый Навык" — эффект как у base, дешевле.
- * @param {{desc?: string, cost?: number}} [advanced]    Если desc не задан — эффект как у base (утилитарные заклинания).
- * @param {{desc?: string, cost?: number}} [expert]      Если desc не задан — эффект как у advanced (или base).
+ * @param {{desc?: string, cost?: number, effect?: object}} [advanced]  Если desc/effect не заданы — как у base.
+ * @param {{desc?: string, cost?: number, effect?: object}} [expert]    Если desc/effect не заданы — как у advanced (или base).
  * @returns {object} item-spell.mjs's `system.variants` shape.
  */
 function buildVariants(base, basicCost, advanced = {}, expert = {}) {
@@ -73,11 +73,37 @@ function buildVariants(base, basicCost, advanced = {}, expert = {}) {
   const advancedDesc = advanced.desc ?? base.desc;
   const expertCost = expert.cost ?? advancedCost;
   const expertDesc = expert.desc ?? advancedDesc;
+  const baseEffect = base.effect ?? {};
+  const advancedEffect = advanced.effect ?? baseEffect;
+  const expertEffect = expert.effect ?? advancedEffect;
   return {
-    none: { description: base.desc, manaCost: base.cost },
-    basic: { description: base.desc, manaCost: basicCost },
-    advanced: { description: advancedDesc, manaCost: advancedCost },
-    expert: { description: expertDesc, manaCost: expertCost },
+    none: { description: base.desc, manaCost: base.cost, effect: baseEffect },
+    basic: { description: base.desc, manaCost: basicCost, effect: baseEffect },
+    advanced: { description: advancedDesc, manaCost: advancedCost, effect: advancedEffect },
+    expert: { description: expertDesc, manaCost: expertCost, effect: expertEffect },
+  };
+}
+
+/**
+ * rules.md §6.4, stage 1: a damage effect (item-spell.mjs's `effect`), read
+ * off the book text. «NdS + СМ» → `plusMagicPower`; «X за каждый ваш СМ» →
+ * `perMagicPower` (rolled Сила Магии times, rules.md §11).
+ * @param {number} count   d6
+ * @param {number} flat
+ * @param {object} [options]
+ * @param {boolean} [options.perMagicPower]
+ * @param {boolean} [options.plusMagicPower]
+ * @param {string} [options.element]   'fire' | 'ice' | 'lightning'
+ * @param {{extraTargets: number, extraFactor: number}} [options.chain]
+ */
+function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = false, element = '', chain = null } = {}) {
+  return {
+    kind: 'damage',
+    targeting: chain
+      ? { mode: 'chain', perMagicPowerTargets: false, extraTargets: chain.extraTargets, extraFactor: chain.extraFactor }
+      : { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 },
+    dice: { count, flat, perMagicPower, addMagicPower: plusMagicPower },
+    element,
   };
 }
 
@@ -92,7 +118,7 @@ const EARTH = [
   { name: 'Силовое Поле', level: 3, icon: 12, base: { desc: 'Выберите 2 клетки, находящиеся рядом друг с другом. Они становятся непроходимыми даже для летающих существ. Длительность = СМ.', cost: 18 }, basicCost: 12, advanced: { desc: 'Три соседние клетки' }, expert: { desc: 'Четыре соседние клетки' } },
   { name: 'Воскрешение', level: 4, icon: 38, base: { desc: 'Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.', cost: 20 }, basicCost: 16, advanced: { desc: 'Существо воскресает навсегда' }, expert: { desc: 'Существо Воскресает с полными ОЗ' } },
   { name: 'Метеоритный Дождь', level: 4, icon: 23, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 2d6 огненного урона за каждый ваш СМ.', cost: 40 }, basicCost: 35, advanced: { desc: 'Урон увеличивается до 2d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 2d6+2 за СМ' } },
-  { name: 'Взрыв', level: 5, icon: 18, base: { desc: 'Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.', cost: 50 }, basicCost: 40, advanced: { desc: 'Урон увеличивается до 2d6+4 за СМ' }, expert: { desc: 'Урон увеличивается до 2d6+5 за СМ' } },
+  { name: 'Взрыв', level: 5, icon: 18, base: { desc: 'Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.', cost: 50, effect: damageEffect(2, 3, { perMagicPower: true }) }, basicCost: 40, advanced: { desc: 'Урон увеличивается до 2d6+4 за СМ', effect: damageEffect(2, 4, { perMagicPower: true }) }, expert: { desc: 'Урон увеличивается до 2d6+5 за СМ', effect: damageEffect(2, 5, { perMagicPower: true }) } },
 ];
 
 // --- Магия Воздуха, стр. 55-56 — 10 заклинаний ---
@@ -100,11 +126,13 @@ const AIR = [
   { name: 'Ускорение', level: 1, icon: 53, base: { desc: 'Выберите существо. Его Скорость увеличивается на 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Точность', level: 1, icon: 44, base: { desc: 'Выберите существо. Его Атака в дальнем бою увеличивается на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Атака в дальнем бою увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Удача', level: 1, icon: 51, base: { desc: 'Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.', cost: 12 }, basicCost: 4, advanced: { desc: 'Параметр удачи цели увеличивается на 2 до максимума в 3' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Молния', level: 2, icon: 17, base: { desc: 'Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.', cost: 24 }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 4d6+СМ' }, expert: { desc: 'Урон увеличивается до 5d6+СМ' } },
+  { name: 'Молния', level: 2, icon: 17, base: { desc: 'Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.', cost: 24, effect: damageEffect(3, 0, { plusMagicPower: true, element: 'lightning' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'lightning' }) }, expert: { desc: 'Урон увеличивается до 5d6+СМ', effect: damageEffect(5, 0, { plusMagicPower: true, element: 'lightning' }) } },
   { name: 'Разрушительный Луч', level: 2, icon: 47, base: { desc: 'Выбранное существо снижает свою Защиту на 3, до минимума 0. Длительность = СМ.', cost: 10 }, basicCost: 8, advanced: { desc: 'Снижает Защиту на 5, минимум 0' }, expert: { desc: 'Снижает Защиту на 7, минимум 0' } },
   { name: 'Воздушный Щит', level: 3, icon: 28, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.', cost: 12 }, basicCost: 10, advanced: { desc: 'Снижает получаемый урон в дальнем бою на 10, до минимума в 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Уничтожить Нежить', level: 3, icon: 25, base: { desc: 'Вся нежить в поле зрения получает урон, равный 2d6+СМ урона.', cost: 20 }, basicCost: 14, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } },
-  { name: 'Цепная Молния', level: 4, icon: 19, base: { desc: 'Выберите существо. Оно получает урон, равный 1d6 за каждый ваш СМ. Три других ближайших существа получают половину от этого урона, даже если это ваши союзники.', cost: 40 }, basicCost: 24, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ' }, expert: { desc: 'Воздействует на 4 дополнительных цели вместо 3' } },
+  // p. 56: «Три других ближайших существа получают половину от этого
+  // урона»; эксперт — «Воздействует на 4 дополнительных цели вместо 3».
+  { name: 'Цепная Молния', level: 4, icon: 19, base: { desc: 'Выберите существо. Оно получает урон, равный 1d6 за каждый ваш СМ. Три других ближайших существа получают половину от этого урона, даже если это ваши союзники.', cost: 40, effect: damageEffect(1, 0, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, basicCost: 24, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, expert: { desc: 'Воздействует на 4 дополнительных цели вместо 3', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 4, extraFactor: 0.5 } }) } },
   { name: 'Ответный Удар', level: 4, icon: 58, base: { desc: 'Выберите цель. Если она атакована, она атакует в ответ, один раз в раунд. Длительность = СМ.', cost: 24 }, basicCost: 20, advanced: { desc: 'Дает две дополнительные контратаки вместо одной' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Полет', level: 5, icon: 6, base: { desc: 'Выбранное существо приобретает свойство Полет. Длительность = СМ.', cost: 30 }, basicCost: 20, advanced: { desc: 'Цель также получает +3 к Скорости' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
 ];
@@ -114,7 +142,7 @@ const WATER = [
   { name: 'Благословение', level: 1, icon: 41, base: { desc: 'Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус урона увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Лечение', level: 1, icon: 37, base: { desc: 'Снимает с существа все негативные заклинания, и лечит его на 1d6+СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Лечит 2d6+СМ' }, expert: { desc: 'Лечит 3d6+СМ и может воздействовать на количество существ, равное СМ' } },
   { name: 'Развеивание Магии', level: 1, icon: 35, base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } },
-  { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } },
+  { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20, effect: damageEffect(2, 0, { plusMagicPower: true, element: 'ice' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true, element: 'ice' }) }, expert: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'ice' }) } },
   { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8 }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Забывчивость', level: 3, icon: 61, base: { desc: 'Выбранное существо при стрельбе совершает на одну атаку меньше, чем обычно. Если оно может стрелять лишь единожды, оно не может стрелять вообще. Длительность = СМ.', cost: 20 }, basicCost: 18, advanced: { desc: 'Существо теряет все стрелковые атаки' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   // BOOK DEFECT: Экспертный не усиливает эффект, а просто повторяет
@@ -134,7 +162,7 @@ const WATER = [
 // стихий — подтверждено независимой сверкой по бумажной книге).
 const FIRE = [
   { name: 'Жажда Крови', level: 1, icon: 43, base: { desc: 'Выбранное существо получает +3 к Атаке. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус к Атаке увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Урон снижается до 4, до минимума 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Урон снижается на 4, до минимума 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Слепота', level: 2, icon: 62, base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } },
   // BOOK DEFECT (пропуск издания, сверено по бумажной книге): у "Без
   // Навыка" в книге нет числа стоимости вообще. 15 — не книжное
@@ -158,7 +186,7 @@ const FIRE = [
 // навыка (rules.md §6.2/§11) — resolveSpellVariant() в rolls.mjs уже
 // сознательно резолвит их всегда в "Без Навыка", это не баг сборки.
 const UNIVERSAL = [
-  { name: 'Волшебная Стрела', level: 1, icon: 15, base: { desc: 'Наносит урон, равный 1d6+СМ выбранному существу.', cost: 10 }, basicCost: 8, advanced: { desc: 'Урон увеличивается до 2d6+СМ' }, expert: { desc: 'Урон увеличивается до 3d6+СМ' } },
+  { name: 'Волшебная Стрела', level: 1, icon: 15, base: { desc: 'Наносит урон, равный 1d6+СМ выбранному существу.', cost: 10, effect: damageEffect(1, 0, { plusMagicPower: true }) }, basicCost: 8, advanced: { desc: 'Урон увеличивается до 2d6+СМ', effect: damageEffect(2, 0, { plusMagicPower: true }) }, expert: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true }) } },
   { name: 'Призыв Элементаля', level: 5, icon: 66, base: { desc: 'Призывает Элементаля Огня, Воздуха, Земли или Воды. Он верно служит вам количество раундов, равное СМ, или пока не погибнет, а затем исчезает. Вы можете призвать одного Элементаля за раз. Стихия этого заклинания — это стихия выбранного элементаля.', cost: 50 }, basicCost: 40, advanced: { desc: 'Призванный элементаль получает +2 к атаке и урону, и его Очки Здоровья увеличены на 10' }, expert: { desc: 'Бонус к атаке и урон увеличиваются до +4, и его Очки Здоровья увеличены на 20' } },
 ];
 

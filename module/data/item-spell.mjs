@@ -28,9 +28,42 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       required: true, nullable: false, integer: true, initial: 24, min: 0,
     });
 
+    const int = (initial = 0) => new fields.NumberField({ required: true, nullable: false, integer: true, initial, min: 0 });
+
+    // rules.md §6.4: the variant's effect in structured form, read by
+    // castSpell (helpers/spell-effects.mjs). An empty `kind` is a spell
+    // still described by text only — it casts as before. Stage 1 fills
+    // `damage` for five spells; the other kinds and target modes are
+    // reserved for the later stages.
+    const effect = () => new fields.SchemaField({
+      kind: new fields.StringField({
+        required: true, blank: true, initial: '',
+        choices: ['damage', 'heal', 'modifier', 'dispel', 'resurrect', 'summon', 'utility'],
+      }),
+      targeting: new fields.SchemaField({
+        // single — one chosen target; chain — the chosen one, then the
+        // nearest to each previous; area / visible — later stages.
+        mode: new fields.StringField({ required: true, blank: true, initial: '', choices: ['single', 'chain', 'area', 'visible'] }),
+        // Экспертный «Работает на количество …, равное СМ» — later stages.
+        perMagicPowerTargets: new fields.BooleanField({ initial: false }),
+        extraTargets: int(),
+        extraFactor: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0, max: 1 }),
+      }),
+      // d6 count and flat bonus; `perMagicPower` — «X за СМ», rolled Сила
+      // Магии times; `addMagicPower` — «+ СМ» once.
+      dice: new fields.SchemaField({
+        count: int(),
+        flat: int(),
+        perMagicPower: new fields.BooleanField({ initial: false }),
+        addMagicPower: new fields.BooleanField({ initial: false }),
+      }),
+      element: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fire', 'ice', 'lightning'] }),
+    });
+
     const variant = () => new fields.SchemaField({
       description: new fields.StringField({ required: true, blank: true }),
       manaCost: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0, min: 0 }),
+      effect: effect(),
     });
 
     schema.variants = new fields.SchemaField({
