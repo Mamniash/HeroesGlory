@@ -49,7 +49,12 @@ import { buildEffectChanges } from './modifiers.mjs';
 import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
-import { tokensAdjacent, attackerTokenFor } from './grid.mjs';
+import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
+import {
+  SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
+  creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
+  resolveSpellResolution, canConfirmSpell,
+} from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
 
@@ -886,6 +891,17 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     return null;
   }
 
+  // §6.4, stage 1: a hero's damage spell picks its targets, rolls and waits
+  // for the GM's confirm. Creatures cast as before (p. 113: their spell
+  // damage is written in their abilities).
+  if (actor.type === 'hero') {
+    const effectVariants = await spellEffectVariants(spell);
+    const effect = effectVariants?.[variant]?.effect;
+    if (effect?.kind === 'damage') {
+      return castDamageSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
+  }
+
   const manaRemaining = actor.system.mana.value - manaCost;
   await actor.update({ 'system.mana.value': manaRemaining });
 
@@ -909,6 +925,356 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
   });
+}
+
+/** §6.4: the spell compendium, where a hero's spell item finds its effect. */
+const SPELLS_PACK = 'heroes-glory.spells';
+
+/**
+ * §6.4: a hero's spell item's structured effect — its own, else the entry
+ * at its `_stats.compendiumSource`, else the compendium entry of the same
+ * name (chooseSpellEffectVariants, spell-effects.mjs). Items copied before
+ * the effect field existed carry none of their own. When no compendium
+ * entry is found at all, a console warning — the cast works as before.
+ * @param {Item} spell
+ * @returns {Promise<object|null>}   `system.variants` with effects, or null
+ */
+async function spellEffectVariants(spell) {
+  const own = spell.system.variants;
+  if (hasSpellEffect(own)) return own;
+  const sourceUuid = spell._stats?.compendiumSource ?? null;
+  const sourceDoc = sourceUuid ? await fromUuid(sourceUuid).catch(() => null) : null;
+  let nameDoc = null;
+  if (!hasSpellEffect(sourceDoc?.system?.variants)) {
+    const pack = game.packs.get(SPELLS_PACK);
+    const entry = pack ? (await pack.getIndex()).find((e) => e.name === spell.name) : null;
+    nameDoc = entry ? await pack.getDocument(entry._id) : null;
+  }
+  const chosen = chooseSpellEffectVariants({
+    own, bySource: sourceDoc?.system?.variants ?? null, byName: nameDoc?.system?.variants ?? null,
+  });
+  if (!chosen && !sourceDoc && !nameDoc) {
+    console.warn(`heroes-glory | spell "${spell.name}": no compendium entry found (by compendiumSource or name) — cast without effects`);
+  }
+  return chosen?.variants ?? null;
+}
+
+/**
+ * Out of the fight for Цепная Молния's pool (rules.md §11): defeated or
+ * incapacitated.
+ * @param {Actor} actor
+ * @returns {boolean}
+ */
+function isDownForSpell(actor) {
+  return actor.statuses.has(CONFIG.specialStatusEffects.DEFEATED)
+    || actor.statuses.has(CONFIG.HEROES_GLORY.statusEffects.incapacitated);
+}
+
+/**
+ * One target of a damage spell, frozen at the cast: its immunity and its
+ * resistance roll (rules.md §11: a creature's «Сопротивление Магии», a
+ * hero's Помехи / Гном, rolled automatically), incapacitated or not, worn
+ * armor. Immune and incapacitated targets roll no resistance.
+ * @param {TokenDocument} tokenDoc
+ * @param {Item} spell
+ * @param {object} effect
+ * @param {number} factor   share of the damage (½ for the chain's extras)
+ * @returns {Promise<{entry: object, roll: Roll|null}>}
+ */
+async function spellTargetEntry(tokenDoc, spell, effect, factor) {
+  const target = tokenDoc.actor;
+  const system = target.system;
+  let immunity = null;
+  let resistThreshold = null;
+  let resistSource = null;
+  if (target.type === 'creature') {
+    const profile = creatureSpellProfile(system.specialSkills ?? []);
+    immunity = spellImmunity(profile, { element: effect.element, spellName: spell.name });
+    resistThreshold = profile.resistThreshold;
+    if (resistThreshold !== null) resistSource = 'creature';
+  } else {
+    const owned = target.items.filter((i) => i.type === 'skill')
+      .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+    const interferenceTier = highestSkillTier(owned, 'interference');
+    const gnome = system.race === 'gnome';
+    resistThreshold = heroSpellResistanceThreshold({ interferenceTier, gnome });
+    if (resistThreshold !== null) resistSource = interferenceTier ? 'interference' : 'gnome';
+  }
+  const incapacitated = target.statuses.has(CONFIG.HEROES_GLORY.statusEffects.incapacitated);
+
+  let roll = null;
+  let resistDie = null;
+  if (resistThreshold !== null && !immunity && !incapacitated) {
+    roll = new Roll('1d6');
+    await roll.evaluate();
+    resistDie = roll.dice[0].total;
+  }
+
+  const equippedArmor = target.items
+    .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
+    .map((i) => ({ name: i.name, level: i.system.level }));
+
+  return {
+    entry: {
+      tokenUuid: tokenDoc.uuid,
+      actorId: target.id,
+      name: target.name,
+      factor,
+      immunity,
+      resistThreshold,
+      resistSource,
+      resistDie,
+      incapacitated,
+      equippedArmor,
+    },
+    roll,
+  };
+}
+
+/**
+ * §6.4, stage 1: a hero's damage spell. One target (or none) from the
+ * user's targets; more than one, or a target past 24 cells (p. 32), refuses
+ * the cast before any Mana is spent. Цепная Молния adds the nearest
+ * creatures hop by hop, skipping the caster and anyone down (rules.md §11).
+ * The damage is rolled once, Волшебство included; nothing reaches the
+ * targets until the GM confirms (confirmSpellOutcome).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castDamageSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
+  const selected = [...game.user.targets];
+  if (selected.length > 1) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name }));
+    return null;
+  }
+  const targetDoc = selected[0]?.document ?? null;
+  const casterToken = targetDoc ? attackerTokenFor(actor, targetDoc) : null;
+  let rangeUnknown = false;
+  if (targetDoc) {
+    const cells = tokenDistanceCells(casterToken, targetDoc);
+    if (cells === null) {
+      rangeUnknown = true;
+    } else if (cells > SPELL_RANGE_CELLS) {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
+        spell: spell.name, target: targetDoc.actor?.name ?? targetDoc.name, cells, range: SPELL_RANGE_CELLS,
+      }));
+      return null;
+    }
+  }
+
+  // Цепная Молния: the chain's extra targets aren't limited by range.
+  let chainDocs = [];
+  const targeting = effect.targeting ?? {};
+  if (targetDoc && targeting.mode === 'chain' && targeting.extraTargets > 0) {
+    const pool = targetDoc.parent.tokens.filter((t) => t !== targetDoc && t.actor
+      && t !== casterToken && t.actor !== actor && !isDownForSpell(t.actor));
+    chainDocs = pickChainTargets({
+      first: targetDoc,
+      pool,
+      count: targeting.extraTargets,
+      distance: (a, b) => tokenDistanceCells(a, b) ?? Infinity,
+    });
+  }
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+
+  // One roll for the cast (rules.md §11), Волшебство on top.
+  const dice = spellDamageDice(effect.dice, actor.system.magicPower);
+  const formula = spellFormula(dice);
+  const spellRoll = new Roll(formula);
+  await spellRoll.evaluate();
+  const owned = actor.items.filter((i) => i.type === 'skill')
+    .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+  const sorceryTier = highestSkillTier(owned, 'sorcery');
+  const specialization = actor.system.specialization;
+  const sorcery = sorceryDice({
+    sorceryTier,
+    sorcerySpecialization: specialization?.type === 'skill' && specialization.key === 'sorcery',
+    spellLevel: spell.system.level,
+  });
+  const rolls = [spellRoll];
+  const extraRoll = async (count) => {
+    if (!count) return null;
+    const roll = new Roll(`${count}d6`);
+    await roll.evaluate();
+    rolls.push(roll);
+    return { count, total: roll.total };
+  };
+  const sorcerySkill = await extraRoll(sorcery.skill);
+  const sorcerySpecialization = await extraRoll(sorcery.specialization);
+  const total = spellRoll.total + (sorcerySkill?.total ?? 0) + (sorcerySpecialization?.total ?? 0);
+
+  const targets = [];
+  const targetDocs = targetDoc ? [[targetDoc, 1], ...chainDocs.map((doc) => [doc, targeting.extraFactor ?? 1])] : [];
+  for (const [doc, factor] of targetDocs) {
+    const { entry, roll } = await spellTargetEntry(doc, spell, effect, factor);
+    targets.push(entry);
+    if (roll) rolls.push(roll);
+  }
+
+  const flags = {
+    kind: 'spell',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    element: effect.element,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    formula,
+    spellTotal: spellRoll.total,
+    sorceryTier,
+    sorcerySkill,
+    sorcerySpecialization,
+    total,
+    rangeUnknown,
+    targets,
+    confirmed: false,
+  };
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    rolls,
+    flags: { [FLAG_SCOPE]: { spell: flags } },
+  });
+}
+
+/** Chat-card labels for a damage spell's immunity reasons. */
+const SPELL_IMMUNITY_LABELS = {
+  all: 'HEROES_GLORY.Roll.SpellImmunityAll',
+  element: 'HEROES_GLORY.Roll.SpellImmunityElement',
+  spell: 'HEROES_GLORY.Roll.SpellImmunitySpell',
+};
+
+/** Chat-card labels for who rolled against a spell. */
+const SPELL_RESIST_LABELS = {
+  creature: 'HEROES_GLORY.Roll.SpellResistCreature',
+  interference: 'HEROES_GLORY.Roll.SpellResistInterference',
+  gnome: 'HEROES_GLORY.Roll.SpellResistGnome',
+};
+
+/**
+ * The spell card's render context — the plain cast (no `targets`, no
+ * `total`) or a damage spell, whose target lines come from
+ * resolveSpellResolution, the same function the GM's confirm applies.
+ * @param {object} flags
+ * @returns {object}
+ */
+function buildSpellCardContext(flags) {
+  const i18n = game.i18n;
+  const context = {
+    casterName: flags.casterName,
+    spellName: flags.spellName,
+    schoolLabelKey: flags.school ? `HEROES_GLORY.School.${flags.school.charAt(0).toUpperCase()}${flags.school.slice(1)}` : null,
+    variantLabelKey: SPELL_VARIANT_LABELS[flags.variant],
+    description: flags.description,
+    manaCost: flags.manaCost,
+    manaRemaining: flags.manaRemaining,
+  };
+  if (flags.total === undefined) return context;
+
+  const results = resolveSpellResolution(flags);
+  const elementLabel = (element) => i18n.localize(`HEROES_GLORY.Roll.SpellElement.${element || 'none'}`);
+  context.damageSpell = true;
+  context.noTarget = !flags.targets.length;
+  context.rangeUnknown = flags.rangeUnknown;
+  context.canConfirm = canConfirmSpell(flags);
+  context.confirmed = !!flags.confirmed;
+  context.targetLines = flags.targets.map((target, index) => {
+    const result = results[index];
+    const done = flags.confirmed;
+    const notes = [];
+    if (target.factor < 1) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainHalf'));
+    if (target.resistDie != null) {
+      notes.push(i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
+        source: i18n.localize(SPELL_RESIST_LABELS[target.resistSource]),
+        die: target.resistDie,
+        need: target.resistThreshold,
+      }));
+    }
+    if (result.armorHalved) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellArmorHalf'));
+    let text;
+    if (result.outcome === 'kill') {
+      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellKillApplied' : 'HEROES_GLORY.Roll.SpellKillPending', { target: target.name });
+    } else if (result.outcome === 'immune') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellImmune', {
+        target: target.name,
+        reason: i18n.format(SPELL_IMMUNITY_LABELS[target.immunity], { element: elementLabel(flags.element) }),
+      });
+    } else if (result.outcome === 'resisted') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellResisted', { target: target.name });
+    } else {
+      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellDamageApplied' : 'HEROES_GLORY.Roll.SpellDamagePending', {
+        target: target.name, damage: result.damage,
+      });
+    }
+    return notes.length ? `${text} (${notes.join('; ')})` : text;
+  });
+  context.breakdown = [
+    i18n.format('HEROES_GLORY.Roll.SpellRollLine', { spell: flags.spellName, formula: flags.formula, total: flags.spellTotal }),
+  ];
+  if (flags.sorcerySkill) {
+    context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellSorcerySkillLine', {
+      tier: i18n.localize(CONFIG.HEROES_GLORY.skillTiers[flags.sorceryTier]),
+      count: flags.sorcerySkill.count,
+      total: flags.sorcerySkill.total,
+    }));
+  }
+  if (flags.sorcerySpecialization) {
+    context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellSorcerySpecLine', {
+      count: flags.sorcerySpecialization.count,
+      total: flags.sorcerySpecialization.total,
+    }));
+  }
+  context.totalLine = i18n.format('HEROES_GLORY.Roll.SpellTotalLine', { total: flags.total });
+  return context;
+}
+
+/**
+ * §6.4: the GM's confirm on a damage spell card — applies exactly what
+ * resolveSpellResolution says for each target: its damage (an update that
+ * incapacitates at 0, the same path as an attack), or death for a target
+ * that was already incapacitated (rules.md §11: a spell's damage is an
+ * attack). A target gone since the cast is reported and skipped. Guarded by
+ * the `confirmed` flag, as for attacks.
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage|void>}
+ */
+export async function confirmSpellOutcome(message) {
+  const flags = message.getFlag(FLAG_SCOPE, 'spell');
+  if (!canConfirmSpell(flags)) return;
+  const results = resolveSpellResolution(flags);
+  for (const [index, target] of flags.targets.entries()) {
+    const result = results[index];
+    const targetActor = actorFromCard(target.tokenUuid, target.actorId);
+    if (!targetActor) {
+      ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: target.name }));
+      continue;
+    }
+    if (result.outcome === 'kill') {
+      await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
+      await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    } else if (result.damage) {
+      await targetActor.update({ 'system.health.value': targetActor.system.health.value - result.damage });
+    }
+  }
+  const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
 }
 
 /**

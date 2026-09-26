@@ -1,5 +1,5 @@
 import { canRerollWithLuck, hadUnconfirmedAttackBefore } from './rolls.mjs';
-import { rerollLuckDie, confirmAttackOutcome, rollNextAttack } from './roll-actions.mjs';
+import { rerollLuckDie, confirmAttackOutcome, rollNextAttack, confirmSpellOutcome } from './roll-actions.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
 
@@ -60,6 +60,18 @@ export function activateChatListeners(message, html) {
       confirmButton.addEventListener('click', () => {
         confirmButton.disabled = true;
         confirmAttackOutcome(message);
+      });
+    }
+  }
+
+  // §6.4: a damage spell card's confirm — GM-only, like an attack's.
+  const spellConfirmButton = html.querySelector('[data-action="hg-confirm-spell"]');
+  if (spellConfirmButton) {
+    spellConfirmButton.hidden = !game.user.isGM;
+    if (game.user.isGM) {
+      spellConfirmButton.addEventListener('click', () => {
+        spellConfirmButton.disabled = true;
+        confirmSpellOutcome(message);
       });
     }
   }
