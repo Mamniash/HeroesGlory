@@ -92,18 +92,12 @@
       <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
         placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}" {{#unless editMode}}disabled{{/unless}}>
     </div>
-    {{!-- §2–§8: a hero not created yet shows «Создать» here outside edit
-      mode; a click (owner or GM) opens creation. No hover highlight — only
-      the pointer cursor. Edit mode keeps the GM's level picker. --}}
-    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--level{{#if canPickLevel}} hero-paperdoll__name-pick{{else if canOpenCreation}} hero-paperdoll__identity-block--create{{/if}}"
+    {{!-- §2–§8: a hero not created yet reads dimmed, like a blank
+      race/faction/class; its owner picks the level to create it. --}}
+    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--level{{#if canPickLevel}} hero-paperdoll__name-pick{{/if}}{{#if levelNotCreated}} hero-paperdoll__identity-block--empty{{/if}}"
       {{#if canPickLevel}}data-action="pickLevel" role="button" tabindex="0"
-      aria-label="{{localize 'HEROES_GLORY.Hero.LevelPickHint'}}"{{else if canOpenCreation}}data-action="openCreation" role="button" tabindex="0"
-      aria-label="{{localize 'HEROES_GLORY.Creation.CreateHint'}}"{{/if}}>
-      {{#if (and creationPending (not editMode))}}
-        <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Creation.Create'}}</span>
-      {{else}}
-        <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Hero.Level'}} <span class="hero-paperdoll__level-value">{{heroLevel}}</span></span>
-      {{/if}}
+      aria-label="{{localize 'HEROES_GLORY.Hero.LevelPickHint'}}"{{/if}}>
+      <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Hero.Level'}} <span class="hero-paperdoll__level-value">{{heroLevel}}</span></span>
     </div>
     {{!-- §2.4/§2.5: Раса, Фракция, Класс — in THIS order, matching the
       derivation direction (class comes from faction, so faction leads it).

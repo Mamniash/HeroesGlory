@@ -8,6 +8,7 @@ import {
   resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow, ARTIFACT_TABLE_ROWS,
   ARTIFACT_TYPE_BY_D6, startingWeaponSpecs, startingSpellbookGrant, isValidSpellChoice,
   isHeroCreated, missingIdentityFields, IDENTITY_FIELDS, pickFreeSlot, resolveCreationRollback,
+  isCreationLevelUp, creationResetExperience,
 } from '../module/helpers/hero-creation.mjs';
 import { WEAPON_EPIC_TABLES, MELEE_WEAPON_CATEGORIES } from '../module/helpers/weapon-epic-tables.mjs';
 import { raceGrantedItems } from '../module/helpers/race-granted-items.mjs';
@@ -157,13 +158,13 @@ describe('startingSpellbookGrant — p. 17 Книга Магии', () => {
 });
 
 describe('isHeroCreated — level 0 is "not created"', () => {
-  const hero = (over) => ({ level: 0, creation: { complete: false }, pendingCreation: null, ...over });
+  const hero = (over) => ({ level: 0, creation: { complete: false }, ...over });
 
   test('a new level-0 hero is not created', () => {
     assert.equal(isHeroCreated(hero()), false);
   });
 
-  test('a completed creation counts, at any level', () => {
+  test('a completed creation counts, at any level — also at 0 with the level-ups still banked', () => {
     assert.equal(isHeroCreated(hero({ creation: { complete: true } })), true);
     assert.equal(isHeroCreated(hero({ level: 3, creation: { complete: true } })), true);
   });
@@ -171,9 +172,35 @@ describe('isHeroCreated — level 0 is "not created"', () => {
   test('above level 0 without a completed creation: counts as created (older heroes)', () => {
     assert.equal(isHeroCreated(hero({ level: 2 })), true);
   });
+});
 
-  test('a creation in progress is not created, even after its level-ups raised the level', () => {
-    assert.equal(isHeroCreated(hero({ level: 1, pendingCreation: { step: 'levels' } })), false);
+describe('isCreationLevelUp — level-ups up to the level picked at creation', () => {
+  test('up to the picked level: creation', () => {
+    assert.equal(isCreationLevelUp({ complete: true, targetLevel: 3 }, 1), true);
+    assert.equal(isCreationLevelUp({ complete: true, targetLevel: 3 }, 3), true);
+  });
+
+  test('past it: ordinary, earned in play', () => {
+    assert.equal(isCreationLevelUp({ complete: true, targetLevel: 3 }, 4), false);
+  });
+
+  test('no creation (older heroes, or not created yet): never', () => {
+    assert.equal(isCreationLevelUp({ complete: false, targetLevel: 0 }, 1), false);
+    assert.equal(isCreationLevelUp({ complete: true, targetLevel: 0 }, 1), false);
+  });
+});
+
+describe('creationResetExperience — experience after «Сбросить создание»', () => {
+  test('nothing earned in play: back to the experience before creation', () => {
+    assert.equal(creationResetExperience({ experienceBefore: 0, experience: 150, targetThreshold: 150 }), 0);
+  });
+
+  test('experience earned past the picked level stays', () => {
+    assert.equal(creationResetExperience({ experienceBefore: 0, experience: 170, targetThreshold: 150 }), 20);
+  });
+
+  test('never below the experience before creation', () => {
+    assert.equal(creationResetExperience({ experienceBefore: 5, experience: 100, targetThreshold: 150 }), 5);
   });
 });
 

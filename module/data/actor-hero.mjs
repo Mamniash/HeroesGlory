@@ -108,40 +108,21 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       newCandidateSkillKey: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
     }, { required: true, nullable: true, initial: null });
 
-    // §2–§8, book pp. 16–18: an unfinished creation — the dice, persisted
-    // for the same reason as pendingLevelUp (closing and reopening the
-    // window must not reroll), and which step the window is on. `null`
-    // until the window first opens; cleared when creation completes.
-    // Shown in the level-up window (module/apps/level-up-app.mjs), steps in
-    // helpers/hero-creation-flow.mjs.
-    schema.pendingCreation = new fields.SchemaField({
-      // 'setup' — «Начальная настройка», nothing handed out yet;
-      // 'level' — setup handed out, the target level not chosen yet;
-      // 'levels' — the level-ups up to `targetLevel` are in progress.
-      step: new fields.StringField({ required: true, blank: false, initial: 'setup', choices: ['setup', 'level', 'levels'] }),
-      targetLevel: new fields.NumberField({ integer: true, required: true, nullable: true, initial: null, min: 1 }),
-      // d20 for the random second secondary skill (p. 16).
-      skillDie: new fields.NumberField({ ...requiredInteger, min: 1, max: 20 }),
-      // 2d6 for starting gold, ×10 (p. 18).
-      goldDice: new fields.ArrayField(new fields.NumberField({ ...requiredInteger, min: 1, max: 6 })),
-      // d6 for the artifact type, then the 2d6 row that stood after
-      // rerolling any 12 on a 2–11 table (p. 18).
-      artifactTypeDie: new fields.NumberField({ ...requiredInteger, min: 1, max: 6 }),
-      artifactRow: new fields.NumberField({ ...requiredInteger, min: 2, max: 12 }),
-      artifactRerolls: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
-    }, { required: true, nullable: true, initial: null });
-
-    // What creation handed out that isn't a flagged item, so «Сбросить
-    // создание» can take it back: the gold added, the base skill the random
-    // roll raised to advanced (p. 16 coincidence rule), and every level-up
-    // made inside creation (helpers/hero-creation.mjs's
-    // resolveCreationRollback reads this list). `complete` alone doesn't
-    // decide "created" — see isHeroCreated.
+    // §2–§8, book pp. 16–18: hero creation. Everything without a choice is
+    // handed out at once when the level picker first raises a hero not
+    // created yet (helpers/hero-creation-flow.mjs); this records what, so
+    // «Сбросить создание» can take it back: the gold added, the base skill
+    // the random roll raised to advanced (p. 16 coincidence rule), the
+    // experience before creation, the level picked, and every level-up made
+    // up to that level (helpers/hero-creation.mjs's resolveCreationRollback
+    // reads this list). `complete` alone doesn't decide "created" — see
+    // isHeroCreated.
     schema.creation = new fields.SchemaField({
       complete: new fields.BooleanField({ initial: false }),
       gold: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
       upgradedSkillKey: new fields.StringField({ required: true, blank: true, initial: "" }),
       experienceBefore: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
+      targetLevel: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
       levelUps: new fields.ArrayField(new fields.SchemaField({
         primarySkillKey: new fields.StringField({ required: true, blank: true, initial: "" }),
         healthAdded: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),

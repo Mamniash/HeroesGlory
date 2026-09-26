@@ -1,14 +1,15 @@
 /**
- * §2–§8, book pp. 16–18: the hero-creation steps, shown inside the level-up
- * window (module/apps/level-up-app.mjs): «Начальная настройка» → the target
- * level → the ordinary level-ups → complete. Everything the steps decide is
- * pure (helpers/hero-creation.mjs); this file rolls the dice, turns the
- * decisions into items/updates, and builds the screens' render context.
+ * §2–§8, book pp. 16–18: hero creation. A new hero sits at level 0 "not
+ * created"; the first time the level picker raises it, everything without a
+ * choice is handed out at once (grantCreation) and creation is complete.
+ * The level-ups up to the picked level then go through the ordinary
+ * level-up window and are recorded here (recordCreationLevelUp) for
+ * «Сбросить создание». What to hand out is decided by pure functions
+ * (helpers/hero-creation.mjs); this file rolls the dice and writes.
  *
- * State lives on the actor, never in the window: `system.pendingCreation`
- * (dice + step) until completion, `system.creation` (what was handed out,
- * for «Сбросить создание»). Closing the window at any step and reopening it
- * lands on the same step with the same dice.
+ * Not handed out — the player's own choice, added by hand from the
+ * compendiums: a shooter's ranged weapon, and the 1st-level spells of the
+ * starting Книга Магии (docs/rules.md §11).
  */
 import { concreteClassKey, statsForClass } from './class-stats.mjs';
 import { raceGrantedItems, CREATION_TIME_RACE_GRANTS } from './race-granted-items.mjs';
@@ -19,8 +20,8 @@ import { paperdollValidSlots } from './paperdoll-slots.mjs';
 import {
   CREATION_GRANT_FLAG, CLASS_BASE_SKILL_FLAG, ARTIFACT_TABLE_ROW_FLAG, ARTIFACT_TABLE_ROWS,
   STARTING_GOLD_MULTIPLIER, resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow,
-  startingWeaponSpecs, startingSpellbookGrant, isValidSpellChoice, missingIdentityFields,
-  pickFreeSlot, resolveCreationRollback,
+  startingWeaponSpecs, startingSpellbookGrant, missingIdentityFields, pickFreeSlot,
+  resolveCreationRollback, isCreationLevelUp, creationResetExperience,
 } from './hero-creation.mjs';
 import { WEAPON_EPIC_TABLES } from './weapon-epic-tables.mjs';
 
@@ -30,9 +31,6 @@ const ARTIFACTS_PACK = 'heroes-glory.artifacts';
 
 /** Safety cap on rerolling a 12 on a 2–11 artifact table. */
 const MAX_ARTIFACT_ROW_ROLLS = 50;
-
-/** The creation level picker's list: 0 (keep, the book's start, p. 21) up to 20 (the table's last row). */
-export const MAX_CREATION_LEVEL = 20;
 
 /**
  * Evaluates one Roll and returns its dice results.
@@ -46,7 +44,7 @@ async function rollDice(formula) {
 }
 
 /**
- * The foundry notification for a blank race/faction/class, or null when all
+ * The Foundry notification for a blank race/faction/class, or null when all
  * three are chosen.
  * @param {object} system
  * @returns {string|null}
@@ -59,12 +57,10 @@ export function missingIdentityMessage(system) {
 }
 
 /**
- * Rolls the creation dice once and stores them in `system.pendingCreation`;
- * a window reopened later reads the same dice.
- * @param {Actor} actor
+ * The creation dice (p. 16 second skill, p. 18 gold and artifact).
+ * @returns {Promise<{skillDie: number, goldDice: number[], artifactTypeDie: number, artifactRow: number, artifactRerolls: number}>}
  */
-export async function ensurePendingCreation(actor) {
-  if (actor._source.system.pendingCreation) return;
+async function rollCreationDice() {
   const [skillDie] = await rollDice('1d20');
   const goldDice = await rollDice('2d6');
   const [artifactTypeDie] = await rollDice('1d6');
@@ -76,19 +72,7 @@ export async function ensurePendingCreation(actor) {
     totals.push(a + b);
     pick = pickArtifactRow(totals, rowCount);
   }
-  await actor.update({
-    'system.pendingCreation': {
-      step: 'setup', targetLevel: null,
-      skillDie, goldDice, artifactTypeDie, artifactRow: pick.row, artifactRerolls: pick.rerolls,
-    },
-  });
-}
-
-/** 1st-level spells offered at creation (p. 17), by name. */
-async function firstLevelSpellNames() {
-  const pack = game.packs.get(SPELLS_PACK);
-  const index = await pack.getIndex({ fields: ['system.level'] });
-  return index.filter((e) => e.system?.level === 1).map((e) => e.name).sort((a, b) => a.localeCompare(b, 'ru'));
+  return { skillDie, goldDice, artifactTypeDie, artifactRow: pick.row, artifactRerolls: pick.rerolls };
 }
 
 /**
@@ -119,94 +103,8 @@ async function compendiumItemData(packId, id, kind) {
 }
 
 /**
- * Everything the setup step will hand out, decided purely from the actor
- * and the persisted dice — shared by the screen and by the apply, so what
- * is shown is what is granted.
- * @param {Actor} actor
- */
-async function resolveCreationPlan(actor) {
-  const system = actor.system;
-  const pending = system.pendingCreation;
-  const classKey = concreteClassKey(system.faction, system.classType);
-  const baseSkillKey = statsForClass(classKey)?.secondarySkillKey ?? null;
-  const skill = resolveStartingSecondarySkill({ die: pending.skillDie, faction: system.faction, baseSkillKey });
-  const skillAlreadyOwned = !skill.upgradesBase
-    && actor.items.some((i) => i.type === 'skill' && i.system.skillKey === skill.skillKey);
-
-  const spellbook = startingSpellbookGrant({ classKey, classType: system.classType, rolledSkillKey: skill.skillKey });
-  const ownsBook = actor.items.some((i) => i.type === 'spellbook');
-  // Джинн (p. 12): the spell depends on starting with a book at all —
-  // from the class, a rolled Мудрость, or already owned.
-  const raceItems = CREATION_TIME_RACE_GRANTS.has(system.race)
-    ? raceGrantedItems(system.race, system.raceSubchoice || null, { hasSpellbook: spellbook.book || ownsBook })
-    : [];
-
-  const artifactType = artifactTypeForDie(pending.artifactTypeDie);
-  const artifactEntry = await findArtifactEntry(artifactType, pending.artifactRow);
-
-  const goldSum = pending.goldDice.reduce((a, b) => a + b, 0);
-  return {
-    classKey, baseSkillKey, skill, skillAlreadyOwned, spellbook, ownsBook, raceItems,
-    artifactType, artifactEntry,
-    gold: goldSum * STARTING_GOLD_MULTIPLIER, goldSum,
-  };
-}
-
-/** Джинн's items as display text. */
-function describeRaceItems(raceItems) {
-  return raceItems.map((want) => (want.itemType === 'spellbook' ? 'Книга Магии' : `«${want.spellName}»`)).join(', ');
-}
-
-/**
- * Render context for «Начальная настройка».
- * @param {Actor} actor
- * @param {{archer: boolean, spells: string[]}} choices   The window's own state.
- */
-export async function buildCreationSetupContext(actor, choices) {
-  const config = CONFIG.HEROES_GLORY;
-  const pending = actor.system.pendingCreation;
-  const plan = await resolveCreationPlan(actor);
-  const offered = plan.spellbook.spellChoices ? await firstLevelSpellNames() : [];
-  const weapons = startingWeaponSpecs({ classType: actor.system.classType, archer: choices.archer })
-    .map((spec) => ({ name: game.i18n.localize(spec.nameKey), damage: spec.damage }));
-  return {
-    pending,
-    plan,
-    goldDiceText: pending.goldDice.join(' + '),
-    skillLabelKey: config.secondarySkills[plan.skill.skillKey],
-    baseSkillLabelKey: config.secondarySkills[plan.baseSkillKey],
-    spells: offered.map((name) => ({ name, checked: choices.spells.includes(name) })),
-    raceItems: describeRaceItems(plan.raceItems),
-    archer: choices.archer,
-    weapons,
-    artifactTypeLabelKey: config.artifactTypes[plan.artifactType],
-    artifactName: plan.artifactEntry?.name ?? null,
-    artifactBonus: plan.artifactEntry ? (await game.packs.get(ARTIFACTS_PACK).getDocument(plan.artifactEntry._id)).system.bonus : '',
-    canNext: !!plan.artifactEntry && choices.spells.length === plan.spellbook.spellChoices,
-  };
-}
-
-/**
- * Render context for the level picker.
- * @param {number} selectedLevel
- */
-export function buildCreationLevelContext(selectedLevel) {
-  const levels = [];
-  for (let level = 0; level <= MAX_CREATION_LEVEL; level++) {
-    levels.push({
-      level,
-      label: level === 0
-        ? game.i18n.localize('HEROES_GLORY.Creation.LevelKeep')
-        : game.i18n.format('HEROES_GLORY.Creation.LevelOption', { level, xp: experienceForLevel(level) }),
-      current: level === selectedLevel,
-    });
-  }
-  return { levels };
-}
-
-/**
  * Paperdoll placement for a granted item: its first free valid slot
- * (weapon → 1/16, book → 10, an artifact → its targetSlots), else the
+ * (weapon → 1, book → 10, an artifact → its targetSlots), else the
  * backpack. `occupied` collects the slots taken so far, this batch included.
  * @param {object} data       item data (type + system)
  * @param {Set<number>} occupied
@@ -218,30 +116,48 @@ function placeInPaperdoll(data, occupied) {
   return data;
 }
 
+/** Джинн's items as display text. */
+function describeRaceItems(raceItems) {
+  return raceItems.map((want) => (want.itemType === 'spellbook' ? 'Книга Магии' : `«${want.spellName}»`)).join(', ');
+}
+
 /**
- * «Далее» on «Начальная настройка»: hands out the second skill, the book
- * and the chosen spells, the weapon, the gold and the artifact, posts the
- * summary card and moves on to the level step. Every validation runs
- * before the first write, so a rejected apply changes nothing.
+ * Health and Mana to their maxima — read after the update that changed
+ * them (both maxima are derived).
  * @param {Actor} actor
- * @param {{archer: boolean, spells: string[]}} choices
- * @returns {Promise<boolean>} whether it was applied
  */
-export async function applyCreationSetup(actor, choices) {
+async function fillHealthAndMana(actor) {
+  await actor.update({
+    'system.health.value': actor.system.health.max,
+    'system.mana.value': actor.system.mana.max,
+  });
+}
+
+/**
+ * The level picker raised a hero not created yet: hand out everything
+ * without a choice, fill Health and Mana, mark creation complete, post the
+ * card, and set the experience to the picked level's threshold (the
+ * level-ups then go through the ordinary window). Called by the hero
+ * sheet's level picker instead of its plain experience write.
+ * @param {Actor} actor
+ * @param {number} targetLevel   ≥ 1
+ * @returns {Promise<boolean>} whether creation was applied
+ */
+export async function grantCreation(actor, targetLevel) {
   const system = actor.system;
-  if (system.pendingCreation?.step !== 'setup' || missingIdentityFields(system).length) return false;
-  const plan = await resolveCreationPlan(actor);
-  if (!plan.artifactEntry) {
+  if (system.creation.complete || missingIdentityFields(system).length) return false;
+
+  const dice = await rollCreationDice();
+  const classKey = concreteClassKey(system.faction, system.classType);
+  const baseSkillKey = statsForClass(classKey)?.secondarySkillKey ?? null;
+  const skill = resolveStartingSecondarySkill({ die: dice.skillDie, faction: system.faction, baseSkillKey });
+  const artifactType = artifactTypeForDie(dice.artifactTypeDie);
+  const artifactEntry = await findArtifactEntry(artifactType, dice.artifactRow);
+  if (!artifactEntry) {
     ui.notifications.error(game.i18n.localize('HEROES_GLORY.Creation.ArtifactMissing'));
     return false;
   }
-  const offered = await firstLevelSpellNames();
-  if (!isValidSpellChoice(choices.spells, plan.spellbook.spellChoices, offered)) {
-    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Creation.SpellChoiceInvalid', { count: plan.spellbook.spellChoices }));
-    return false;
-  }
 
-  const dice = foundry.utils.deepClone(actor._source.system.pendingCreation);
   const grant = (kind) => ({ [FLAG_SCOPE]: { [CREATION_GRANT_FLAG]: kind } });
   const occupied = new Set(actor.items
     .filter((i) => i.system.equipped && i.system.paperdollSlot != null)
@@ -250,59 +166,60 @@ export async function applyCreationSetup(actor, choices) {
 
   // p. 16: second skill — new at base tier, or the base skill raised.
   let upgradedSkillKey = '';
-  if (plan.skill.upgradesBase) {
-    const baseItem = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === plan.baseSkillKey);
+  if (skill.skillKey === baseSkillKey) {
+    const baseItem = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === baseSkillKey);
     if (baseItem) {
       if (baseItem.system.tier === 'base') {
         await baseItem.update({ 'system.tier': 'advanced' });
-        upgradedSkillKey = plan.baseSkillKey;
+        upgradedSkillKey = baseSkillKey;
       }
     } else {
-      await grantSecondarySkill(actor, plan.baseSkillKey, 'advanced', { flags: { [CLASS_BASE_SKILL_FLAG]: plan.baseSkillKey } });
-      upgradedSkillKey = plan.baseSkillKey;
+      await grantSecondarySkill(actor, baseSkillKey, 'advanced', { flags: { [CLASS_BASE_SKILL_FLAG]: baseSkillKey } });
+      upgradedSkillKey = baseSkillKey;
     }
-  } else if (!plan.skillAlreadyOwned) {
-    await grantSecondarySkill(actor, plan.skill.skillKey, 'base', { flags: { [CREATION_GRANT_FLAG]: 'skill' } });
+  } else if (!actor.items.some((i) => i.type === 'skill' && i.system.skillKey === skill.skillKey)) {
+    await grantSecondarySkill(actor, skill.skillKey, 'base', { flags: { [CREATION_GRANT_FLAG]: 'skill' } });
   }
 
-  // p. 17: Книга Магии (slot 10) and chosen spells. The item name is fixed
-  // Russian text, not a localized label — it is persisted (same as the
-  // race grant).
-  let hasBook = plan.ownsBook;
+  // p. 17: an empty Книга Магии in slot 10 for those who start with one —
+  // the spells are the player's choice. The item name is fixed Russian
+  // text, not a localized label — it is persisted (same as the race grant).
+  const spellbook = startingSpellbookGrant({ classKey, classType: system.classType, rolledSkillKey: skill.skillKey });
+  let hasBook = actor.items.some((i) => i.type === 'spellbook');
   const bookData = (kind) => placeInPaperdoll({ name: 'Книга Магии', type: 'spellbook', system: {}, flags: grant(kind) }, occupied);
-  if (plan.spellbook.book && !hasBook) {
+  if (spellbook.book && !hasBook) {
     itemData.push(bookData('spellbook'));
     hasBook = true;
   }
+
+  // p. 11: Джинн — no choice: a book and «Волшебная Стрела» without a
+  // starting book, «Молния» with one.
+  const raceItems = CREATION_TIME_RACE_GRANTS.has(system.race)
+    ? raceGrantedItems(system.race, system.raceSubchoice || null, { hasSpellbook: hasBook })
+    : [];
   const spellIndex = await game.packs.get(SPELLS_PACK).getIndex();
   const ownedSpellNames = new Set(actor.items.filter((i) => i.type === 'spell').map((i) => i.name));
-  const addSpell = async (name, kind) => {
-    if (ownedSpellNames.has(name)) return;
-    const entry = spellIndex.find((e) => e.name === name);
-    if (!entry) return;
-    ownedSpellNames.add(name);
-    itemData.push(await compendiumItemData(SPELLS_PACK, entry._id, kind));
-  };
-  for (const name of choices.spells) await addSpell(name, 'spell');
-
-  // p. 12: Джинн's grant, decided now that the starting book is known.
-  for (const want of plan.raceItems) {
+  for (const want of raceItems) {
     if (want.itemType === 'spellbook') {
       if (!hasBook) itemData.push(bookData('race'));
       hasBook = true;
-    } else {
-      await addSpell(want.spellName, 'race');
+    } else if (!ownedSpellNames.has(want.spellName)) {
+      const entry = spellIndex.find((e) => e.name === want.spellName);
+      if (entry) {
+        ownedSpellNames.add(want.spellName);
+        itemData.push(await compendiumItemData(SPELLS_PACK, entry._id, 'race'));
+      }
     }
   }
 
-  // p. 17: the ready-made starting weapon(s), damage by class.
-  const weapons = startingWeaponSpecs({ classType: system.classType, archer: choices.archer })
+  // p. 17: the standard starting weapon by class, slot 1.
+  const weapons = startingWeaponSpecs({ classType: system.classType, archer: false })
     .map((spec) => ({ ...spec, name: game.i18n.localize(spec.nameKey) }));
   for (const weapon of weapons) {
     itemData.push(placeInPaperdoll({
       name: weapon.name,
       type: 'weapon',
-      img: weapon.ranged ? 'icons/svg/target.svg' : 'icons/svg/sword.svg',
+      img: 'icons/svg/sword.svg',
       system: {
         weaponType: weapon.weaponType,
         damage: weapon.damage,
@@ -313,99 +230,65 @@ export async function applyCreationSetup(actor, choices) {
   }
 
   // p. 18: the random artifact — worn if its slot is free, else the backpack.
-  const artifactData = await compendiumItemData(ARTIFACTS_PACK, plan.artifactEntry._id, 'artifact');
-  itemData.push(placeInPaperdoll(artifactData, occupied));
+  itemData.push(placeInPaperdoll(await compendiumItemData(ARTIFACTS_PACK, artifactEntry._id, 'artifact'), occupied));
 
   await actor.createEmbeddedDocuments('Item', itemData);
+
+  const goldSum = dice.goldDice.reduce((a, b) => a + b, 0);
+  const gold = goldSum * STARTING_GOLD_MULTIPLIER;
   await actor.update({
-    'system.gold': actor._source.system.gold + plan.gold,
-    'system.pendingCreation.step': 'level',
+    'system.gold': actor._source.system.gold + gold,
+    'system.experience': Math.max(actor._source.system.experience, experienceForLevel(targetLevel)),
     'system.creation': {
-      complete: false, gold: plan.gold, upgradedSkillKey,
+      complete: true, gold, upgradedSkillKey, targetLevel,
       experienceBefore: actor._source.system.experience, levelUps: [],
     },
   });
+  await fillHealthAndMana(actor);
 
-  await postCreationCard(actor, dice, plan, choices.spells, weapons);
+  await postCreationCard(actor, {
+    dice, goldSum, gold, skill, baseSkillKey, book: spellbook.book,
+    raceItems, weapons, artifactType, artifactName: artifactEntry.name,
+  });
   return true;
 }
 
 /**
- * «Далее» on the level picker. 0 completes creation at once; N sets the
- * experience to level N's threshold (the same way the GM's level picker
- * raises a level) and starts the level-ups.
- * @param {Actor} actor
- * @param {number} targetLevel
- * @returns {Promise<'complete'|'levels'|null>}
- */
-export async function chooseCreationLevel(actor, targetLevel) {
-  const pending = actor._source.system.pendingCreation;
-  if (pending?.step !== 'level') return null;
-  if (!targetLevel) {
-    await completeCreation(actor);
-    return 'complete';
-  }
-  await actor.update({
-    'system.experience': Math.max(actor._source.system.experience, experienceForLevel(targetLevel)),
-    'system.pendingCreation.step': 'levels',
-    'system.pendingCreation.targetLevel': targetLevel,
-  });
-  return 'levels';
-}
-
-/**
- * After each level-up applied inside creation: record it for «Сбросить
- * создание» and complete creation once the target level is reached.
+ * After every applied level-up (level-up-app.mjs): a level-up up to the
+ * level picked at creation is recorded for «Сбросить создание», and Health
+ * and Mana are filled again. Anything past that level is ordinary.
  * @param {Actor} actor
  * @param {object} record   applyLevelUp's result
- * @returns {Promise<boolean>} whether creation just completed
  */
 export async function recordCreationLevelUp(actor, record) {
   const source = actor._source.system;
-  const levelUps = [...(source.creation.levelUps ?? []), record];
-  await actor.update({ 'system.creation.levelUps': levelUps });
-  if (source.level < (source.pendingCreation?.targetLevel ?? 0)) return false;
-  await completeCreation(actor);
-  return true;
+  if (!isCreationLevelUp(source.creation, source.level)) return;
+  await actor.update({ 'system.creation.levelUps': [...(source.creation.levelUps ?? []), record] });
+  await fillHealthAndMana(actor);
 }
 
 /**
- * Completion: Health and Mana full (after every +5 ОЗ from the level-ups
- * and the worn artifact), creation marked complete, the dice cleared.
- * @param {Actor} actor
- */
-async function completeCreation(actor) {
-  await actor.update({
-    'system.pendingCreation': null,
-    'system.pendingLevelUp': null,
-    'system.creation.complete': true,
-  });
-  await actor.update({
-    'system.health.value': actor.system.health.max,
-    'system.mana.value': actor.system.mana.max,
-  });
-}
-
-/**
- * The summary card — whispered to the hero's owners and the GM. No
+ * The creation card — whispered to the hero's owners and the GM. No
  * `rolls`: the dice are in the card text (same as the level-up cards).
  */
-async function postCreationCard(actor, pending, plan, spells, weapons) {
+async function postCreationCard(actor, { dice, goldSum, gold, skill, baseSkillKey, book, raceItems, weapons, artifactType, artifactName }) {
   const config = CONFIG.HEROES_GLORY;
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/hero-creation.hbs',
     {
       actorName: actor.name,
-      pending,
-      goldDiceText: pending.goldDice.join(' + '),
-      skillLabelKey: config.secondarySkills[plan.skill.skillKey],
-      baseSkillLabelKey: config.secondarySkills[plan.baseSkillKey],
-      plan,
-      spells: spells.join(', '),
-      raceItems: describeRaceItems(plan.raceItems),
+      dice,
+      goldDiceText: dice.goldDice.join(' + '),
+      goldSum,
+      gold,
+      skillLabelKey: config.secondarySkills[skill.skillKey],
+      upgradesBase: skill.skillKey === baseSkillKey,
+      baseSkillLabelKey: config.secondarySkills[baseSkillKey],
+      book,
+      raceItems: describeRaceItems(raceItems),
       weapons: weapons.map((w) => ({ name: w.name, damage: w.damage })),
-      artifactTypeLabelKey: config.artifactTypes[plan.artifactType],
-      artifactName: plan.artifactEntry?.name ?? '',
+      artifactTypeLabelKey: config.artifactTypes[artifactType],
+      artifactName,
     },
   );
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content, whisper: ownersAndGmIds(actor) });
@@ -414,8 +297,10 @@ async function postCreationCard(actor, pending, plan, spells, weapons) {
 /**
  * GM-only, after completion: take back everything creation handed out —
  * the flagged items, the gold (never below 0), the coincidence tier raise,
- * the level-ups made inside creation (resolveCreationRollback) — so the
- * level cell shows «Создать» again and the next creation rolls fresh dice.
+ * and the level-ups recorded up to the picked level (resolveCreationRollback).
+ * The level drops by those level-ups; the experience goes back to what it
+ * was before creation plus anything earned past the picked level's
+ * threshold. The hero is "not created" again when that leaves level 0.
  * @param {Actor} actor
  */
 export async function resetHeroCreation(actor) {
@@ -423,9 +308,6 @@ export async function resetHeroCreation(actor) {
   const source = actor._source.system;
   const creation = source.creation;
   if (!creation.complete) return;
-  // Only the levels creation itself raised come off — a creation completed
-  // before level-ups were recorded (or at level 0) keeps the hero's level
-  // and experience.
   const levelUps = creation.levelUps ?? [];
   const levelAfter = Math.max(0, source.level - levelUps.length);
   const confirmed = await foundry.applications.api.DialogV2.confirm({
@@ -455,13 +337,20 @@ export async function resetHeroCreation(actor) {
 
   const update = {
     'system.level': levelAfter,
-    'system.experience': levelUps.length ? creation.experienceBefore : source.experience,
+    'system.experience': creation.targetLevel
+      ? creationResetExperience({
+        experienceBefore: creation.experienceBefore,
+        experience: source.experience,
+        targetThreshold: experienceForLevel(creation.targetLevel),
+      })
+      : source.experience,
     'system.gold': Math.max(0, source.gold - creation.gold),
     'system.health.base': Math.max(0, source.health.base + rollback.healthDelta),
     'system.health.value': Math.max(0, source.health.value + rollback.healthDelta),
-    'system.pendingCreation': null,
     'system.pendingLevelUp': null,
-    'system.creation': { complete: false, gold: 0, upgradedSkillKey: '', experienceBefore: 0, levelUps: [] },
+    'system.creation': {
+      complete: false, gold: 0, upgradedSkillKey: '', experienceBefore: 0, targetLevel: 0, levelUps: [],
+    },
   };
   for (const [key, delta] of Object.entries(rollback.primaryDeltas)) {
     update[`system.${key}`] = Math.max(0, source[key] + delta);

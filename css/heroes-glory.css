@@ -1443,9 +1443,6 @@
 .heroes-glory .hero-paperdoll__name-pick:hover {
   text-decoration: underline;
 }
-.heroes-glory .hero-paperdoll__identity-block--create {
-  cursor: pointer;
-}
 .heroes-glory .hero-paperdoll__primary-row {
   display: flex;
   align-items: center;
@@ -2085,32 +2082,6 @@
 }
 .heroes-glory .hg-lvlup__confirm.hg-lvlup__slot--pressed {
   background-image: url("../assets/buttons/iok6432/iok6432_g00_f001.png");
-}
-.heroes-glory .window-content:has(.hg-creation) {
-  padding: 0;
-  overflow-y: auto;
-}
-.heroes-glory .hg-tooltip.hg-creation {
-  width: 100%;
-  max-width: none;
-}
-.heroes-glory .hg-creation__toggles {
-  margin-top: 4px;
-}
-.heroes-glory .hg-option-list.hg-creation__spells {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-height: none;
-  margin-top: 4px;
-}
-.heroes-glory .hg-creation__levels {
-  margin-top: 4px;
-}
-.heroes-glory .hg-creation__next {
-  width: 68px;
-  aspect-ratio: 2/1;
-  margin-top: 6px;
-  align-self: flex-end;
 }
 .heroes-glory .hero-spellbook {
   aspect-ratio: 600 / 473;

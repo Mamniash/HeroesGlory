@@ -9,11 +9,7 @@ import { resolveEffectivePanelColor } from '../helpers/panel-color.mjs';
 import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { PixelScaleController } from '../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../helpers/skill-grant.mjs';
-import { isHeroCreated } from '../helpers/hero-creation.mjs';
-import {
-  ensurePendingCreation, missingIdentityMessage, buildCreationSetupContext, buildCreationLevelContext,
-  applyCreationSetup, chooseCreationLevel, recordCreationLevelUp,
-} from '../helpers/hero-creation-flow.mjs';
+import { recordCreationLevelUp } from '../helpers/hero-creation-flow.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ApplicationV2 } = foundry.applications.api;
@@ -111,8 +107,8 @@ async function ensurePendingLevelUp(actor) {
  *   `resolveLevelUpChoiceSlots`'s outcomes produced it.
  * @returns {Promise<{primarySkillKey: string, healthAdded: number, grantedItemId: string|null,
  *   upgradedItemId: string|null, upgradedFromTier: string|null}|null>}
- *   What was applied (creation records it for «Сбросить создание»), or
- *   null when nothing was.
+ *   What was applied (hero creation records it for «Сбросить создание»),
+ *   or null when nothing was.
  */
 async function applyLevelUp(actor, selectedChoice) {
   const source = actor._source.system;
@@ -238,23 +234,11 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
       selectChoice: this.#onSelectChoice,
       pickUpgradeCandidate: this.#onPickUpgradeCandidate,
       confirm: this.#onConfirm,
-      creationToggleArcher: this.#onCreationToggleArcher,
-      creationToggleSpell: this.#onCreationToggleSpell,
-      creationPickLevel: this.#onCreationPickLevel,
-      creationNext: this.#onCreationNext,
     },
   };
 
-  // One part whose template picks the screen: the level-up canvas, or a
-  // hero-creation screen (§2–§8) — both registered as partials here.
   static PARTS = {
-    body: {
-      template: 'systems/heroes-glory/templates/apps/level-up-window.hbs',
-      templates: [
-        'systems/heroes-glory/templates/apps/level-up.hbs',
-        'systems/heroes-glory/templates/apps/hero-creation.hbs',
-      ],
-    },
+    body: { template: 'systems/heroes-glory/templates/apps/level-up.hbs' },
   };
 
   /** @type {Actor} */
@@ -291,13 +275,6 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
   #pixelScaleController = new PixelScaleController(REFERENCE_CANVAS_WIDTH_PX);
 
   /**
-   * §2–§8: the player's choices on the hero-creation screens — not rolls,
-   * so they live only in this window (the dice are on the actor).
-   * @type {{archer: boolean, spells: string[], level: number}}
-   */
-  #creationChoices = { archer: false, spells: [], level: 0 };
-
-  /**
    * @param {Actor} actor
    * @param {object} [options]
    */
@@ -312,29 +289,6 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
   }
 
   /**
-   * Which screen shows now, read from the actor: a hero-creation step
-   * (`setup`/`level`), or the level-up canvas (`levelup`) — ordinary, or
-   * inside creation (`pendingCreation.step === 'levels'`).
-   * @returns {'setup'|'level'|'levelup'}
-   */
-  get #screen() {
-    const step = this.#actor.system.pendingCreation?.step;
-    return step === 'setup' || step === 'level' ? step : 'levelup';
-  }
-
-  /** @override */
-  get title() {
-    const pending = this.#actor.system.pendingCreation;
-    if (!pending) return game.i18n.localize(this.options.window.title);
-    const title = game.i18n.localize('HEROES_GLORY.Creation.WindowTitle');
-    if (pending.step !== 'levels') return title;
-    const done = this.#actor.system.creation.levelUps?.length ?? 0;
-    return game.i18n.format('HEROES_GLORY.Creation.LevelUpProgress', {
-      title, index: done + 1, total: pending.targetLevel - (this.#actor.system.level - done),
-    });
-  }
-
-  /**
    * Open (or re-focus) the level-up window for `actor`. Rolls/validates
    * `system.pendingLevelUp` BEFORE constructing the window — mirrors the
    * in-sheet-overlay iteration's own open-time sequencing (roll first,
@@ -345,24 +299,12 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
    */
   static async open(actor) {
     if (!actor.isOwner) return;
-    // §2–§8: a hero not created yet goes through creation first — needs
-    // race, faction and class.
-    const creating = !isHeroCreated(actor.system);
-    if (creating) {
-      const missing = missingIdentityMessage(actor.system);
-      if (missing) {
-        ui.notifications.warn(missing);
-        return;
-      }
-    }
     const existing = openInstances.get(actor.uuid);
     if (existing?.rendered) {
       existing.bringToFront();
       return existing;
     }
-    if (creating) await ensurePendingCreation(actor);
-    const step = actor.system.pendingCreation?.step;
-    if (step !== 'setup' && step !== 'level') await ensurePendingLevelUp(actor);
+    await ensurePendingLevelUp(actor);
     const app = new HeroesGloryLevelUpApp(actor);
     openInstances.set(actor.uuid, app);
     return app.render(true);
@@ -371,18 +313,6 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    context.effectivePanelColor = resolveEffectivePanelColor(this.#actor.system);
-    const screen = this.#screen;
-    if (screen === 'setup') {
-      context.creationScreen = 'setup';
-      Object.assign(context, await buildCreationSetupContext(this.#actor, this.#creationChoices));
-      return context;
-    }
-    if (screen === 'level') {
-      context.creationScreen = 'level';
-      Object.assign(context, buildCreationLevelContext(this.#creationChoices.level));
-      return context;
-    }
     const pending = this.#actor.system.pendingLevelUp;
     if (pending) {
       // Resolved BEFORE building the render context (not after) so the
@@ -391,6 +321,7 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
       this.#selectedChoice = resolveInitialSelection(this.#actor, pending, this.#selectedChoice);
       Object.assign(context, buildLevelUpViewContext(this.#actor, pending, this.#selectedChoice));
     }
+    context.effectivePanelColor = resolveEffectivePanelColor(this.#actor.system);
     return context;
   }
 
@@ -571,90 +502,15 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
     target.classList.add('hg-lvlup__slot--pressed');
     target.disabled = true;
     await new Promise((resolve) => setTimeout(resolve, PRESS_HOLD_MS));
-    const inCreation = this.#actor.system.pendingCreation?.step === 'levels';
-    let keepOpen = false;
     try {
       const record = await applyLevelUp(this.#actor, this.#selectedChoice);
-      // §2–§8: inside creation the same window goes on to the next
-      // level-up until the target level, then creation completes.
-      if (inCreation && record && !(await recordCreationLevelUp(this.#actor, record))) {
-        await ensurePendingLevelUp(this.#actor);
-        this.#selectedChoice = null;
-        keepOpen = true;
-      }
+      if (record) await recordCreationLevelUp(this.#actor, record);
     } catch (err) {
       console.error('heroes-glory | level-up apply failed', err);
       ui.notifications.error(game.i18n.localize('HEROES_GLORY.LevelUp.ApplyError'));
     } finally {
-      if (keepOpen) await this.render({ window: { title: this.title } });
-      else await this.close();
+      await this.close();
     }
-  }
-
-  /**
-   * p. 17: a shooter takes a ranged weapon and a melee one — the player's
-   * own choice («Если ваш Герой — стрелок»), not a roll.
-   * @this {HeroesGloryLevelUpApp}
-   */
-  static #onCreationToggleArcher() {
-    this.#creationChoices.archer = !this.#creationChoices.archer;
-    return this.render();
-  }
-
-  /**
-   * p. 17: toggle a 1st-level spell; no more than the class allows.
-   * @this {HeroesGloryLevelUpApp}
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static async #onCreationToggleSpell(event, target) {
-    const name = target.dataset.spell;
-    const chosen = this.#creationChoices.spells;
-    if (chosen.includes(name)) {
-      this.#creationChoices.spells = chosen.filter((n) => n !== name);
-    } else {
-      const { plan } = await buildCreationSetupContext(this.#actor, this.#creationChoices);
-      if (chosen.length >= plan.spellbook.spellChoices) return;
-      this.#creationChoices.spells = [...chosen, name];
-    }
-    return this.render();
-  }
-
-  /**
-   * @this {HeroesGloryLevelUpApp}
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static #onCreationPickLevel(event, target) {
-    this.#creationChoices.level = Number(target.dataset.level);
-    return this.render();
-  }
-
-  /**
-   * «Далее» on a creation screen: hand out the setup, or take the chosen
-   * level (0 completes creation and closes the window).
-   * @this {HeroesGloryLevelUpApp}
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static async #onCreationNext(event, target) {
-    if (target.disabled) return;
-    target.classList.add('hg-lvlup__slot--pressed');
-    target.disabled = true;
-    await new Promise((resolve) => setTimeout(resolve, PRESS_HOLD_MS));
-    try {
-      if (this.#screen === 'setup') {
-        await applyCreationSetup(this.#actor, this.#creationChoices);
-      } else if (this.#screen === 'level') {
-        const result = await chooseCreationLevel(this.#actor, this.#creationChoices.level);
-        if (result === 'complete') return this.close();
-        if (result === 'levels') await ensurePendingLevelUp(this.#actor);
-      }
-    } catch (err) {
-      console.error('heroes-glory | hero creation step failed', err);
-      ui.notifications.error(game.i18n.localize('HEROES_GLORY.Creation.ApplyError'));
-    }
-    if (this.rendered) await this.render({ window: { title: this.title } });
   }
 }
 

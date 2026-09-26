@@ -107,17 +107,40 @@ export function startingWeaponSpecs({ classType, archer }) {
 
 /**
  * Whether the hero counts as created. A new hero sits at level 0 "not
- * created" until the creation window completes; a hero already above level
- * 0 without a completed creation (made before the window existed) counts
- * as created, with nothing handed out — unless a creation is in progress
- * (its level-ups raise the level before it completes).
- * @param {{level: number, creation: {complete: boolean}, pendingCreation: object|null}} system
+ * created" until the level picker first raises it (creation hands out
+ * everything then); a hero already above level 0 without a completed
+ * creation (made before creation existed) counts as created, with nothing
+ * handed out.
+ * @param {{level: number, creation: {complete: boolean}}} system
  * @returns {boolean}
  */
 export function isHeroCreated(system) {
-  if (system.creation?.complete) return true;
-  if (system.pendingCreation) return false;
-  return (system.level ?? 0) > 0;
+  return !!system.creation?.complete || (system.level ?? 0) > 0;
+}
+
+/**
+ * Whether a level-up just applied belongs to creation — one of the level-ups
+ * up to the level picked at creation, recorded for «Сбросить создание» and
+ * followed by full Health and Mana. Level-ups past that level, earned in
+ * play, are ordinary.
+ * @param {{complete: boolean, targetLevel: number}} creation
+ * @param {number} levelAfter   the hero's level after the level-up
+ * @returns {boolean}
+ */
+export function isCreationLevelUp(creation, levelAfter) {
+  return !!creation?.complete && levelAfter <= (creation.targetLevel ?? 0);
+}
+
+/**
+ * The experience «Сбросить создание» leaves: what the hero had before
+ * creation, plus whatever was earned past the picked level's threshold
+ * (creation set the experience to that threshold; anything above it came
+ * from play and stays).
+ * @param {{experienceBefore: number, experience: number, targetThreshold: number}} args
+ * @returns {number}
+ */
+export function creationResetExperience({ experienceBefore, experience, targetThreshold }) {
+  return experienceBefore + Math.max(0, experience - targetThreshold);
 }
 
 /** Identity fields creation needs, in the order the sheet shows them. */
