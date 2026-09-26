@@ -1,0 +1,9 @@
+{{!-- module/apps/level-up-app.mjs's PARTS.body: one part, one root element —
+  a hero-creation screen (§2–§8) while `creationScreen` is set, the level-up
+  canvas otherwise. Both are registered as partials by that part's own
+  `templates` list. --}}
+{{#if creationScreen}}
+  {{> "systems/heroes-glory/templates/apps/hero-creation.hbs"}}
+{{else}}
+  {{> "systems/heroes-glory/templates/apps/level-up.hbs"}}
+{{/if}}

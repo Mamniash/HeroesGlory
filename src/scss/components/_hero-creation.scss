@@ -1,81 +1,42 @@
-// Hero-creation window (module/apps/hero-creation-app.mjs) — a plain
-// Foundry form, no paperdoll art.
+// §2–§8: the hero-creation screens inside the level-up window
+// (templates/apps/hero-creation.hbs). Frame, fill, blocks, option rows and
+// the OK button all come from _tooltip.scss / _lvlup.scss — only the size
+// and layout of this screen live here.
 
-// Foundry caps the window at the viewport height; scroll the rest so the
-// apply button stays reachable on short screens. `.heroes-glory` and
-// `.hg-creation-app` sit on the same element, hence @at-root.
-@at-root .hg-creation-app .window-content {
+// Same flush-to-the-window trick as `.hg-lvlup`/`.hg-picker`; scrolls if a
+// short screen can't fit the setup screen.
+.window-content:has(.hg-creation) {
+  padding: 0;
   overflow-y: auto;
 }
-.hg-creation {
-  display: flex;
-  flex-direction: column;
-  gap: $padding-md;
-  padding: $padding-sm;
 
-  p {
-    margin: 0 0 $padding-sm;
-  }
+// The level-up window has a fixed width (488); the card fills it instead of
+// shrink-wrapping to `.hg-tooltip`'s own 318px cap.
+.hg-tooltip.hg-creation {
+  width: 100%;
+  max-width: none;
+}
 
-  &__section {
-    border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.2));
-    padding-bottom: $padding-sm;
-  }
+.hg-creation__toggles {
+  margin-top: 4px;
+}
 
-  &__heading {
-    margin: 0 0 $padding-sm;
-    font-size: 1.1em;
-    font-weight: bold;
-    border: none;
-  }
+// 1st-level spells, two columns — the list is short (13), no scrolling.
+.hg-option-list.hg-creation__spells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-height: none;
+  margin-top: 4px;
+}
 
-  &__muted {
-    opacity: 0.75;
-    font-style: italic;
-  }
+.hg-creation__levels {
+  margin-top: 4px;
+}
 
-  &__warning {
-    color: var(--color-level-error, #c33);
-  }
-
-  &__spells {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px $padding-md;
-  }
-
-  &__spell,
-  &__row {
-    display: flex;
-    align-items: center;
-    gap: $padding-sm;
-  }
-
-  &__row {
-    margin-bottom: $padding-sm;
-
-    > span {
-      flex: 0 0 110px;
-    }
-
-    > input[type="text"],
-    > select {
-      flex: 1 1 auto;
-    }
-  }
-
-  &__weapon {
-    margin: 0 0 $padding-sm;
-    padding: $padding-sm $padding-md;
-  }
-
-  &__footer {
-    display: flex;
-    justify-content: flex-end;
-
-    button {
-      flex: 0 0 auto;
-      min-width: 140px;
-    }
-  }
+// The level-up window's OK button (iok6432), sized like `.hg-tooltip__ok`.
+.hg-creation__next {
+  width: 68px;
+  aspect-ratio: 2 / 1;
+  margin-top: 6px;
+  align-self: flex-end;
 }

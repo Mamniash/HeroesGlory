@@ -4,10 +4,8 @@ import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
 import { findSpellVariant, castSpell, spellLevelGate, wisdomRequiredKey, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
-import {
-  HeroesGloryCreationApp, resetHeroCreation, creationGrantedItemNames,
-} from '../../apps/hero-creation-app.mjs';
-import { CLASS_BASE_SKILL_FLAG } from '../../helpers/hero-creation.mjs';
+import { resetHeroCreation, creationGrantedItemNames } from '../../helpers/hero-creation-flow.mjs';
+import { CLASS_BASE_SKILL_FLAG, isHeroCreated } from '../../helpers/hero-creation.mjs';
 import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
 } from '../../helpers/skill-icons.mjs';
@@ -159,7 +157,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       pickLevel: this.#onPickLevel,
       pickSpecialization: this.#onPickSpecialization,
       unsetSpecialization: this.#onUnsetSpecialization,
-      openHeroCreation: this.#onOpenHeroCreation,
+      openCreation: this.#onOpenCreation,
       restHero: this.#onRestHero,
       awardExperience: this.#onAwardExperience,
       resetHeroCreation: this.#onResetHeroCreation,
@@ -189,16 +187,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       visible: this.#canEdit,
       action: 'pickPanelColor',
     });
-    // §2–§8, book pp. 16–18: the hero-creation window — for the owner
-    // while creation isn't complete; the paperdoll itself has no free
-    // spot for another button, so it lives here with Цвет панели. `visible`
+    // §2–§8: creation itself opens from the level cell («Создать»); only
+    // its GM-side reset lives here, once creation is complete. `visible`
     // is a function: the menu re-reads it on every open.
-    controls.push({
-      icon: 'fa-solid fa-dice',
-      label: 'HEROES_GLORY.Creation.Open',
-      visible: () => this.actor.isOwner && !this.actor.system.creation.complete,
-      action: 'openHeroCreation',
-    });
     controls.push({
       icon: 'fa-solid fa-rotate-left',
       label: 'HEROES_GLORY.Creation.Reset',
@@ -524,7 +515,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // §4.2: gates the "Опыт" label's clickable/highlighted level-up
     // affordance (templates/actor/actor-hero-sheet.hbs) — <= 0, not === 0,
     // since a banked multi-level jump in Опыт still counts as available.
-    context.canLevelUp = context.experienceToNext <= 0;
+    // §2–§8: a hero not created yet has one path — «Создать» in the level
+    // cell (the creation window runs its level-ups itself).
+    context.creationPending = !isHeroCreated(system);
+    context.canLevelUp = context.experienceToNext <= 0 && !context.creationPending;
     // §task: direct level-set picker — edit-mode only, unconditionally (no
     // "blank field, any owner" exception the way #canPickIdentity gives
     // race/faction/classType: level already starts at a real value, 0, not
@@ -532,6 +526,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // creation step). See #buildLevelConfirmScreen's own comment for what
     // picking a level actually does.
     context.canPickLevel = this.#canEdit;
+    // §2–§8: outside edit mode, a hero not created yet shows «Создать» in
+    // the level cell instead of «Уровень N»; a click (owner or GM) opens
+    // creation. No highlight — the label is the whole affordance.
+    context.canOpenCreation = context.creationPending && !this.#canEdit && this.actor.isOwner;
 
     // §5.8: a click on the Боевой дух icon rolls the test this user may
     // roll right now (extra turn — owner; skip turn — GM); with none
@@ -1398,6 +1396,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @param {HTMLElement} target
    */
   static #onPickClassType(event, target) {
+    // §2.5: the concrete class needs the faction — a click on the locked
+    // class block says what to pick first.
+    if (!this.actor.system.faction) {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Creation.MissingIdentity', {
+        fields: game.i18n.localize('HEROES_GLORY.Creation.MissingField.faction'),
+      }));
+      return;
+    }
     if (!this.#canPickIdentity.classType) return;
     const config = CONFIG.HEROES_GLORY;
     const faction = this.actor.system.faction;
@@ -1531,11 +1537,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * §2–§8: header-control actions for hero creation (apps/hero-creation-app.mjs).
+   * §2–§8: «Создать» in the level cell — the level-up window opens on its
+   * hero-creation screens (it checks race/faction/class itself and says
+   * what's missing). The reset below is a header control.
    * @this {HeroesGloryHeroSheet}
    */
-  static #onOpenHeroCreation(event, target) {
-    return HeroesGloryCreationApp.open(this.actor);
+  static #onOpenCreation(event, target) {
+    return HeroesGloryLevelUpApp.open(this.actor);
   }
 
   static #onResetHeroCreation(event, target) {

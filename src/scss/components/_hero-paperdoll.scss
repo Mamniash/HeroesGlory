@@ -917,6 +917,12 @@ $hg-debug-identity-zone: false;
   }
 }
 
+// §2–§8: «Создать» in the level cell — clickable, deliberately without
+// name-pick's hover underline (no highlight on this cell).
+.hero-paperdoll__identity-block--create {
+  cursor: pointer;
+}
+
 .hero-paperdoll__primary-row {
   display: flex;
   align-items: center;

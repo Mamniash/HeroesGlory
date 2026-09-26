@@ -92,10 +92,18 @@
       <input class="hero-paperdoll__name-input" type="text" name="name" value="{{actor.name}}"
         placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}" {{#unless editMode}}disabled{{/unless}}>
     </div>
-    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--level{{#if canPickLevel}} hero-paperdoll__name-pick{{/if}}"
+    {{!-- §2–§8: a hero not created yet shows «Создать» here outside edit
+      mode; a click (owner or GM) opens creation. No hover highlight — only
+      the pointer cursor. Edit mode keeps the GM's level picker. --}}
+    <div class="hero-paperdoll__identity-block hero-paperdoll__identity-block--level{{#if canPickLevel}} hero-paperdoll__name-pick{{else if canOpenCreation}} hero-paperdoll__identity-block--create{{/if}}"
       {{#if canPickLevel}}data-action="pickLevel" role="button" tabindex="0"
-      aria-label="{{localize 'HEROES_GLORY.Hero.LevelPickHint'}}"{{/if}}>
-      <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Hero.Level'}} <span class="hero-paperdoll__level-value">{{heroLevel}}</span></span>
+      aria-label="{{localize 'HEROES_GLORY.Hero.LevelPickHint'}}"{{else if canOpenCreation}}data-action="openCreation" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Creation.CreateHint'}}"{{/if}}>
+      {{#if (and creationPending (not editMode))}}
+        <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Creation.Create'}}</span>
+      {{else}}
+        <span class="hero-paperdoll__level">{{localize 'HEROES_GLORY.Hero.Level'}} <span class="hero-paperdoll__level-value">{{heroLevel}}</span></span>
+      {{/if}}
     </div>
     {{!-- §2.4/§2.5: Раса, Фракция, Класс — in THIS order, matching the
       derivation direction (class comes from faction, so faction leads it).
@@ -112,7 +120,7 @@
       aria-label="{{localize 'HEROES_GLORY.Hero.FactionPickHint'}}"{{/if}}>{{#if factionLabel}}{{localize factionLabel}}{{else}}{{localize 'HEROES_GLORY.Hero.Faction'}}{{/if}}</span>
     <span class="hero-paperdoll__identity-block hero-paperdoll__identity-block--class{{#if canPickIdentity.classType}} hero-paperdoll__name-pick{{/if}}{{#unless classLabel}} hero-paperdoll__identity-block--empty{{/unless}}{{#if classLocked}} hero-paperdoll__identity-block--locked{{/if}}"
       {{#if canPickIdentity.classType}}data-action="pickClassType" role="button" tabindex="0"
-      aria-label="{{localize 'HEROES_GLORY.Hero.ClassPickHint'}}"{{/if}}
+      aria-label="{{localize 'HEROES_GLORY.Hero.ClassPickHint'}}"{{else if classLocked}}data-action="pickClassType"{{/if}}
       {{#if classLocked}}aria-disabled="true" data-tooltip-trigger="class-locked"{{/if}}>{{#if classLabel}}{{localize identityClassLabel}}{{else}}{{localize 'HEROES_GLORY.Hero.Class'}}{{/if}}</span>
   </div>
 

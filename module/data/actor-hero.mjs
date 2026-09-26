@@ -108,11 +108,18 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       newCandidateSkillKey: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
     }, { required: true, nullable: true, initial: null });
 
-    // §2–§8, book pp. 16–18: the hero-creation dice, persisted for the same
-    // reason as pendingLevelUp — closing and reopening the creation window
-    // (module/apps/hero-creation-app.mjs) must not reroll. `null` until the
-    // window first opens; cleared when creation is applied.
+    // §2–§8, book pp. 16–18: an unfinished creation — the dice, persisted
+    // for the same reason as pendingLevelUp (closing and reopening the
+    // window must not reroll), and which step the window is on. `null`
+    // until the window first opens; cleared when creation completes.
+    // Shown in the level-up window (module/apps/level-up-app.mjs), steps in
+    // helpers/hero-creation-flow.mjs.
     schema.pendingCreation = new fields.SchemaField({
+      // 'setup' — «Начальная настройка», nothing handed out yet;
+      // 'level' — setup handed out, the target level not chosen yet;
+      // 'levels' — the level-ups up to `targetLevel` are in progress.
+      step: new fields.StringField({ required: true, blank: false, initial: 'setup', choices: ['setup', 'level', 'levels'] }),
+      targetLevel: new fields.NumberField({ integer: true, required: true, nullable: true, initial: null, min: 1 }),
       // d20 for the random second secondary skill (p. 16).
       skillDie: new fields.NumberField({ ...requiredInteger, min: 1, max: 20 }),
       // 2d6 for starting gold, ×10 (p. 18).
@@ -124,13 +131,24 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       artifactRerolls: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
     }, { required: true, nullable: true, initial: null });
 
-    // What creation handed out that isn't an item, so «Сбросить создание»
-    // can take it back: the gold added, and the base skill the random roll
-    // raised to advanced (p. 16 coincidence rule), if any.
+    // What creation handed out that isn't a flagged item, so «Сбросить
+    // создание» can take it back: the gold added, the base skill the random
+    // roll raised to advanced (p. 16 coincidence rule), and every level-up
+    // made inside creation (helpers/hero-creation.mjs's
+    // resolveCreationRollback reads this list). `complete` alone doesn't
+    // decide "created" — see isHeroCreated.
     schema.creation = new fields.SchemaField({
       complete: new fields.BooleanField({ initial: false }),
       gold: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
       upgradedSkillKey: new fields.StringField({ required: true, blank: true, initial: "" }),
+      experienceBefore: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
+      levelUps: new fields.ArrayField(new fields.SchemaField({
+        primarySkillKey: new fields.StringField({ required: true, blank: true, initial: "" }),
+        healthAdded: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
+        grantedItemId: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
+        upgradedItemId: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
+        upgradedFromTier: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
+      })),
     });
 
     // §4.3 p.23: specialization from level 10 (requires Expert tier in a
