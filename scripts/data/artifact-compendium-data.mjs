@@ -89,7 +89,7 @@ const ENCHANTED_WEAPONS = [
   },
   {
     name: 'Гладиус титана', bonus: '+2 к Атаке, но -3 к Защите', damage: 60,
-    weaponType: 'slashing', twoHanded: false, modifiers: [mod('attack', 'add', 2), mod('defense', 'subtract', 3)],
+    weaponType: 'slashing', twoHanded: false, modifiers: [mod('attack', 'add', 2), mod('defense', 'add', -3)],
   },
 ];
 
@@ -108,6 +108,17 @@ const HEAD_SLOT = 3;
 const TORSO_SLOT = 5;
 const LEG_SLOT = 9;
 const SHIELD_SLOT = 6;
+// Ожерелья, одежда, волшебные предметы (стр. 49–51) — слоты не из книги,
+// а наша трактовка (docs/rules.md §11, «Куда надевается артефакт»): по типу
+// книги, названию и слоту того же артефакта в HOMM3 (ARTRAITS.TXT). Книга,
+// стр. 18: «надеть несколько амулетов или колец — допустимо. Надеть шляпу
+// поверх шлема — нет» — отсюда ожерелья ещё и в «прочее» (11–15), а шляпы
+// и короны — в тот же слот головы, что и шлемы.
+const NECK_SLOT = 4;
+const CLOAK_SLOT = 8;
+const RING_SLOTS = [2, 7];
+const MISC_SLOTS = [11, 12, 13, 14, 15];
+const AMULET_SLOTS = [NECK_SLOT, ...MISC_SLOTS];
 
 const ENCHANTED_ARMOR = [
   { name: 'Нагрудник из окаменелого дерева', bonus: '+1 к Силе магии', level: 1, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 1)] },
@@ -118,7 +129,7 @@ const ENCHANTED_ARMOR = [
   { name: 'Шлем адской ярости', bonus: '+5 к Знанию', level: 3, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 5)] },
   { name: 'Кольчуга великого василиска', bonus: '+3 к Силе магии', level: 3, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 3)] },
   { name: 'Туника короля циклопов', bonus: '+4 к Силе магии', level: 4, targetSlots: [TORSO_SLOT], modifiers: [mod('magicPower', 'add', 4)] },
-  { name: 'Шлем небесного грома', bonus: '+10 к Знанию, но -2 к Силе магии', level: 4, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 10), mod('magicPower', 'subtract', 2)] },
+  { name: 'Шлем небесного грома', bonus: '+10 к Знанию, но -2 к Силе магии', level: 4, targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 10), mod('magicPower', 'add', -2)] },
   { name: 'Доспех из чешуи дракона', bonus: '+4 к Атаке и защите', level: 5, targetSlots: [TORSO_SLOT], modifiers: [mod('attack', 'add', 4), mod('defense', 'add', 4)] },
 ];
 
@@ -151,14 +162,14 @@ const PLAIN_ARMOR = [1, 2, 3, 4, 5].map((level) => ({
 const ENCHANTED_SHIELDS = [
   { name: 'Щит стражника королевы', bonus: '+1 к Защите, +1 к Атаке', modifiers: [mod('defense', 'add', 1), mod('attack', 'add', 1)] },
   { name: 'Щит полурослика', bonus: '+1 к Защите, +1 к Удаче', modifiers: [mod('defense', 'add', 1), mod('luck', 'add', 1)] },
-  { name: 'Щит короля гномов', bonus: '+3 к Защите, -1 к Скорости', modifiers: [mod('defense', 'add', 3), mod('speed', 'subtract', 1)] },
-  { name: 'Щит короля гноллов', bonus: '+4 к Защите, -1 к Силе Магии', modifiers: [mod('defense', 'add', 4), mod('magicPower', 'subtract', 1)] },
+  { name: 'Щит короля гномов', bonus: '+3 к Защите, -1 к Скорости', modifiers: [mod('defense', 'add', 3), mod('speed', 'add', -1)] },
+  { name: 'Щит короля гноллов', bonus: '+4 к Защите, -1 к Силе Магии', modifiers: [mod('defense', 'add', 4), mod('magicPower', 'add', -1)] },
   { name: 'Щит яростного огра', bonus: '+5 к Защите, +2 к Атаке', modifiers: [mod('defense', 'add', 5), mod('attack', 'add', 2)] },
   { name: 'Щит проклятых', bonus: '+6 к Защите, +10 Маны', modifiers: [mod('defense', 'add', 6), mod('mana.max', 'add', 10)] },
   { name: 'Щит короля минотавров', bonus: '+6 к Защите, +1 Боевой дух', modifiers: [mod('defense', 'add', 6), mod('morale', 'add', 1)] },
   { name: 'Щит морской славы', bonus: '+7 к Защите', modifiers: [mod('defense', 'add', 7)] },
   { name: 'Щит из чешуи дракона', bonus: '+4 к Атаке и Защите', modifiers: [mod('attack', 'add', 4), mod('defense', 'add', 4)] },
-  { name: 'Щит часового', bonus: '+12 к Защите, но -3 к Атаке', modifiers: [mod('defense', 'add', 12), mod('attack', 'subtract', 3)] },
+  { name: 'Щит часового', bonus: '+12 к Защите, но -3 к Атаке', modifiers: [mod('defense', 'add', 12), mod('attack', 'add', -3)] },
 ].map((entry) => ({ ...entry, targetSlots: [SHIELD_SLOT] }));
 
 // Обычный (незачарованный) щит — та же логика, что и PLAIN_ARMOR выше:
@@ -188,42 +199,42 @@ const NECKLACES = [
   { name: 'Руны неизбежности', bonus: '-1 ед. удачи у противника (на начало боя). Перебросьте любой бросок противника по вашему выбору', modifiers: [] },
   // TEXT_ONLY_NOTE: реген по факту нанесения урона — процедурный триггер, не статический бонус.
   { name: 'Кулон вампира', bonus: 'Восстанавливает 1 ед. здоровья за каждый факт нанесения урона', modifiers: [] },
-];
+].map((entry) => ({ ...entry, targetSlots: AMULET_SLOTS }));
 
 // --- Волшебная одежда, стр. 50 — 10 записей (2-11), без колонки "Тип" ---
 const MAGIC_CLOTHING = [
-  { name: 'Колпак мастера-гремлина', bonus: '+1 к Силе магии', modifiers: [mod('magicPower', 'add', 1)] },
-  { name: 'Корона верховного мага', bonus: '+4 к Знанию', modifiers: [mod('knowledge', 'add', 4)] },
-  { name: 'Корона из зубов дракона', bonus: '+4 к Знанию и силе магии', modifiers: [mod('knowledge', 'add', 4), mod('magicPower', 'add', 4)] },
+  { name: 'Колпак мастера-гремлина', bonus: '+1 к Силе магии', targetSlots: [HEAD_SLOT], modifiers: [mod('magicPower', 'add', 1)] },
+  { name: 'Корона верховного мага', bonus: '+4 к Знанию', targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 4)] },
+  { name: 'Корона из зубов дракона', bonus: '+4 к Знанию и силе магии', targetSlots: [HEAD_SLOT], modifiers: [mod('knowledge', 'add', 4), mod('magicPower', 'add', 4)] },
   // TEXT_ONLY_NOTE: длительность заклинаний — нет такого поля.
-  { name: 'Магическая накидка', bonus: 'Увеличивает продолжительность действия заклятий героя на 3 хода', modifiers: [] },
-  { name: 'Сандалии святого', bonus: '+2 ко всем характеристикам', modifiers: allStats('add', 2) },
-  { name: 'Накидка скорости', bonus: 'Увеличивают скорость Героя на 1', modifiers: [mod('speed', 'add', 1)] },
-  { name: 'Магические доспехи', bonus: '+1 ко всем характеристикам', modifiers: allStats('add', 1) },
-  { name: 'Сапоги-скороходы', bonus: 'Увеличивают скорость Героя на 2', modifiers: [mod('speed', 'add', 2)] },
+  { name: 'Магическая накидка', bonus: 'Увеличивает продолжительность действия заклятий героя на 3 хода', targetSlots: [CLOAK_SLOT], modifiers: [] },
+  { name: 'Сандалии святого', bonus: '+2 ко всем характеристикам', targetSlots: [LEG_SLOT], modifiers: allStats('add', 2) },
+  { name: 'Накидка скорости', bonus: 'Увеличивают скорость Героя на 1', targetSlots: [CLOAK_SLOT], modifiers: [mod('speed', 'add', 1)] },
+  { name: 'Магические доспехи', bonus: '+1 ко всем характеристикам', targetSlots: [TORSO_SLOT], modifiers: allStats('add', 1) },
+  { name: 'Сапоги-скороходы', bonus: 'Увеличивают скорость Героя на 2', targetSlots: [LEG_SLOT], modifiers: [mod('speed', 'add', 2)] },
   // TEXT_ONLY_NOTE: реген по факту нанесения урона — процедурный триггер.
-  { name: 'Мантия вампира', bonus: 'Восстанавливает 1 ед. здоровья за каждый факт нанесения урона', modifiers: [] },
+  { name: 'Мантия вампира', bonus: 'Восстанавливает 1 ед. здоровья за каждый факт нанесения урона', targetSlots: [CLOAK_SLOT], modifiers: [] },
   // TEXT_ONLY_NOTE: выдача всех заклинаний 5 уровня + способ каста — механизма нет.
-  { name: 'Шляпа волшебника', bonus: 'Дает герою все заклинания 5-го уровня. Все заклинания произносятся силой мысли', modifiers: [] },
+  { name: 'Шляпа волшебника', bonus: 'Дает герою все заклинания 5-го уровня. Все заклинания произносятся силой мысли', targetSlots: [HEAD_SLOT], modifiers: [] },
 ];
 
 // --- Волшебные предметы, стр. 51 — 10 записей (2-11), без колонки "Тип" ---
 const MAGIC_ITEMS = [
-  { name: 'Неподвижный глаз дракона', bonus: '+1 к Атаке и защите', modifiers: [mod('attack', 'add', 1), mod('defense', 'add', 1)] },
+  { name: 'Неподвижный глаз дракона', bonus: '+1 к Атаке и защите', targetSlots: RING_SLOTS, modifiers: [mod('attack', 'add', 1), mod('defense', 'add', 1)] },
   // TEXT_ONLY_NOTE: "в течение дня" — см. Брелок смелости выше.
-  { name: 'Застывший глаз дракона', bonus: 'Дает 1 ед. Боевого духа и удачи в течение дня', modifiers: [] },
-  { name: 'Кольцо жизни', bonus: 'Увеличивает показатель здоровья на 3', modifiers: [mod('health.max', 'add', 3)] },
-  { name: 'Клевер удачи', bonus: 'Дает 1 ед. к удаче в течение дня', modifiers: [] },
-  { name: 'Кольцо странника', bonus: 'Увеличивают скорость Героя на 1', modifiers: [mod('speed', 'add', 1)] },
+  { name: 'Застывший глаз дракона', bonus: 'Дает 1 ед. Боевого духа и удачи в течение дня', targetSlots: RING_SLOTS, modifiers: [] },
+  { name: 'Кольцо жизни', bonus: 'Увеличивает показатель здоровья на 3', targetSlots: RING_SLOTS, modifiers: [mod('health.max', 'add', 3)] },
+  { name: 'Клевер удачи', bonus: 'Дает 1 ед. к удаче в течение дня', targetSlots: MISC_SLOTS, modifiers: [] },
+  { name: 'Кольцо странника', bonus: 'Увеличивают скорость Героя на 1', targetSlots: RING_SLOTS, modifiers: [mod('speed', 'add', 1)] },
   // TEXT_ONLY_NOTE: суточный d6-реген, не флэт-бонус "пока надето".
-  { name: 'Амулет Маны', bonus: 'Восстанавливает d6 очка Маны в день', modifiers: [] },
+  { name: 'Амулет Маны', bonus: 'Восстанавливает d6 очка Маны в день', targetSlots: AMULET_SLOTS, modifiers: [] },
   // TEXT_ONLY_NOTE: снимает удачу с ОБОИХ участников боя — не бонус владельцу.
-  { name: 'Песочные часы недоброго часа', bonus: 'Отнимает у героя и его противника на поле боя все бонусы удачи', modifiers: [] },
+  { name: 'Песочные часы недоброго часа', bonus: 'Отнимает у героя и его противника на поле боя все бонусы удачи', targetSlots: MISC_SLOTS, modifiers: [] },
   // TEXT_ONLY_NOTE: бьёт по противнику, не по владельцу.
-  { name: 'Кольцо подавления', bonus: '-1 к Боевому духу противника', modifiers: [] },
+  { name: 'Кольцо подавления', bonus: '-1 к Боевому духу противника', targetSlots: RING_SLOTS, modifiers: [] },
   // TEXT_ONLY_NOTE: ежедневный доход золота — нет системы учёта дохода.
-  { name: 'Неиссякаемая мошна золота', bonus: 'Ежедневно приносит 50 золотых', modifiers: [] },
-  { name: 'Знак отваги', bonus: 'Дает 2 ед. Боевого духа в течение дня', modifiers: [] },
+  { name: 'Неиссякаемая мошна золота', bonus: 'Ежедневно приносит 50 золотых', targetSlots: MISC_SLOTS, modifiers: [] },
+  { name: 'Знак отваги', bonus: 'Дает 2 ед. Боевого духа в течение дня', targetSlots: MISC_SLOTS, modifiers: [] },
 ];
 
 function mod(stat, mode, value) {

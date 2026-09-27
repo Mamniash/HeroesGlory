@@ -2,22 +2,7 @@
 <section class="hg-item__body">
   {{!-- Worn or not is decided by the hero's paperdoll, not here — the
     sheet has no «Экипировано» checkbox (system.equipped stays in the data). --}}
-  <div class="hg-item__row">
-    <div class="hg-item__field--grow">
-      {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" name="system.weaponType"
-        choices=config.weaponTypes value=system.weaponType label=(localize 'HEROES_GLORY.Weapon.Type')}}
-    </div>
-
-    <label class="hg-item__field hg-item__field--damage">
-      <span class="hg-item__label">{{localize 'HEROES_GLORY.Weapon.Damage'}}</span>
-      <input class="hg-item__input" type="number" name="system.damage" value="{{system.damage}}" min="2" max="100" step="1">
-    </label>
-
-    <label class="hg-item__checkbox">
-      <input class="hg-item__checkbox-box" type="checkbox" name="system.twoHanded" {{checked system.twoHanded}}>
-      <span class="hg-item__label">{{localize 'HEROES_GLORY.Weapon.TwoHanded'}}</span>
-    </label>
-  </div>
+  {{> "systems/heroes-glory/templates/item/parts/hg-weapon-fields.hbs"}}
 
   <label class="hg-item__field">
     <span class="hg-item__label">{{localize 'HEROES_GLORY.Weapon.Source'}}</span>

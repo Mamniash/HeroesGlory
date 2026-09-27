@@ -2,15 +2,26 @@
   hg-select.mjs). The hidden native <select> still carries the value for the
   form (submitOnChange, core's read-only disabling); the trigger opens a
   list styled like the hero sheet's pickers.
-  Params: name, choices ({value: labelKey}), value, label. --}}
-<div class="hg-item__field hg-select">
-  <span class="hg-item__label">{{label}}</span>
-  <select name="{{name}}" hidden>
-    {{selectOptions choices selected=value localize=true}}
+  Params: name, choices ({value: labelKey}), value, label;
+  optional: bare (no label line), placeholder (an empty value showing this
+  text — the option itself is not offered in the list), role (a
+  `data-hg-select-role` on the <select>, for a sheet's own listener). --}}
+<div class="hg-select{{#unless bare}} hg-item__field{{/unless}}">
+  {{#unless bare}}<span class="hg-item__label">{{label}}</span>{{/unless}}
+  <select {{#if name}}name="{{name}}"{{/if}} {{#if role}}data-hg-select-role="{{role}}"{{/if}} hidden>
+    {{#if placeholder}}
+      {{selectOptions choices selected=value localize=true blank=placeholder}}
+    {{else}}
+      {{selectOptions choices selected=value localize=true}}
+    {{/if}}
   </select>
   <button type="button" class="hg-item__input hg-select__trigger" aria-haspopup="listbox" aria-expanded="false"
-    aria-label="{{label}}">
-    <span class="hg-select__value">{{#if (lookup choices value)}}{{localize (lookup choices value)}}{{/if}}</span>
+    aria-label="{{#if label}}{{label}}{{else}}{{placeholder}}{{/if}}">
+    {{#if (lookup choices value)}}
+      <span class="hg-select__value">{{localize (lookup choices value)}}</span>
+    {{else}}
+      <span class="hg-select__value hg-select__value--placeholder">{{placeholder}}</span>
+    {{/if}}
     <span class="hg-select__arrow"></span>
   </button>
 </div>

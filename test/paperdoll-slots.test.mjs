@@ -62,3 +62,29 @@ describe('paperdollValidSlots — the drag-start highlight set', () => {
     assert.deepEqual(paperdollValidSlots(uncurated), []);
   });
 });
+
+describe('toggleArtifactSlot — artifact sheet mini-paperdoll', async () => {
+  const { toggleArtifactSlot, paperdollSlotGroup, ARTIFACT_LOCKED_SLOTS } = await import('../module/helpers/paperdoll-slots.mjs');
+
+  test('a plain slot toggles alone, result sorted', () => {
+    assert.deepEqual(toggleArtifactSlot([5], 3), [3, 5]);
+    assert.deepEqual(toggleArtifactSlot([3, 5], 3), [5]);
+  });
+
+  test('rings go on and off together, from either hand', () => {
+    assert.deepEqual(toggleArtifactSlot([], 7), [2, 7]);
+    assert.deepEqual(toggleArtifactSlot([2, 7], 2), []);
+    // Only half the group on (hand-edited data): a click completes it.
+    assert.deepEqual(toggleArtifactSlot([2], 2), [2, 7]);
+  });
+
+  test('«прочее» 11–15 is one group', () => {
+    assert.deepEqual(toggleArtifactSlot([4], 13), [4, 11, 12, 13, 14, 15]);
+    assert.deepEqual(toggleArtifactSlot([4, 11, 12, 13, 14, 15], 11), [4]);
+    assert.deepEqual(paperdollSlotGroup(9), [9]);
+  });
+
+  test('book and reserve slots never change', () => {
+    for (const slot of ARTIFACT_LOCKED_SLOTS) assert.deepEqual(toggleArtifactSlot([9], slot), [9]);
+  });
+});

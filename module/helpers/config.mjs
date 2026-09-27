@@ -251,12 +251,12 @@ HEROES_GLORY.artifactModifierStats = {
  * @type {Object}
  */
 HEROES_GLORY.artifactModifierModes = {
-  add: 'HEROES_GLORY.ArtifactModifier.ModeAdd',
-  subtract: 'HEROES_GLORY.ArtifactModifier.ModeSubtract',
-  multiply: 'HEROES_GLORY.ArtifactModifier.ModeMultiply',
-  downgrade: 'HEROES_GLORY.ArtifactModifier.ModeDowngrade',
-  upgrade: 'HEROES_GLORY.ArtifactModifier.ModeUpgrade',
-  override: 'HEROES_GLORY.ArtifactModifier.ModeOverride',
+  add: 'HEROES_GLORY.Artifact.ModeAdd',
+  subtract: 'HEROES_GLORY.Artifact.ModeSubtract',
+  multiply: 'HEROES_GLORY.Artifact.ModeMultiply',
+  downgrade: 'HEROES_GLORY.Artifact.ModeDowngrade',
+  upgrade: 'HEROES_GLORY.Artifact.ModeUpgrade',
+  override: 'HEROES_GLORY.Artifact.ModeOverride',
 };
 
 /**

@@ -11,5 +11,6 @@ export const preloadHandlebarsTemplates = async function () {
     'systems/heroes-glory/templates/item/parts/item-effects.hbs',
     'systems/heroes-glory/templates/item/parts/hg-item-frame.hbs',
     'systems/heroes-glory/templates/item/parts/hg-select.hbs',
+    'systems/heroes-glory/templates/item/parts/hg-weapon-fields.hbs',
   ]);
 };

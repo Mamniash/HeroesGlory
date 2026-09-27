@@ -1,93 +1,77 @@
-<section class="item-sheet__body item-sheet__body--artifact">
-  <div class="grid grid-3col">
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Type'}}</span>
-      <select name="system.artifactType">
-        {{selectOptions config.artifactTypes selected=system.artifactType localize=true}}
-      </select>
-    </label>
-
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Level'}}</span>
-      <input type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
-    </label>
-
-    <label class="item-sheet__field item-sheet__field--checkbox">
-      <input type="checkbox" name="system.equipped" {{checked system.equipped}}>
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Item.Equipped'}}</span>
-    </label>
+{{#> "systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}
+<section class="hg-item__body">
+  {{!-- Worn or not is decided by the hero's paperdoll — no «Экипировано»
+    here (system.equipped stays in the data). --}}
+  <div class="hg-item__row">
+    <div class="hg-item__field--grow">
+      {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" name="system.artifactType"
+        choices=config.artifactTypes value=system.artifactType label=(localize 'HEROES_GLORY.Artifact.Type')}}
+    </div>
+    {{!-- §5.5/§8.2: armor level — epic mitigation; shield level — +level
+      to Defense. Meaningless for the other four types. --}}
+    {{#if hasLevel}}
+      <label class="hg-item__field hg-item__field--damage">
+        <span class="hg-item__label">{{localize 'HEROES_GLORY.Artifact.Level'}}</span>
+        <input class="hg-item__input" type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
+      </label>
+    {{/if}}
   </div>
 
-  {{!-- Only "Зачарованное оружие" (artifactType enchantedWeapon) uses these
-    three — blank/false and harmless for the other 5 types, same as Level
-    above already is for everything except enchantedArmor. No epicTable
-    field here on purpose: the book never fills one in for any artifact
-    (see item-artifact.mjs's own comment), and an equipped artifact can't
-    be attacked with yet regardless (separate task), so exposing 6 empty
-    text inputs here would suggest more than currently works. --}}
-  <div class="grid grid-3col">
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Type'}}</span>
-      {{!-- blank must be a non-empty string, same reasoning as skillKey's
-        own placeholder in item-skill-sheet.hbs: without it, a still-blank
-        weaponType ("", correct for 5 of 6 artifact types) matches no
-        <option>, and the browser silently shows the first real one
-        ("Piercing") as if selected — misleading on, say, a necklace,
-        where the field is simply not meaningful. --}}
-      <select name="system.weaponType">
-        {{selectOptions config.weaponTypes selected=system.weaponType localize=true blank='HEROES_GLORY.Weapon.TypeNotApplicable'}}
-      </select>
-    </label>
+  {{#if isWeapon}}
+    {{> "systems/heroes-glory/templates/item/parts/hg-weapon-fields.hbs"}}
+  {{/if}}
 
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.Damage'}}</span>
-      <input type="number" name="system.damage" value="{{system.damage}}" min="2" max="100" step="1">
-    </label>
-
-    <label class="item-sheet__field item-sheet__field--checkbox">
-      <input type="checkbox" name="system.twoHanded" {{checked system.twoHanded}}>
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Weapon.TwoHanded'}}</span>
-    </label>
-  </div>
-
-  <label class="item-sheet__field item-sheet__field--wide">
-    <span class="item-sheet__label">{{localize 'HEROES_GLORY.Artifact.Bonus'}}</span>
-    <textarea name="system.bonus" rows="4">{{system.bonus}}</textarea>
+  <label class="hg-item__field">
+    <span class="hg-item__label">{{localize 'HEROES_GLORY.Artifact.Bonus'}}</span>
+    <textarea class="hg-item__input hg-item__textarea" name="system.bonus" rows="1">{{system.bonus}}</textarea>
   </label>
 
-  <fieldset class="item-sheet__modifiers">
-    <legend>{{localize 'HEROES_GLORY.Artifact.TargetSlots'}}</legend>
-    {{#each system.targetSlots}}
-      <div class="item-sheet__modifier-row">
-        <select name="system.targetSlots.{{@index}}">
-          {{selectOptions ../config.paperdollSlotLabels selected=this localize=true}}
-        </select>
-        <button type="button" class="item-sheet__icon-button" data-action="deleteTargetSlot" data-index="{{@index}}"
-          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+  <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Artifact.Slots'}}</div>
+  {{#if isWeapon}}
+    {{!-- An enchanted weapon's slot follows its weapon type (paperdoll-slots.mjs). --}}
+    <div class="hg-item__value-line">{{weaponSlotName}}</div>
+  {{else}}
+    {{!-- Mini-paperdoll: a cell per hero-sheet slot; rings and «прочее» go
+      as one group; the book slot and 17–19 are locked. Hovering a cell shows
+      its name in the side column (tooltip.mjs). --}}
+    <div class="hg-doll-row">
+      <div class="hg-doll" data-color="{{panelColor}}">
+        {{#each dollCells}}
+          <div class="hg-doll__cell hg-doll__cell--{{slot}}{{#if on}} is-on{{/if}}{{#if locked}} is-locked{{/if}}"
+            data-slot="{{slot}}" data-name="{{name}}"
+            {{#if clickable}}role="button" tabindex="0" data-action="toggleSlot" aria-pressed="{{#if on}}true{{else}}false{{/if}}" aria-label="{{name}}"{{/if}}></div>
+        {{/each}}
       </div>
-    {{/each}}
-    <button type="button" class="item-sheet__add-button" data-action="addTargetSlot">
-      <i class="fa-solid fa-plus"></i> {{localize 'HEROES_GLORY.Artifact.AddTargetSlot'}}
-    </button>
-  </fieldset>
+      <div class="hg-doll-side">
+        <span class="hg-item__label">{{localize 'HEROES_GLORY.Artifact.SlotsChosen'}}:</span>
+        <span class="hg-doll-side__value">{{slotSummary}}</span>
+      </div>
+    </div>
+  {{/if}}
 
-  <fieldset class="item-sheet__modifiers">
-    <legend>{{localize 'HEROES_GLORY.Artifact.Modifiers'}}</legend>
-    {{#each system.modifiers}}
-      <div class="item-sheet__modifier-row">
-        <select name="system.modifiers.{{@index}}.stat">
-          {{selectOptions ../config.artifactModifierStats selected=this.stat localize=true}}
-        </select>
-        <select name="system.modifiers.{{@index}}.mode">
-          {{selectOptions ../config.artifactModifierModes selected=this.mode localize=true}}
-        </select>
-        <input type="number" name="system.modifiers.{{@index}}.value" value="{{this.value}}">
-        <button type="button" class="item-sheet__icon-button" data-action="deleteModifier" data-index="{{@index}}"
-          title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}"><i class="fa-solid fa-trash"></i></button>
+  <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Artifact.Modifiers'}}</div>
+  <div class="hg-item__list">
+    {{#each modifierRows}}
+      <div class="hg-item__list-row">
+        <div class="hg-item__list-grow">
+          {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" bare=true name=(concat "system.modifiers." index ".stat")
+            choices=../config.artifactModifierStats value=stat label=(localize 'HEROES_GLORY.Artifact.Modifiers')}}
+        </div>
+        <input type="hidden" name="system.modifiers.{{index}}.mode" value="{{mode}}">
+        {{!-- Signed text («+2», «-3») — the model's NumberField reads it. --}}
+        <input class="hg-item__input hg-item__signed" type="text" inputmode="numeric" name="system.modifiers.{{index}}.value" value="{{shown}}">
+        <button type="button" class="hg-item__sprite-button hg-item__delete" data-action="deleteModifier" data-index="{{index}}"
+          aria-label="{{localize 'HEROES_GLORY.Artifact.DeleteModifier'}}"></button>
       </div>
     {{/each}}
-    <button type="button" class="item-sheet__add-button" data-action="addModifier">
-      <i class="fa-solid fa-plus"></i> {{localize 'HEROES_GLORY.Artifact.AddModifier'}}
-    </button>
-  </fieldset>
+    {{!-- New modifier: pick a characteristic in the empty row (no name on
+      the select — artifact-sheet.mjs adds the row itself). --}}
+    <div class="hg-item__list-row">
+      <div class="hg-item__list-grow">
+        {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" bare=true role="add-modifier" value=""
+          choices=config.artifactModifierStats placeholder=(localize 'HEROES_GLORY.Artifact.AddModifier')}}
+      </div>
+    </div>
+  </div>
 </section>
+{{/"systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}

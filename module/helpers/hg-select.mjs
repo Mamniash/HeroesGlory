@@ -76,6 +76,8 @@ function openHgSelect({ select, trigger, color, scaleEl }) {
   list.className = 'hg-option-list';
   list.setAttribute('role', 'listbox');
   for (const option of select.options) {
+    // An empty value is the placeholder (hg-select.hbs `placeholder`), not a choice.
+    if (option.value === '') continue;
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'hg-option-list__item';
@@ -131,7 +133,10 @@ function pick(select, trigger, value) {
   if (select.value === value) return;
   select.value = value;
   const label = trigger.querySelector('.hg-select__value');
-  if (label) label.textContent = select.selectedOptions[0]?.textContent ?? '';
+  if (label) {
+    label.textContent = select.selectedOptions[0]?.textContent ?? '';
+    label.classList.remove('hg-select__value--placeholder');
+  }
   select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 

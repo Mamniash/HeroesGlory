@@ -47,3 +47,49 @@ export function paperdollValidSlots(item) {
   }
   return slots;
 }
+
+/**
+ * Artifact sheet's mini-paperdoll: slots an artifact can never be given —
+ * the spellbook's (10) and the three reserve ones (17–19, no meaning yet,
+ * rules.md §8.2).
+ */
+export const ARTIFACT_LOCKED_SLOTS = Object.freeze([10, 17, 18, 19]);
+
+/**
+ * Interchangeable slots, picked as one on the artifact sheet: the two ring
+ * slots and the five «прочее» slots. Marking a ring for one hand but not
+ * the other would mean nothing at the table.
+ */
+export const PAPERDOLL_SLOT_GROUPS = Object.freeze([
+  Object.freeze([2, 7]),
+  Object.freeze([11, 12, 13, 14, 15]),
+]);
+
+/**
+ * The group `slot` belongs to (itself alone if ungrouped).
+ * @param {number} slot
+ * @returns {number[]}
+ */
+export function paperdollSlotGroup(slot) {
+  return [...(PAPERDOLL_SLOT_GROUPS.find((group) => group.includes(slot)) ?? [slot])];
+}
+
+/**
+ * New `targetSlots` after clicking `slot` on the artifact sheet's
+ * mini-paperdoll: the slot's whole group goes on if any of it is off,
+ * off if all of it is on. Locked slots change nothing. Sorted, no repeats.
+ * @param {number[]} targetSlots
+ * @param {number} slot
+ * @returns {number[]}
+ */
+export function toggleArtifactSlot(targetSlots, slot) {
+  const current = new Set(targetSlots);
+  if (ARTIFACT_LOCKED_SLOTS.includes(slot)) return [...current].sort((a, b) => a - b);
+  const group = paperdollSlotGroup(slot);
+  const allOn = group.every((s) => current.has(s));
+  for (const s of group) {
+    if (allOn) current.delete(s);
+    else current.add(s);
+  }
+  return [...current].sort((a, b) => a - b);
+}

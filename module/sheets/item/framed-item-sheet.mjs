@@ -73,10 +73,11 @@ export class HeroesGloryFramedItemSheet extends HeroesGloryItemSheet {
     const frameEl = this.element.querySelector('.hg-item');
     this.#pixelScaleController.observe(frameEl);
     activateHgSelects(this.element, { color: context.panelColor, scaleEl: frameEl });
-    // Fold-out titles are role="button" elements, not <button>s — a locked
-    // sheet disables every form control and they must keep working there;
-    // Enter/Space act like a click.
-    this.element.querySelectorAll('[data-action="toggleSection"]').forEach((el) => {
+    // Fold-out titles and mini-paperdoll cells are role="button" elements,
+    // not <button>s (a locked sheet disables every form control; a fold-out
+    // must keep working there, a cell keeps its hover hint): Enter/Space
+    // act like a click.
+    this.element.querySelectorAll('[role="button"][data-action]').forEach((el) => {
       el.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();

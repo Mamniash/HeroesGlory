@@ -383,3 +383,189 @@ $hg-item-textarea-line-height: 1.2;
 .hg-item__section.is-expanded .hg-item__section-body {
   display: flex;
 }
+
+// ---- A plain value line (e.g. an enchanted weapon's slot) ----
+
+.hg-item__value-line {
+  color: $hg-parchment;
+}
+
+// ---- Lists of rows (artifact modifiers) ----
+
+// Row height: the delete sprite's own 32px (IViewCr2).
+$hg-item-list-row-height: 32px;
+$hg-item-list-gap: 4px;
+// IViewCr2 — the creature window's «dismiss» button, 46×32 native.
+$hg-item-delete-width: 46px;
+$hg-item-delete-height: 32px;
+
+.hg-item__list {
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-list-gap);
+}
+
+.hg-item__list-row {
+  display: flex;
+  align-items: center;
+  gap: hg-item-px($hg-item-row-gap);
+  min-height: hg-item-px($hg-item-list-row-height);
+}
+
+.hg-item__list-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.hg-item__signed {
+  flex: none;
+  width: hg-item-px($hg-item-damage-width);
+}
+
+.hg-select__value--placeholder {
+  color: rgba($hg-gold-pale, 0.55);
+}
+
+// A HOMM3 sprite as a whole button: normal / pressed / disabled frames.
+.hg-item__sprite-button {
+  appearance: none;
+  @include hg-item-sprite-box($hg-item-delete-width, $hg-item-delete-height);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  transition: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.hg-focus-kb {
+    outline: hg-item-px($hg-item-outline) solid $hg-item-focus-color;
+  }
+}
+
+.hg-item__delete {
+  @include hg-item-sprite(iviewcr2, 0);
+
+  &:active:not(:disabled) {
+    @include hg-item-sprite(iviewcr2, 1);
+  }
+
+  &:disabled {
+    @include hg-item-sprite(iviewcr2, 2);
+  }
+}
+
+// ---- Mini-paperdoll (artifact «Куда надевается») ----
+//
+// A crop of the hero sheet's own art (heroscr4_<panel color>.png, 600×473)
+// around the paperdoll, cells at the hero sheet's own slot positions
+// ($hg-paperdoll-positions, _hero-paperdoll.scss), drawn at $hg-doll-scale
+// of native. The scale keeps a cell ≥ 21 screen px at the window's smallest
+// scale (44 × 0.8 × 0.6).
+// Chosen cell: HOMM3's slot highlight (artifact_g00_f144.png, a 1px gold
+// frame at its very edge) as a border-image, never thinner than 2 screen px,
+// with a light fill of the same gold; the other free cells are dimmed, so
+// the choice reads at a glance on every panel color. Locked cells (book, reserve):
+// HOMM3's lock (artifact_g00_f145.png) over a darker dim.
+$hg-doll-scale: 0.8;
+$hg-doll-crop-x: 300;
+$hg-doll-crop-y: 8;
+$hg-doll-crop-w: 290;
+$hg-doll-crop-h: 342;
+$hg-doll-art-w: 600;
+$hg-doll-art-h: 473;
+$hg-doll-cell: 44;
+$hg-doll-dim: 0.5;
+$hg-doll-locked-dim: 0.65;
+$hg-doll-frame-min: 2px;
+// The highlight's own line color (artifact_g00_f144.png), as a light fill
+// inside the chosen cell: reads at a glance, not only by a thin frame.
+$hg-doll-on-color: rgb(255, 228, 135);
+$hg-doll-on-fill: 0.3;
+
+@function hg-doll-px($native) {
+  @return hg-item-px($native * $hg-doll-scale * 1px);
+}
+
+.hg-doll-row {
+  display: flex;
+  align-items: flex-start;
+  gap: hg-item-px($hg-item-row-gap);
+}
+
+.hg-doll {
+  position: relative;
+  flex: none;
+  width: hg-doll-px($hg-doll-crop-w);
+  height: hg-doll-px($hg-doll-crop-h);
+  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  background-repeat: no-repeat;
+  background-size: hg-doll-px($hg-doll-art-w) hg-doll-px($hg-doll-art-h);
+  background-position: hg-doll-px(-$hg-doll-crop-x) hg-doll-px(-$hg-doll-crop-y);
+  image-rendering: pixelated;
+}
+
+@each $color in $hg-panel-colors {
+  .hg-doll[data-color='#{$color}'] {
+    background-image: url('../assets/ui/heroscr4_#{$color}.png');
+  }
+}
+
+.hg-doll__cell {
+  position: absolute;
+  box-sizing: border-box;
+  width: hg-doll-px($hg-doll-cell);
+  height: hg-doll-px($hg-doll-cell);
+  background: rgba(0, 0, 0, $hg-doll-dim);
+  outline: none;
+
+  &[role='button'] {
+    cursor: pointer;
+  }
+
+  &.is-on {
+    background: rgba($hg-doll-on-color, $hg-doll-on-fill);
+    border: round(max(#{$hg-doll-frame-min}, calc(2px * var(--hg-pixel-scale))), 1px) solid transparent;
+    border-image: url('../assets/artifact/artifact_g00_f144.png') 1;
+  }
+
+  &.is-locked {
+    background:
+      url('../assets/artifact/artifact_g00_f145.png') center / 100% 100% no-repeat,
+      rgba(0, 0, 0, $hg-doll-locked-dim);
+    image-rendering: pixelated;
+  }
+
+  &.hg-focus-kb {
+    outline: hg-item-px($hg-item-outline) solid $hg-item-focus-color;
+  }
+}
+
+@for $i from 1 through 19 {
+  $pos: nth($hg-paperdoll-positions, $i);
+  .hg-doll__cell--#{$i} {
+    left: hg-doll-px(nth($pos, 1) * 6 - $hg-doll-crop-x);
+    top: hg-doll-px(nth($pos, 2) * 4.73 - $hg-doll-crop-y);
+  }
+}
+
+// Side column: the chosen slots; hover hints (tooltip.mjs) float here,
+// centred, so they never cover the doll's cells.
+.hg-doll-side {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: hg-doll-px($hg-doll-crop-h);
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-label-gap);
+}
+
+.hg-doll-side__value {
+  color: $hg-parchment;
+}
