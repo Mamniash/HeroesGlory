@@ -111,7 +111,7 @@ describe('creature compendium mapping', () => {
 });
 
 describe('creature abilities journal (book pp. 113-116)', async () => {
-  const { readAbilities, abilityPages, buildCreatureAbilityDocuments } = await import('../scripts/data/creature-abilities-compendium-data.mjs');
+  const { readAbilities, abilityPages, buildCreatureAbilityDocument } = await import('../scripts/data/creature-abilities-compendium-data.mjs');
 
   test('55 abilities, unique names, non-empty text', () => {
     const a = readAbilities();
@@ -121,7 +121,7 @@ describe('creature abilities journal (book pp. 113-116)', async () => {
   });
 
   test('one journal, one page per ability, pages alphabetical', () => {
-    const [doc] = buildCreatureAbilityDocuments();
+    const doc = buildCreatureAbilityDocument(0);
     assert.equal(doc.pages.length, 55);
     const names = doc.pages.map((p) => p.name);
     assert.deepEqual(names, [...names].sort((x, y) => x.localeCompare(y, 'ru')));

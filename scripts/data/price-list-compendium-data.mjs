@@ -41,6 +41,7 @@
  */
 
 import { buildJournalDocument } from '../lib/pack-builder.mjs';
+import { PRICE_LIST_ENTRY } from '../../module/helpers/knowledge-base.mjs';
 
 /**
  * @typedef {{name: string, cost: string, unit: string, note: string}} PriceRow
@@ -198,17 +199,17 @@ function renderTable(rows) {
 }
 
 /**
- * Turns `PAGES` into a finished compendium JournalEntry document for
- * `scripts/build-packs.mjs` — id/sort/_stats boilerplate lives in
- * pack-builder.mjs, this only supplies the page names and HTML content.
- * @returns {object[]}
+ * Turns `PAGES` into the «Справочник цен» entry of the «База знаний»
+ * compendium (knowledge-base-compendium-data.mjs) — id/sort/_stats
+ * boilerplate lives in pack-builder.mjs, this only supplies the page names
+ * and HTML content.
+ * @param {number} index   Position in the «База знаний» pack.
+ * @returns {object}
  */
-export function buildPriceListDocuments() {
-  return [
-    buildJournalDocument({
-      name: 'Справочник цен',
-      pages: PAGES.map(({ name, rows }) => ({ name, content: renderTable(rows) })),
-      index: 0,
-    }),
-  ];
+export function buildPriceListDocument(index) {
+  return buildJournalDocument({
+    name: PRICE_LIST_ENTRY,
+    pages: PAGES.map(({ name, rows }) => ({ name, content: renderTable(rows) })),
+    index,
+  });
 }

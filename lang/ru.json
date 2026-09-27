@@ -671,9 +671,8 @@
       "Skills": "Вторичные навыки",
       "Artifacts": "Артефакты",
       "Spells": "Заклинания",
-      "PriceList": "Справочник цен",
       "Creatures": "Бестиарий",
-      "CreatureAbilities": "Способности существ"
+      "KnowledgeBase": "База знаний"
     },
     "WeaponCategory": {
       "Polearm": "Древковое",

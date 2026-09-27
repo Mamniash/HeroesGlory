@@ -1,20 +1,22 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { isCreatureArcher, moraleAttemptsRemaining, moraleCheckVariant } from '../../helpers/rolls.mjs';
 import { resolveTagAbilities } from '../../helpers/creature-abilities.mjs';
+import { KNOWLEDGE_BASE_PACK, CREATURE_ABILITIES_ENTRY } from '../../helpers/knowledge-base.mjs';
 
-const ABILITIES_PACK = 'heroes-glory.creature-abilities';
 let abilityPagesPromise = null;
 
 /**
- * §9: the «Способности существ» journal's pages by name, loaded once per
- * session. A failed load is not cached, so the next render retries.
+ * §9: the «Способности существ» entry's pages by name, from the «База
+ * знаний» compendium, loaded once per session. A failed load is not
+ * cached, so the next render retries.
  * @returns {Promise<Map<string, JournalEntryPage>>}
  */
 function abilityPages() {
   abilityPagesPromise ??= (async () => {
-    const pack = game.packs.get(ABILITIES_PACK);
+    const pack = game.packs.get(KNOWLEDGE_BASE_PACK);
     if (!pack) return new Map();
-    const [journal] = await pack.getDocuments();
+    const entryId = (await pack.getIndex()).find((e) => e.name === CREATURE_ABILITIES_ENTRY)?._id;
+    const journal = entryId ? await pack.getDocument(entryId) : null;
     return new Map((journal?.pages ?? []).map((page) => [page.name, page]));
   })().catch((err) => {
     console.error(err);

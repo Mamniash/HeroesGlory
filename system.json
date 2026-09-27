@@ -102,17 +102,6 @@
       }
     },
     {
-      "name": "price-list",
-      "label": "HEROES_GLORY.Compendium.PriceList",
-      "path": "packs/price-list",
-      "type": "JournalEntry",
-      "system": "heroes-glory",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    },
-    {
       "name": "creatures",
       "label": "HEROES_GLORY.Compendium.Creatures",
       "path": "packs/creatures",
@@ -124,9 +113,9 @@
       }
     },
     {
-      "name": "creature-abilities",
-      "label": "HEROES_GLORY.Compendium.CreatureAbilities",
-      "path": "packs/creature-abilities",
+      "name": "knowledge-base",
+      "label": "HEROES_GLORY.Compendium.KnowledgeBase",
+      "path": "packs/knowledge-base",
       "type": "JournalEntry",
       "system": "heroes-glory",
       "ownership": {

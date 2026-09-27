@@ -6,7 +6,8 @@
     "build": "sass src/scss/heroes-glory.scss css/heroes-glory.css --style=expanded --no-source-map",
     "watch": "sass src/scss/heroes-glory.scss css/heroes-glory.css --style=expanded --source-map --watch",
     "test": "node --test",
-    "build:packs": "node scripts/build-packs.mjs"
+    "build:packs": "node scripts/build-packs.mjs",
+    "check:links": "node scripts/check-links.mjs"
   },
   "browserslist": [
     "last 3 versions"
