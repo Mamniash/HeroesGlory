@@ -1,0 +1,15 @@
+{{!-- Shared frame for item sheets in the hero's style (dialog_frame + leather
+  fill, see components/_item-frame.scss): image + name header, then the
+  sheet's own body passed as a partial block —
+  {{#> "systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}…{{/…}}.
+  `data-color` picks the frame the same way `.hg-tooltip[data-color]` does. --}}
+<div class="hg-item" data-color="{{panelColor}}">
+  <header class="hg-item__header">
+    <img class="hg-item__image" src="{{item.img}}" alt="{{item.name}}"
+      data-action="editImage" data-edit="img"
+      aria-label="{{localize 'HEROES_GLORY.Item.ChangeImage'}}">
+    <input class="hg-item__input hg-item__name" type="text" name="name" value="{{item.name}}"
+      placeholder="{{localize 'HEROES_GLORY.Item.NamePlaceholder'}}">
+  </header>
+  {{> @partial-block}}
+</div>

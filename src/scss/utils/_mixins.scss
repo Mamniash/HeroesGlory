@@ -211,3 +211,123 @@
     cursor: default;
   }
 }
+
+// The dialog frame shared by `.hg-tooltip` (hover tooltips, the Раса/
+// Фракция/Класс picker) and `.hg-item` (item sheets in the hero's style):
+// assets/ui/tooltip_fill.png leather underneath, assets/ui/
+// dialog_frame_<color>.png sliced as a border-image on top, color picked
+// by the element's own `data-color`. See _tooltip.scss's header comments
+// for how the 64px band and the fill were measured.
+// The element itself must be positioned (`position: relative` or other).
+@mixin hg-dialog-frame($frame-width, $border-repeat, $colors) {
+  // Governs `.hg-tooltip__icon` (genuine pixel art) — border-image and
+  // the background fill moved to ::after/::before below, each with its
+  // own image-rendering (see those comments for why one image-rendering
+  // value can't serve both a crisp 9-slice frame and a stretched
+  // photographic texture).
+  image-rendering: pixelated;
+
+  // Paints first among the negative-z-index children (most negative
+  // first — CSS2.1 Appendix E), i.e. behind ::after below: the fill.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: url('../assets/ui/tooltip_fill.png') center / 100% 100% no-repeat;
+    image-rendering: auto;
+  }
+
+  // The frame itself, as this element's own border-image used to be —
+  // moved to a pseudo-element on purpose. `.hg-tooltip` no longer carries
+  // any `border` of its own: a parent's OWN border/background paints
+  // before ANY of its children, even ones with negative z-index (CSS2.1
+  // Appendix E, step 1 vs step 2) — so when ::before (the fill) grew to
+  // cover the full box, it started painting on top of `.hg-tooltip`'s own
+  // border-image instead of under it, hiding the frame entirely (regression:
+  // fixing the fill's coverage broke the frame's visibility). Giving the
+  // frame to ::after (z-index: -1, so after/above ::before's -2, both
+  // still before the real flex children at step 3) restores the intended
+  // order: fill, then frame on top of it, then icon/title/text on top of
+  // both. `inset: 0` alone is correct here — no margin trick needed, since
+  // .hg-tooltip's own padding-box IS its border-box now (no border of its
+  // own to create a gap between them).
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-style: solid;
+    border-color: transparent;
+    // Fixed px, matches border-image-slice below — this is the ONE
+    // place in the whole component that stays a literal px number
+    // instead of following --hg-pixel-scale directly, on purpose: it's
+    // the native resolution the source PNG was drawn at, and the outer
+    // `transform: scale()` on `.hg-tooltip--floating` is what actually
+    // scales it with the canvas there, applied AFTER this renders at
+    // 1:1 — so the slice itself never gets resampled at any window size
+    // (confirmed directly: shrinking the source art even 2× before
+    // display already flattens the scrollwork into a plain hook shape,
+    // independent of resampling filter or of going through the original
+    // composited PNG vs the raw corner sprite — the fix is to never
+    // resample it at all, not to pick a better filter). The picker
+    // window has no such transform at all, so this renders native 1:1
+    // there unconditionally — same art, same crispness, no scaling step.
+    border-width: $frame-width;
+    // Pixel coordinate INTO the 192×192 source PNG (where to slice the
+    // corners/edges from) — unrelated to border-width above, which only
+    // controls how big the sliced pieces render on screen. Stays 64
+    // regardless of how small border-width gets.
+    // No `fill` keyword: the middle of dialog_frame_<color>.png is
+    // transparent (regenerated via make_border.py WITHOUT its `--bg`
+    // step) — with `--bg`, the whole canvas (not just the middle, also
+    // the gaps in the edge sprites, which don't fully cover their own
+    // reserved band) gets a tiled, unmatched crop of an external leather
+    // texture pasted under the corner/edge art, and tiling that via
+    // `fill` + `border-image-repeat: repeat` showed visible seams both in
+    // the big middle square and as a thinner repeating seam along every
+    // edge. The middle (and every other transparent gap) is painted once,
+    // stretched, by ::before above instead (assets/ui/tooltip_fill.png,
+    // converted from HOMM3's own DiBoxBck.bmp — a real 256×256
+    // dialog-background texture, not a crop of the border art — one
+    // instance can't have a seam).
+    border-image-slice: 64;
+    // Three options, none free of tradeoffs, picked via the
+    // $border-repeat variable above instead of guessing which
+    // one to hardcode (no way to see the actual render from here this
+    // session):
+    //   repeat  — tiles at native size, clips whatever fraction of a
+    //             tile doesn't fit. Confirmed on a real render this
+    //             isn't an edge case: a real tooltip's left/right edges
+    //             needed ~2.4 native-height tiles, so a third of a tile
+    //             got cut off wherever the browser started counting from
+    //             — visible seam, and the two edges no longer symmetric.
+    //   round   — stretches the tile count that DOES fit so it always
+    //             lands on a whole number, no clipped partial tile.
+    //             Tried this after `repeat` — introduced a DIFFERENT
+    //             seam: each stretched tile copy is rasterized
+    //             separately, and sub-pixel rounding where two stretched
+    //             copies meet showed up as a hairline gap/line crossing
+    //             the frame, with the middle segment landing a pixel off
+    //             from the corners. Confirmed the source PNG itself
+    //             isn't the cause first (see make_border.py history in
+    //             this file's git log) — this is a rendering-time
+    //             artifact of `round` specifically.
+    //   stretch — one native tile, stretched to fill, no repetition at
+    //             all — nothing to seam against, by construction. Costs
+    //             proportion: the trim motif (rings/chain) stretches
+    //             non-uniformly along a long edge instead of repeating
+    //             at native scale, which can read as ovals instead of
+    //             rings on a long tooltip. Real tradeoff, not
+    //             hypothetical — pick by looking at an actual render,
+    //             not blind.
+    border-image-repeat: $border-repeat;
+    image-rendering: pixelated;
+  }
+
+  @each $color in $colors {
+    &[data-color='#{$color}']::after {
+      border-image-source: url('../assets/ui/dialog_frame_#{$color}.png');
+    }
+  }
+}

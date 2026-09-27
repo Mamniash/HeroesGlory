@@ -31,10 +31,10 @@ export default class HeroesGloryWeapon extends HeroesGloryDataModel {
     schema.equipped = new fields.BooleanField({ initial: false });
 
     // Which of the hero sheet's 19 paperdoll positions this weapon is
-    // dragged onto (null = not placed there — either unequipped, or
-    // equipped via the item sheet's checkbox without ever being dragged
-    // to a slot; see hero-sheet.mjs's backpack-membership handling for
-    // that case). Purely a display/placement detail — the actual §8.1
+    // dragged onto (null = not placed there — either unequipped, or, for
+    // a weapon equipped before the weapon sheet lost its «Экипировано»
+    // checkbox, equipped without ever being dragged to a slot; see
+    // hero-sheet.mjs's backpack-membership handling for that case). Purely a display/placement detail — the actual §8.1
     // melee/ranged uniqueness rule is still enforced off `equipped` alone
     // in module/documents/item.mjs, not off this slot number.
     schema.paperdollSlot = new fields.NumberField({

@@ -34,6 +34,9 @@
   // hero-paperdoll, whose $hg-parchment it reuses), not alongside
   // chat-card below.
   @import 'components/tooltip';
+  // Item sheets in the hero's style — after tooltip (shares its frame
+  // variables) and hero-paperdoll (identity-block/stat-panel variables).
+  @import 'components/item-frame';
   @import 'components/effects';
 }
 

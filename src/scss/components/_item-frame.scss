@@ -1,0 +1,256 @@
+// Item sheets in the hero's style — templates/item/parts/hg-item-frame.hbs
+// (header + frame) and each converted sheet's own body. Everything here is
+// assembled from what the hero sheet and its dialogs already use: the
+// dialog frame + leather fill (`hg-dialog-frame`, same as `.hg-tooltip`),
+// the HOMM3 pixel fonts, the identity blocks' frame line and the stat
+// panel's darkened leather for fields, the dialog's title/block-title
+// colors for headings and labels, the chat card's ▸/▾ toggle.
+//
+// Imported inside `.heroes-glory {}` after hero-paperdoll and tooltip —
+// reuses their `$hg-identity-*`, `$hg-stat-panel-darken`,
+// `$hg-tooltip-colors`, `$hg-tooltip-border-repeat`.
+//
+// Sizes are native px × `--hg-pixel-scale`, set on `.hg-item` by
+// base-item-sheet.mjs's PixelScaleController (1 at the sheet's fixed width).
+
+@function hg-item-px($native) {
+  @return calc(#{$native} * var(--hg-pixel-scale));
+}
+
+// Frame band thickness — the dialog frame's own 64px (see
+// $hg-tooltip-frame-width), never resampled at scale 1.
+$hg-item-frame-width: 64px;
+// Content clearance inside the frame — the confirm dialog's own values
+// ($hg-tooltip-split-padding-*), which clear the frame's ink (16/19 floor).
+$hg-item-padding-block: 28px;
+$hg-item-padding-inline: 33px;
+// Air between blocks, between a label and its field, inside a row.
+$hg-item-gap: 8px;
+$hg-item-label-gap: 3px;
+$hg-item-row-gap: 10px;
+// Header.
+$hg-item-image-size: 48px;
+$hg-item-name-height: 28px;
+// Fields: identity-block frame line on the stat panel's darkened leather.
+$hg-item-field-height: 24px;
+$hg-item-field-padding-inline: 4px;
+$hg-item-field-padding-block: 4px;
+$hg-item-field-line: $hg-identity-line-width;
+$hg-item-field-line-color: $hg-identity-frame-color;
+$hg-item-field-fill: rgba(0, 0, 0, $hg-stat-panel-darken);
+// Row widths: «Урон» holds up to 3 digits.
+$hg-item-damage-width: 64px;
+// Select arrow: a small triangle drawn in the label color.
+$hg-item-select-arrow: 8px;
+$hg-item-select-arrow-inset: 8px;
+// Checkbox: a field-style box; checked = a filled inner square, like the
+// dialog's own list bullet.
+$hg-item-checkbox-size: 16px;
+$hg-item-checkbox-inset: 3px;
+$hg-item-checkbox-gap: 6px;
+// Line height inside a wrapping epic row.
+$hg-item-textarea-line-height: 1.2;
+
+.window-content:has(.hg-item) {
+  padding: 0;
+}
+
+.hg-item {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-gap);
+  padding: hg-item-px($hg-item-padding-block) hg-item-px($hg-item-padding-inline);
+  @include hg-dialog-frame(hg-item-px($hg-item-frame-width), $hg-tooltip-border-repeat, $hg-tooltip-colors);
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+  color: $hg-parchment;
+}
+
+.hg-item__header {
+  display: flex;
+  align-items: center;
+  gap: hg-item-px($hg-item-row-gap);
+}
+
+.hg-item__image {
+  flex: none;
+  width: hg-item-px($hg-item-image-size);
+  height: hg-item-px($hg-item-image-size);
+  object-fit: contain;
+  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  background: $hg-item-field-fill;
+  cursor: pointer;
+
+  // Read-only sheet: core marks `img[data-edit]` with `.disabled`.
+  &.disabled {
+    cursor: default;
+  }
+}
+
+.hg-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-gap);
+}
+
+.hg-item__row {
+  display: flex;
+  align-items: flex-end;
+  gap: hg-item-px($hg-item-row-gap);
+}
+
+.hg-item__field {
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-label-gap);
+  min-width: 0;
+
+  &--grow {
+    flex: 1;
+  }
+
+  &--damage {
+    flex: none;
+    width: hg-item-px($hg-item-damage-width);
+  }
+}
+
+// Block title of the confirm dialog (.hg-confirm__block-title).
+.hg-item__label {
+  color: $hg-gold-pale;
+}
+
+// Every text field, select and the name: same box. Class-scoped reset
+// (hg-canvas-input-reset) first, then the box on top.
+.hg-item__input {
+  @include hg-canvas-input-reset;
+  box-sizing: border-box;
+  width: 100%;
+  height: hg-item-px($hg-item-field-height);
+  padding: 0 hg-item-px($hg-item-field-padding-inline);
+  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  background: $hg-item-field-fill;
+  color: $hg-parchment;
+  @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+
+  // Read-only sheet: core disables every control; keep it legible
+  // rather than core's dimmed disabled look.
+  &:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+}
+
+// Name: the dialog title's font and color (.hg-tooltip__title).
+.hg-item__name {
+  flex: 1;
+  height: hg-item-px($hg-item-name-height);
+  color: $hg-gold;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+}
+
+select.hg-item__input {
+  appearance: none;
+  padding-right: hg-item-px($hg-item-select-arrow-inset * 2 + $hg-item-select-arrow);
+  // Two half-squares meeting at the middle make a down-pointing ▾.
+  background:
+    linear-gradient(45deg, transparent 50%, $hg-gold-pale 50%) no-repeat
+      right hg-item-px($hg-item-select-arrow-inset + $hg-item-select-arrow * 0.5) center /
+      hg-item-px($hg-item-select-arrow * 0.5) hg-item-px($hg-item-select-arrow * 0.5),
+    linear-gradient(135deg, $hg-gold-pale 50%, transparent 50%) no-repeat
+      right hg-item-px($hg-item-select-arrow-inset) center /
+      hg-item-px($hg-item-select-arrow * 0.5) hg-item-px($hg-item-select-arrow * 0.5),
+    $hg-item-field-fill;
+
+  option {
+    background: $c-dark;
+    color: $hg-parchment;
+  }
+}
+
+// Epic rows wrap: a textarea sized to its own content, no resize handle.
+.hg-item__textarea {
+  height: auto;
+  min-height: hg-item-px($hg-item-field-height);
+  padding: hg-item-px($hg-item-field-padding-block) hg-item-px($hg-item-field-padding-inline);
+  line-height: $hg-item-textarea-line-height;
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+// Checkbox + label, sitting on the fields' own line (the row aligns to
+// flex-end, this box is exactly one field tall).
+.hg-item__checkbox {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: hg-item-px($hg-item-checkbox-gap);
+  height: hg-item-px($hg-item-field-height);
+  cursor: pointer;
+
+  &:has(:disabled) {
+    cursor: default;
+  }
+}
+
+.hg-item__checkbox-box {
+  appearance: none;
+  flex: none;
+  box-sizing: border-box;
+  width: hg-item-px($hg-item-checkbox-size);
+  height: hg-item-px($hg-item-checkbox-size);
+  margin: 0;
+  padding: hg-item-px($hg-item-checkbox-inset);
+  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  border-radius: 0;
+  background: $hg-item-field-fill;
+  box-shadow: none;
+  --input-focus-outline-color: transparent;
+  cursor: inherit;
+
+  &:checked {
+    background: linear-gradient($hg-gold-pale, $hg-gold-pale) content-box, $hg-item-field-fill;
+  }
+
+  &::before,
+  &::after {
+    display: none;
+  }
+
+  &:disabled {
+    opacity: 1;
+  }
+}
+
+// Collapsible section: title with the chat card's ▸/▾ marker, body
+// hidden until expanded. No animation, no highlight.
+.hg-item__section-title {
+  color: $hg-gold;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+}
+
+.hg-item__toggle {
+  cursor: pointer;
+
+  &::before {
+    content: '▸ ';
+  }
+}
+
+.hg-item__section.is-expanded .hg-item__toggle::before {
+  content: '▾ ';
+}
+
+.hg-item__section-body {
+  display: none;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-gap);
+  margin-top: hg-item-px($hg-item-gap);
+}
+
+.hg-item__section.is-expanded .hg-item__section-body {
+  display: flex;
+}
