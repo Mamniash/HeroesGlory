@@ -92,17 +92,22 @@ function openHgSelect({ select, trigger, color, scaleEl }) {
   popup.append(list);
   layer.append(popup);
 
-  // Same scale as the sheet; above the sheet's own window.
+  // Same scale as the sheet, exactly as wide as the field (the popup is
+  // scaled by transform, so its own width is the field's divided by the
+  // scale); above the sheet's own window.
   const scale = parseFloat(getComputedStyle(scaleEl).getPropertyValue('--hg-pixel-scale')) || 1;
+  const anchor = trigger.getBoundingClientRect();
   popup.style.setProperty('--hg-pixel-scale', String(scale));
+  popup.style.width = `${anchor.width / scale}px`;
   const app = trigger.closest('.application');
   layer.style.zIndex = String((parseInt(getComputedStyle(app ?? document.body).zIndex, 10) || 100) + 1);
   document.body.append(layer);
 
   // Under the trigger, or above it when there's no room below; kept on screen.
-  const anchor = trigger.getBoundingClientRect();
   const size = popup.getBoundingClientRect();
   const top = anchor.bottom + size.height <= window.innerHeight ? anchor.bottom : Math.max(0, anchor.top - size.height);
+  // Left edge on the field's; at a fractional scale the right edge can only
+  // match to within layout rounding (1/64px).
   const left = Math.max(0, Math.min(anchor.left, window.innerWidth - size.width));
   popup.style.left = `${left}px`;
   popup.style.top = `${top}px`;

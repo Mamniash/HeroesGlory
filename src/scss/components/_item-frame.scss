@@ -9,15 +9,19 @@
 //     darkened leather (HOMM3 has no separate input-field sprite — its
 //     fields are drawn into each window's own bitmap);
 //   - HOMM3 sprites (assets/buttons/): SYSOPCHK — the system-options
-//     on/off toggle (⊘ / ✓) as the checkbox; IAM014/IAM015 — the adventure
-//     map's list scroll buttons (normal / pressed / disabled / highlighted)
-//     as the drop-down arrow and the fold-out arrow;
+//     on/off toggle (⊘ / ✓, two frames only) as the checkbox; IAM015 — the
+//     adventure map's list scroll-down button (normal / pressed / disabled
+//     frames; its white-rimmed highlighted frame is not used) as the arrow
+//     of both the drop-down and the fold-out;
 //   - the drop-down's list: the hero pickers' own `.hg-tooltip` +
 //     `.hg-option-list` markup.
-// States: hover changes only the HOMM3 sprites (their highlighted frame 3)
-// — frames and text stay as they are; keyboard focus lights the frame (or
-// the fold-out title) bright gold; a press shows the sprite's pressed
-// frame. No animation, no size change.
+// States: hover changes nothing. Keyboard focus — `.hg-focus-kb`, set by
+// helpers/focus-modality.mjs only when focus came from the keyboard, never
+// after a mouse click (not `:focus-visible`: Chromium matches that on every
+// text field, and on a control refocused after the sheet re-renders) —
+// lights the frame (or the fold-out title) bright gold. The arrow shows its
+// pressed frame while pressed and while its list or section is open. No
+// animation, no size change.
 //
 // Imported inside `.heroes-glory {}` after hero-paperdoll and tooltip —
 // reuses their `$hg-identity-*`, `$hg-stat-panel-darken`,
@@ -78,6 +82,21 @@ $hg-item-textarea-line-height: 1.2;
 
 @mixin hg-item-sprite($name, $frame) {
   background-image: url('../assets/buttons/#{$name}/#{$name}_g00_f00#{$frame}.png');
+}
+
+// A HOMM3 sprite box, native size × the scale, kept pixel-exact: the size
+// is rounded to whole pixels and the sprite gets its own compositing layer
+// (placed on a whole pixel, rastered once). Without that, at a fractional
+// scale the sprite sits on fractional pixels, and every repaint of a
+// neighbour — a caret blinking in «Урон» — rasters it with a different
+// nearest-pixel pick: the checkbox visibly changed while a field had focus.
+@mixin hg-item-sprite-box($width, $height) {
+  flex: none;
+  width: round(calc(#{$width} * var(--hg-pixel-scale)), 1px);
+  height: round(calc(#{$height} * var(--hg-pixel-scale)), 1px);
+  background: no-repeat 0 0 / 100% 100%;
+  image-rendering: pixelated;
+  will-change: transform;
 }
 
 &.hg-item-app {
@@ -173,7 +192,7 @@ $hg-item-textarea-line-height: 1.2;
   color: $hg-parchment;
   @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
 
-  &:focus:not(:disabled) {
+  &.hg-focus-kb:not(:disabled) {
     border-color: $hg-item-focus-color;
   }
 
@@ -222,14 +241,6 @@ $hg-item-textarea-line-height: 1.2;
   text-align: left;
   cursor: pointer;
 
-  // A mouse click focuses the button too — only keyboard focus lights it.
-  &:focus:not(:focus-visible) {
-    border-color: $hg-item-field-line-color;
-  }
-
-  &:focus-visible {
-    border-color: $hg-item-focus-color;
-  }
 }
 
 .hg-select__value {
@@ -241,17 +252,8 @@ $hg-item-textarea-line-height: 1.2;
 }
 
 .hg-select__arrow {
-  flex: none;
-  width: hg-item-px($hg-item-arrow-width);
-  height: hg-item-px($hg-item-arrow-height);
-  background: no-repeat 0 0 / 100% 100%;
-  image-rendering: pixelated;
+  @include hg-item-sprite-box($hg-item-arrow-width, $hg-item-arrow-height);
   @include hg-item-sprite(iam015, 0);
-}
-
-.hg-select__trigger:hover .hg-select__arrow,
-.hg-select__trigger:focus-visible .hg-select__arrow {
-  @include hg-item-sprite(iam015, 3);
 }
 
 .hg-select__trigger:active .hg-select__arrow,
@@ -274,8 +276,14 @@ $hg-item-textarea-line-height: 1.2;
   height: 0;
 }
 
+// Width is set by hg-select.mjs to the field's own; the pickers' 318px cap
+// and their airy padding would not fit a field that narrow, so the list
+// takes the item window's own clearance (native px — the whole popup is
+// scaled by the transform).
 .hg-select-popup {
   position: fixed;
+  max-width: none;
+  padding: $hg-item-padding-block $hg-item-padding-inline;
   transform: scale(var(--hg-pixel-scale));
   transform-origin: top left;
 }
@@ -307,18 +315,14 @@ $hg-item-textarea-line-height: 1.2;
 
 .hg-item__checkbox-box {
   appearance: none;
-  flex: none;
-  width: hg-item-px($hg-item-checkbox-width);
-  height: hg-item-px($hg-item-checkbox-height);
+  @include hg-item-sprite-box($hg-item-checkbox-width, $hg-item-checkbox-height);
   margin: 0;
   padding: 0;
   border: none;
   border-radius: 0;
   box-shadow: none;
   outline: none;
-  background: no-repeat 0 0 / 100% 100%;
   @include hg-item-sprite(sysopchk, 0);
-  image-rendering: pixelated;
   cursor: inherit;
 
   &:checked {
@@ -335,8 +339,7 @@ $hg-item-textarea-line-height: 1.2;
   }
 }
 
-.hg-item__checkbox-box:focus-visible,
-.hg-item__checkbox .hg-item__checkbox-box:active:not(:disabled) {
+.hg-item__checkbox-box.hg-focus-kb {
   outline: hg-item-px($hg-item-outline) solid $hg-item-focus-color;
 }
 
@@ -355,42 +358,19 @@ $hg-item-textarea-line-height: 1.2;
   cursor: pointer;
   outline: none;
 
-  &:focus-visible {
+  &.hg-focus-kb {
     color: $hg-item-focus-color;
   }
 }
 
 .hg-item__toggle-arrow {
-  flex: none;
-  width: hg-item-px($hg-item-arrow-width);
-  height: hg-item-px($hg-item-arrow-height);
-  background: no-repeat 0 0 / 100% 100%;
-  image-rendering: pixelated;
+  @include hg-item-sprite-box($hg-item-arrow-width, $hg-item-arrow-height);
   @include hg-item-sprite(iam015, 0);
 }
 
-.hg-item__toggle:hover .hg-item__toggle-arrow,
-.hg-item__toggle:focus-visible .hg-item__toggle-arrow {
-  @include hg-item-sprite(iam015, 3);
-}
-
-.hg-item__toggle:active .hg-item__toggle-arrow {
+.hg-item__toggle:active .hg-item__toggle-arrow,
+.hg-item__section.is-expanded .hg-item__toggle-arrow {
   @include hg-item-sprite(iam015, 1);
-}
-
-.hg-item__section.is-expanded {
-  .hg-item__toggle-arrow {
-    @include hg-item-sprite(iam014, 0);
-  }
-
-  .hg-item__toggle:hover .hg-item__toggle-arrow,
-  .hg-item__toggle:focus-visible .hg-item__toggle-arrow {
-    @include hg-item-sprite(iam014, 3);
-  }
-
-  .hg-item__toggle:active .hg-item__toggle-arrow {
-    @include hg-item-sprite(iam014, 1);
-  }
 }
 
 .hg-item__section-body {

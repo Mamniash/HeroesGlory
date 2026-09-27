@@ -2836,7 +2836,7 @@
   font-size: calc(14px * var(--hg-pixel-scale));
   line-height: 1;
 }
-.heroes-glory .hg-item__input:focus:not(:disabled) {
+.heroes-glory .hg-item__input.hg-focus-kb:not(:disabled) {
   border-color: #FFF28B;
 }
 .heroes-glory .hg-item__input:disabled {
@@ -2877,12 +2877,6 @@
   text-align: left;
   cursor: pointer;
 }
-.heroes-glory .hg-select__trigger:focus:not(:focus-visible) {
-  border-color: rgb(168, 141, 68);
-}
-.heroes-glory .hg-select__trigger:focus-visible {
-  border-color: #FFF28B;
-}
 .heroes-glory .hg-select__value {
   flex: 1;
   min-width: 0;
@@ -2892,15 +2886,12 @@
 }
 .heroes-glory .hg-select__arrow {
   flex: none;
-  width: calc(48px * var(--hg-pixel-scale));
-  height: calc(16px * var(--hg-pixel-scale));
+  width: round(48px * var(--hg-pixel-scale), 1px);
+  height: round(16px * var(--hg-pixel-scale), 1px);
   background: no-repeat 0 0/100% 100%;
   image-rendering: pixelated;
+  will-change: transform;
   background-image: url("../assets/buttons/iam015/iam015_g00_f000.png");
-}
-.heroes-glory .hg-select__trigger:hover .hg-select__arrow,
-.heroes-glory .hg-select__trigger:focus-visible .hg-select__arrow {
-  background-image: url("../assets/buttons/iam015/iam015_g00_f003.png");
 }
 .heroes-glory .hg-select__trigger:active .hg-select__arrow,
 .heroes-glory .hg-select__trigger[aria-expanded=true] .hg-select__arrow {
@@ -2918,6 +2909,8 @@
 }
 .heroes-glory .hg-select-popup {
   position: fixed;
+  max-width: none;
+  padding: 28px 33px;
   transform: scale(var(--hg-pixel-scale));
   transform-origin: top left;
 }
@@ -2941,17 +2934,18 @@
 .heroes-glory .hg-item__checkbox-box {
   appearance: none;
   flex: none;
-  width: calc(32px * var(--hg-pixel-scale));
-  height: calc(24px * var(--hg-pixel-scale));
+  width: round(32px * var(--hg-pixel-scale), 1px);
+  height: round(24px * var(--hg-pixel-scale), 1px);
+  background: no-repeat 0 0/100% 100%;
+  image-rendering: pixelated;
+  will-change: transform;
   margin: 0;
   padding: 0;
   border: none;
   border-radius: 0;
   box-shadow: none;
   outline: none;
-  background: no-repeat 0 0/100% 100%;
   background-image: url("../assets/buttons/sysopchk/sysopchk_g00_f000.png");
-  image-rendering: pixelated;
   cursor: inherit;
 }
 .heroes-glory .hg-item__checkbox-box:checked {
@@ -2963,8 +2957,7 @@
 .heroes-glory .hg-item__checkbox-box:disabled {
   opacity: 1;
 }
-.heroes-glory .hg-item__checkbox-box:focus-visible,
-.heroes-glory .hg-item__checkbox .hg-item__checkbox-box:active:not(:disabled) {
+.heroes-glory .hg-item__checkbox-box.hg-focus-kb {
   outline: calc(1px * var(--hg-pixel-scale)) solid #FFF28B;
 }
 .heroes-glory .hg-item__section-title {
@@ -2984,33 +2977,21 @@
   cursor: pointer;
   outline: none;
 }
-.heroes-glory .hg-item__toggle:focus-visible {
+.heroes-glory .hg-item__toggle.hg-focus-kb {
   color: #FFF28B;
 }
 .heroes-glory .hg-item__toggle-arrow {
   flex: none;
-  width: calc(48px * var(--hg-pixel-scale));
-  height: calc(16px * var(--hg-pixel-scale));
+  width: round(48px * var(--hg-pixel-scale), 1px);
+  height: round(16px * var(--hg-pixel-scale), 1px);
   background: no-repeat 0 0/100% 100%;
   image-rendering: pixelated;
+  will-change: transform;
   background-image: url("../assets/buttons/iam015/iam015_g00_f000.png");
 }
-.heroes-glory .hg-item__toggle:hover .hg-item__toggle-arrow,
-.heroes-glory .hg-item__toggle:focus-visible .hg-item__toggle-arrow {
-  background-image: url("../assets/buttons/iam015/iam015_g00_f003.png");
-}
-.heroes-glory .hg-item__toggle:active .hg-item__toggle-arrow {
-  background-image: url("../assets/buttons/iam015/iam015_g00_f001.png");
-}
+.heroes-glory .hg-item__toggle:active .hg-item__toggle-arrow,
 .heroes-glory .hg-item__section.is-expanded .hg-item__toggle-arrow {
-  background-image: url("../assets/buttons/iam014/iam014_g00_f000.png");
-}
-.heroes-glory .hg-item__section.is-expanded .hg-item__toggle:hover .hg-item__toggle-arrow,
-.heroes-glory .hg-item__section.is-expanded .hg-item__toggle:focus-visible .hg-item__toggle-arrow {
-  background-image: url("../assets/buttons/iam014/iam014_g00_f003.png");
-}
-.heroes-glory .hg-item__section.is-expanded .hg-item__toggle:active .hg-item__toggle-arrow {
-  background-image: url("../assets/buttons/iam014/iam014_g00_f001.png");
+  background-image: url("../assets/buttons/iam015/iam015_g00_f001.png");
 }
 .heroes-glory .hg-item__section-body {
   display: none;

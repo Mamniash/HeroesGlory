@@ -1,6 +1,7 @@
 import { HeroesGloryItemSheet } from './base-item-sheet.mjs';
 import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
 import { activateHgSelects, closeHgSelect } from '../../helpers/hg-select.mjs';
+import { trackKeyboardFocus } from '../../helpers/focus-modality.mjs';
 
 /**
  * Native width of `.hg-item` (templates/item/parts/hg-item-frame.hbs) at
@@ -60,6 +61,8 @@ export class HeroesGloryFramedItemSheet extends HeroesGloryItemSheet {
    */
   async _onFirstRender(context, options) {
     await super._onFirstRender(context, options);
+    // Focus frames only for keyboard focus (helpers/focus-modality.mjs).
+    trackKeyboardFocus(this.element);
     this.setPosition({ width: this.options.position.width });
   }
 
