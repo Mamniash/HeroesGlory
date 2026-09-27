@@ -3,12 +3,10 @@
   {{!-- Worn or not is decided by the hero's paperdoll, not here — the
     sheet has no «Экипировано» checkbox (system.equipped stays in the data). --}}
   <div class="hg-item__row">
-    <label class="hg-item__field hg-item__field--grow">
-      <span class="hg-item__label">{{localize 'HEROES_GLORY.Weapon.Type'}}</span>
-      <select class="hg-item__input" name="system.weaponType">
-        {{selectOptions config.weaponTypes selected=system.weaponType localize=true}}
-      </select>
-    </label>
+    <div class="hg-item__field--grow">
+      {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" name="system.weaponType"
+        choices=config.weaponTypes value=system.weaponType label=(localize 'HEROES_GLORY.Weapon.Type')}}
+    </div>
 
     <label class="hg-item__field hg-item__field--damage">
       <span class="hg-item__label">{{localize 'HEROES_GLORY.Weapon.Damage'}}</span>
@@ -26,10 +24,14 @@
     <input class="hg-item__input" type="text" name="system.source" value="{{system.source}}">
   </label>
 
-  {{!-- Collapsed by default; the ▸/▾ title works in read-only mode too
-    (not a form control, so the locked sheet doesn't disable it). --}}
-  <div class="hg-item__section{{#if epicTableExpanded}} is-expanded{{/if}}">
-    <div class="hg-item__section-title hg-item__toggle" data-action="toggleEpicTable">{{localize 'HEROES_GLORY.Item.EpicTable'}}</div>
+  {{!-- Folded on every opening; the title works in read-only mode too
+    (not a form control, so a locked sheet doesn't disable it). --}}
+  <div class="hg-item__section{{#if openSections.epic}} is-expanded{{/if}}" data-section="epic">
+    <div class="hg-item__section-title hg-item__toggle" data-action="toggleSection" role="button" tabindex="0"
+      aria-expanded="{{#if openSections.epic}}true{{else}}false{{/if}}">
+      <span class="hg-item__toggle-arrow"></span>
+      <span>{{localize 'HEROES_GLORY.Item.EpicTable'}}</span>
+    </div>
     <div class="hg-item__section-body">
       {{#each system.epicTable}}
         <label class="hg-item__field">

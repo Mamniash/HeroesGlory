@@ -1,0 +1,16 @@
+{{!-- Drop-down list for item sheets in the hero's style (module/helpers/
+  hg-select.mjs). The hidden native <select> still carries the value for the
+  form (submitOnChange, core's read-only disabling); the trigger opens a
+  list styled like the hero sheet's pickers.
+  Params: name, choices ({value: labelKey}), value, label. --}}
+<div class="hg-item__field hg-select">
+  <span class="hg-item__label">{{label}}</span>
+  <select name="{{name}}" hidden>
+    {{selectOptions choices selected=value localize=true}}
+  </select>
+  <button type="button" class="hg-item__input hg-select__trigger" aria-haspopup="listbox" aria-expanded="false"
+    aria-label="{{label}}">
+    <span class="hg-select__value">{{#if (lookup choices value)}}{{localize (lookup choices value)}}{{/if}}</span>
+    <span class="hg-select__arrow"></span>
+  </button>
+</div>

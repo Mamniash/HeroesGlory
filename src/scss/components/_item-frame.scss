@@ -1,25 +1,46 @@
-// Item sheets in the hero's style — templates/item/parts/hg-item-frame.hbs
-// (header + frame) and each converted sheet's own body. Everything here is
-// assembled from what the hero sheet and its dialogs already use: the
-// dialog frame + leather fill (`hg-dialog-frame`, same as `.hg-tooltip`),
-// the HOMM3 pixel fonts, the identity blocks' frame line and the stat
-// panel's darkened leather for fields, the dialog's title/block-title
-// colors for headings and labels, the chat card's ▸/▾ toggle.
+// Item sheets in the hero's style — module/sheets/item/framed-item-sheet.mjs,
+// templates/item/parts/hg-item-frame.hbs (header + frame), hg-select.hbs
+// (drop-down list) and each converted sheet's own body. Assembled from what
+// the hero sheet and its dialogs already use:
+//   - frame + leather: `hg-dialog-frame`, same as `.hg-tooltip`; the leather
+//     is a tile here (see $hg-item-fill-tile), not stretched;
+//   - HOMM3 pixel fonts; the dialog's title/block-title colors;
+//   - fields: the identity blocks' frame line over the stat panel's
+//     darkened leather (HOMM3 has no separate input-field sprite — its
+//     fields are drawn into each window's own bitmap);
+//   - HOMM3 sprites (assets/buttons/): SYSOPCHK — the system-options
+//     on/off toggle (⊘ / ✓) as the checkbox; IAM014/IAM015 — the adventure
+//     map's list scroll buttons (normal / pressed / disabled / highlighted)
+//     as the drop-down arrow and the fold-out arrow;
+//   - the drop-down's list: the hero pickers' own `.hg-tooltip` +
+//     `.hg-option-list` markup.
+// States: hover lights the frame line white — the highlighted frame of
+// the HOMM3 sprites (their frame 3) — focus lights it bright gold, a press
+// shows the sprite's pressed frame. No animation, no size change.
 //
 // Imported inside `.heroes-glory {}` after hero-paperdoll and tooltip —
 // reuses their `$hg-identity-*`, `$hg-stat-panel-darken`,
 // `$hg-tooltip-colors`, `$hg-tooltip-border-repeat`.
 //
-// Sizes are native px × `--hg-pixel-scale`, set on `.hg-item` by
-// base-item-sheet.mjs's PixelScaleController (1 at the sheet's fixed width).
+// Sizes are native px × `--hg-pixel-scale`, set on `.hg-item` by the
+// sheet's PixelScaleController from the window width (1 at 458px).
 
 @function hg-item-px($native) {
   @return calc(#{$native} * var(--hg-pixel-scale));
 }
 
 // Frame band thickness — the dialog frame's own 64px (see
-// $hg-tooltip-frame-width), never resampled at scale 1.
+// $hg-tooltip-frame-width).
 $hg-item-frame-width: 64px;
+// assets/ui/tooltip_fill.png's native size (HOMM3's DiBoxBck, which the
+// game itself tiles): laid from the top-left corner at native size × the
+// scale, so a taller or shorter window shows more or less of the same
+// leather instead of stretching it.
+$hg-item-fill-tile: 256px;
+// Smallest window width: the width where --hg-pixel-scale reaches its
+// floor (458 × PIXEL_SCALE_MIN 0.6, pixel-scale.mjs) + the 2px border —
+// the same rule as the hero sheet's own min-width.
+$hg-item-min-width: 277px;
 // Content clearance inside the frame — the confirm dialog's own values
 // ($hg-tooltip-split-padding-*), which clear the frame's ink (16/19 floor).
 $hg-item-padding-block: 28px;
@@ -38,18 +59,30 @@ $hg-item-field-padding-block: 4px;
 $hg-item-field-line: $hg-identity-line-width;
 $hg-item-field-line-color: $hg-identity-frame-color;
 $hg-item-field-fill: rgba(0, 0, 0, $hg-stat-panel-darken);
-// Row widths: «Урон» holds up to 3 digits.
+// States.
+$hg-item-hover-color: $hg-parchment;
+$hg-item-focus-color: $hg-gold-mid;
+$hg-item-outline: 1px;
+// «Урон» holds up to 3 digits.
 $hg-item-damage-width: 64px;
-// Select arrow: a small triangle drawn in the label color.
-$hg-item-select-arrow: 8px;
-$hg-item-select-arrow-inset: 8px;
-// Checkbox: a field-style box; checked = a filled inner square, like the
-// dialog's own list bullet.
-$hg-item-checkbox-size: 16px;
-$hg-item-checkbox-inset: 3px;
+// IAM014/IAM015 frames: 48×16 native.
+$hg-item-arrow-width: 48px;
+$hg-item-arrow-height: 16px;
+$hg-item-arrow-gap: 6px;
+// SYSOPCHK frames: 32×24 native.
+$hg-item-checkbox-width: 32px;
+$hg-item-checkbox-height: 24px;
 $hg-item-checkbox-gap: 6px;
-// Line height inside a wrapping epic row.
+// Line height inside a wrapping text (epic rows).
 $hg-item-textarea-line-height: 1.2;
+
+@mixin hg-item-sprite($name, $frame) {
+  background-image: url('../assets/buttons/#{$name}/#{$name}_g00_f00#{$frame}.png');
+}
+
+&.hg-item-app {
+  min-width: $hg-item-min-width;
+}
 
 .window-content:has(.hg-item) {
   padding: 0;
@@ -62,7 +95,12 @@ $hg-item-textarea-line-height: 1.2;
   flex-direction: column;
   gap: hg-item-px($hg-item-gap);
   padding: hg-item-px($hg-item-padding-block) hg-item-px($hg-item-padding-inline);
-  @include hg-dialog-frame(hg-item-px($hg-item-frame-width), $hg-tooltip-border-repeat, $hg-tooltip-colors);
+  @include hg-dialog-frame(
+    hg-item-px($hg-item-frame-width),
+    $hg-tooltip-border-repeat,
+    $hg-tooltip-colors,
+    0 0 / hg-item-px($hg-item-fill-tile) hg-item-px($hg-item-fill-tile) repeat
+  );
   @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
   color: $hg-parchment;
 }
@@ -81,6 +119,10 @@ $hg-item-textarea-line-height: 1.2;
   border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
   background: $hg-item-field-fill;
   cursor: pointer;
+
+  &:hover:not(.disabled) {
+    border-color: $hg-item-hover-color;
+  }
 
   // Read-only sheet: core marks `img[data-edit]` with `.disabled`.
   &.disabled {
@@ -108,6 +150,7 @@ $hg-item-textarea-line-height: 1.2;
 
   &--grow {
     flex: 1;
+    min-width: 0;
   }
 
   &--damage {
@@ -121,8 +164,8 @@ $hg-item-textarea-line-height: 1.2;
   color: $hg-gold-pale;
 }
 
-// Every text field, select and the name: same box. Class-scoped reset
-// (hg-canvas-input-reset) first, then the box on top.
+// Every text field, the drop-down trigger and the name: same box.
+// Class-scoped reset (hg-canvas-input-reset) first, then the box.
 .hg-item__input {
   @include hg-canvas-input-reset;
   box-sizing: border-box;
@@ -133,6 +176,14 @@ $hg-item-textarea-line-height: 1.2;
   background: $hg-item-field-fill;
   color: $hg-parchment;
   @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
+
+  &:hover:not(:disabled) {
+    border-color: $hg-item-hover-color;
+  }
+
+  &:focus:not(:disabled) {
+    border-color: $hg-item-focus-color;
+  }
 
   // Read-only sheet: core disables every control; keep it legible
   // rather than core's dimmed disabled look.
@@ -150,25 +201,6 @@ $hg-item-textarea-line-height: 1.2;
   @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
 }
 
-select.hg-item__input {
-  appearance: none;
-  padding-right: hg-item-px($hg-item-select-arrow-inset * 2 + $hg-item-select-arrow);
-  // Two half-squares meeting at the middle make a down-pointing ▾.
-  background:
-    linear-gradient(45deg, transparent 50%, $hg-gold-pale 50%) no-repeat
-      right hg-item-px($hg-item-select-arrow-inset + $hg-item-select-arrow * 0.5) center /
-      hg-item-px($hg-item-select-arrow * 0.5) hg-item-px($hg-item-select-arrow * 0.5),
-    linear-gradient(135deg, $hg-gold-pale 50%, transparent 50%) no-repeat
-      right hg-item-px($hg-item-select-arrow-inset) center /
-      hg-item-px($hg-item-select-arrow * 0.5) hg-item-px($hg-item-select-arrow * 0.5),
-    $hg-item-field-fill;
-
-  option {
-    background: $c-dark;
-    color: $hg-parchment;
-  }
-}
-
 // Epic rows wrap: a textarea sized to its own content, no resize handle.
 .hg-item__textarea {
   height: auto;
@@ -181,8 +213,91 @@ select.hg-item__input {
   white-space: pre-wrap;
 }
 
-// Checkbox + label, sitting on the fields' own line (the row aligns to
-// flex-end, this box is exactly one field tall).
+// ---- Drop-down list (hg-select.hbs, module/helpers/hg-select.mjs) ----
+
+// A <button>: zero core's own button chrome on top of the field box.
+.hg-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: hg-item-px($hg-item-arrow-gap);
+  padding-right: hg-item-px(($hg-item-field-height - $hg-item-arrow-height) * 0.5 - $hg-item-field-line);
+  border-radius: 0;
+  box-shadow: none;
+  transition: none;
+  text-align: left;
+  cursor: pointer;
+
+  // A mouse click focuses the button too — only keyboard focus lights it.
+  &:focus:not(:focus-visible):not(:hover) {
+    border-color: $hg-item-field-line-color;
+  }
+
+  &:focus-visible {
+    border-color: $hg-item-focus-color;
+  }
+}
+
+.hg-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hg-select__arrow {
+  flex: none;
+  width: hg-item-px($hg-item-arrow-width);
+  height: hg-item-px($hg-item-arrow-height);
+  background: no-repeat 0 0 / 100% 100%;
+  image-rendering: pixelated;
+  @include hg-item-sprite(iam015, 0);
+}
+
+.hg-select__trigger:hover .hg-select__arrow,
+.hg-select__trigger:focus-visible .hg-select__arrow {
+  @include hg-item-sprite(iam015, 3);
+}
+
+.hg-select__trigger:active .hg-select__arrow,
+.hg-select__trigger[aria-expanded='true'] .hg-select__arrow {
+  @include hg-item-sprite(iam015, 1);
+}
+
+.hg-select__trigger:disabled .hg-select__arrow {
+  @include hg-item-sprite(iam015, 2);
+}
+
+// The open list: the pickers' own frame and option list, in a layer on
+// document.body (outside the window, so nothing clips it), at the sheet's
+// own scale.
+.hg-select-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.hg-select-popup {
+  position: fixed;
+  transform: scale(var(--hg-pixel-scale));
+  transform-origin: top left;
+}
+
+.hg-select-popup .hg-option-list__item {
+  &:focus-visible {
+    text-decoration: underline;
+  }
+
+  &:active {
+    color: $hg-item-focus-color;
+  }
+}
+
+// ---- Checkbox: SYSOPCHK, ⊘ off / ✓ on ----
+
 .hg-item__checkbox {
   flex: none;
   display: flex;
@@ -190,6 +305,10 @@ select.hg-item__input {
   gap: hg-item-px($hg-item-checkbox-gap);
   height: hg-item-px($hg-item-field-height);
   cursor: pointer;
+
+  &:hover:not(:has(:disabled)) .hg-item__label {
+    color: $hg-item-hover-color;
+  }
 
   &:has(:disabled) {
     cursor: default;
@@ -199,20 +318,21 @@ select.hg-item__input {
 .hg-item__checkbox-box {
   appearance: none;
   flex: none;
-  box-sizing: border-box;
-  width: hg-item-px($hg-item-checkbox-size);
-  height: hg-item-px($hg-item-checkbox-size);
+  width: hg-item-px($hg-item-checkbox-width);
+  height: hg-item-px($hg-item-checkbox-height);
   margin: 0;
-  padding: hg-item-px($hg-item-checkbox-inset);
-  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  padding: 0;
+  border: none;
   border-radius: 0;
-  background: $hg-item-field-fill;
   box-shadow: none;
-  --input-focus-outline-color: transparent;
+  outline: none;
+  background: no-repeat 0 0 / 100% 100%;
+  @include hg-item-sprite(sysopchk, 0);
+  image-rendering: pixelated;
   cursor: inherit;
 
   &:checked {
-    background: linear-gradient($hg-gold-pale, $hg-gold-pale) content-box, $hg-item-field-fill;
+    @include hg-item-sprite(sysopchk, 1);
   }
 
   &::before,
@@ -225,23 +345,67 @@ select.hg-item__input {
   }
 }
 
-// Collapsible section: title with the chat card's ▸/▾ marker, body
-// hidden until expanded. No animation, no highlight.
+.hg-item__checkbox:hover .hg-item__checkbox-box:not(:disabled) {
+  outline: hg-item-px($hg-item-outline) solid $hg-item-hover-color;
+}
+
+.hg-item__checkbox-box:focus-visible,
+.hg-item__checkbox .hg-item__checkbox-box:active:not(:disabled) {
+  outline: hg-item-px($hg-item-outline) solid $hg-item-focus-color;
+}
+
+// ---- Fold-out section: IAM015 ▼ closed / IAM014 ▲ open ----
+
 .hg-item__section-title {
   color: $hg-gold;
   @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
 }
 
 .hg-item__toggle {
+  display: flex;
+  align-items: center;
+  gap: hg-item-px($hg-item-arrow-gap);
+  width: fit-content;
   cursor: pointer;
+  outline: none;
 
-  &::before {
-    content: '▸ ';
+  &:hover,
+  &:focus-visible {
+    color: $hg-item-hover-color;
   }
 }
 
-.hg-item__section.is-expanded .hg-item__toggle::before {
-  content: '▾ ';
+.hg-item__toggle-arrow {
+  flex: none;
+  width: hg-item-px($hg-item-arrow-width);
+  height: hg-item-px($hg-item-arrow-height);
+  background: no-repeat 0 0 / 100% 100%;
+  image-rendering: pixelated;
+  @include hg-item-sprite(iam015, 0);
+}
+
+.hg-item__toggle:hover .hg-item__toggle-arrow,
+.hg-item__toggle:focus-visible .hg-item__toggle-arrow {
+  @include hg-item-sprite(iam015, 3);
+}
+
+.hg-item__toggle:active .hg-item__toggle-arrow {
+  @include hg-item-sprite(iam015, 1);
+}
+
+.hg-item__section.is-expanded {
+  .hg-item__toggle-arrow {
+    @include hg-item-sprite(iam014, 0);
+  }
+
+  .hg-item__toggle:hover .hg-item__toggle-arrow,
+  .hg-item__toggle:focus-visible .hg-item__toggle-arrow {
+    @include hg-item-sprite(iam014, 3);
+  }
+
+  .hg-item__toggle:active .hg-item__toggle-arrow {
+    @include hg-item-sprite(iam014, 1);
+  }
 }
 
 .hg-item__section-body {

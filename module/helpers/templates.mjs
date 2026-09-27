@@ -10,5 +10,6 @@ export const preloadHandlebarsTemplates = async function () {
     // Item partials
     'systems/heroes-glory/templates/item/parts/item-effects.hbs',
     'systems/heroes-glory/templates/item/parts/hg-item-frame.hbs',
+    'systems/heroes-glory/templates/item/parts/hg-select.hbs',
   ]);
 };

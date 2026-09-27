@@ -219,7 +219,10 @@
 // by the element's own `data-color`. See _tooltip.scss's header comments
 // for how the 64px band and the fill were measured.
 // The element itself must be positioned (`position: relative` or other).
-@mixin hg-dialog-frame($frame-width, $border-repeat, $colors) {
+// `$fill` is the `background` shorthand's position/size/repeat part for the
+// leather: stretched over the whole box by default (tooltips), or a tile
+// anchored top-left (item sheets — see _item-frame.scss).
+@mixin hg-dialog-frame($frame-width, $border-repeat, $colors, $fill: center / 100% 100% no-repeat) {
   // Governs `.hg-tooltip__icon` (genuine pixel art) — border-image and
   // the background fill moved to ::after/::before below, each with its
   // own image-rendering (see those comments for why one image-rendering
@@ -234,7 +237,7 @@
     position: absolute;
     inset: 0;
     z-index: -2;
-    background: url('../assets/ui/tooltip_fill.png') center / 100% 100% no-repeat;
+    background: url('../assets/ui/tooltip_fill.png') $fill;
     image-rendering: auto;
   }
 
