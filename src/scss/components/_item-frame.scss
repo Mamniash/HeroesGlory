@@ -384,12 +384,6 @@ $hg-item-textarea-line-height: 1.2;
   display: flex;
 }
 
-// ---- A plain value line (e.g. an enchanted weapon's slot) ----
-
-.hg-item__value-line {
-  color: $hg-parchment;
-}
-
 // ---- Lists of rows (artifact modifiers) ----
 
 // Row height: the delete sprite's own 32px (IViewCr2).
@@ -494,8 +488,7 @@ $hg-doll-on-fill: 0.3;
 
 .hg-doll-row {
   display: flex;
-  align-items: flex-start;
-  gap: hg-item-px($hg-item-row-gap);
+  justify-content: center;
 }
 
 .hg-doll {
@@ -552,20 +545,4 @@ $hg-doll-on-fill: 0.3;
     left: hg-doll-px(nth($pos, 1) * 6 - $hg-doll-crop-x);
     top: hg-doll-px(nth($pos, 2) * 4.73 - $hg-doll-crop-y);
   }
-}
-
-// Side column: the chosen slots; hover hints (tooltip.mjs) float here,
-// centred, so they never cover the doll's cells.
-.hg-doll-side {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: hg-doll-px($hg-doll-crop-h);
-  display: flex;
-  flex-direction: column;
-  gap: hg-item-px($hg-item-label-gap);
-}
-
-.hg-doll-side__value {
-  color: $hg-parchment;
 }

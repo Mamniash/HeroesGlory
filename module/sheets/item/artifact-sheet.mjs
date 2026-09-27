@@ -1,6 +1,5 @@
 import { HeroesGloryFramedItemSheet } from './framed-item-sheet.mjs';
-import { ARTIFACT_LOCKED_SLOTS, toggleArtifactSlot } from '../../helpers/paperdoll-slots.mjs';
-import { showTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
+import { ARTIFACT_LOCKED_SLOTS, paperdollValidSlots, toggleArtifactSlot } from '../../helpers/paperdoll-slots.mjs';
 
 const SLOT_COUNT = 19;
 
@@ -24,16 +23,19 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
 
     context.isWeapon = system.artifactType === 'enchantedWeapon';
     context.hasLevel = system.artifactType === 'enchantedArmor' || system.artifactType === 'enchantedShield';
-    context.weaponSlotName = slotName(system.weaponType === 'ranged' ? 16 : 1);
-
-    const chosen = new Set(system.targetSlots);
+    // Marked = where the hero's paperdoll accepts this item — the same
+    // paperdollSlotAccepts the hero sheet's drop uses: targetSlots for most
+    // artifacts, the weapon type (1 or 16) for an enchanted weapon, whose
+    // doll therefore only shows and never toggles.
+    const accepted = new Set(paperdollValidSlots(this.item));
     context.dollCells = Array.from({ length: SLOT_COUNT }, (_, i) => {
       const slot = i + 1;
       const locked = ARTIFACT_LOCKED_SLOTS.includes(slot);
-      return { slot, name: slotName(slot), on: chosen.has(slot), locked, clickable: !locked && this.isEditable };
+      return {
+        slot, name: slotName(slot), on: accepted.has(slot), locked,
+        clickable: !locked && !context.isWeapon && this.isEditable,
+      };
     });
-    const names = [...new Set([...chosen].sort((a, b) => a - b).map(slotName))];
-    context.slotSummary = names.length ? names.join(', ') : game.i18n.localize('HEROES_GLORY.Artifact.SlotsNone');
 
     // «Прибавить N» shown as a signed number; a book «вычесть» (older items)
     // is shown the same way and saved back as «прибавить −N». Any other mode
@@ -53,13 +55,7 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
 
   /** @override */
   async _onRender(context, options) {
-    hideTooltip();
     await super._onRender(context, options);
-    const side = this.element.querySelector('.hg-doll-side');
-    for (const cell of this.element.querySelectorAll('.hg-doll__cell')) {
-      cell.addEventListener('mouseenter', () => showTooltip(this.#slotHint(cell), { boundsEl: side, color: context.panelColor }));
-      cell.addEventListener('mouseleave', () => hideTooltip());
-    }
     // New modifier: picking a characteristic in the empty row adds it (+1).
     // Stopped here so the form doesn't also submit for this unnamed select.
     this.element.querySelector('[data-hg-select-role="add-modifier"]')?.addEventListener('change', (event) => {
@@ -70,32 +66,6 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
     });
   }
 
-  /** @override */
-  async _preClose(options) {
-    hideTooltip();
-    await super._preClose(options);
-  }
-
-  /**
-   * The hover hint for a mini-paperdoll cell: its slot name, and a note on
-   * the locked ones.
-   * @param {HTMLElement} cell
-   * @returns {DocumentFragment}
-   */
-  #slotHint(cell) {
-    const fragment = document.createDocumentFragment();
-    const title = document.createElement('p');
-    title.className = 'hg-tooltip__title';
-    title.textContent = cell.dataset.name;
-    fragment.append(title);
-    if (cell.classList.contains('is-locked')) {
-      const note = document.createElement('p');
-      note.textContent = game.i18n.localize('HEROES_GLORY.Artifact.SlotLocked');
-      fragment.append(note);
-    }
-    return fragment;
-  }
-
   /**
    * §8.2: mark or unmark a slot (rings and «прочее» as one group).
    * @this {HeroesGloryArtifactSheet}
@@ -103,7 +73,7 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
    * @param {HTMLElement} target
    */
   static async #onToggleSlot(event, target) {
-    if (!this.isEditable) return;
+    if (!this.isEditable || this.item.system.artifactType === 'enchantedWeapon') return;
     const targetSlots = toggleArtifactSlot(this.item.system.targetSlots, Number(target.dataset.slot));
     return this.item.update({ 'system.targetSlots': targetSlots });
   }

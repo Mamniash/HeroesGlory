@@ -27,27 +27,19 @@
   </label>
 
   <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Artifact.Slots'}}</div>
-  {{#if isWeapon}}
-    {{!-- An enchanted weapon's slot follows its weapon type (paperdoll-slots.mjs). --}}
-    <div class="hg-item__value-line">{{weaponSlotName}}</div>
-  {{else}}
-    {{!-- Mini-paperdoll: a cell per hero-sheet slot; rings and «прочее» go
-      as one group; the book slot and 17–19 are locked. Hovering a cell shows
-      its name in the side column (tooltip.mjs). --}}
-    <div class="hg-doll-row">
-      <div class="hg-doll" data-color="{{panelColor}}">
-        {{#each dollCells}}
-          <div class="hg-doll__cell hg-doll__cell--{{slot}}{{#if on}} is-on{{/if}}{{#if locked}} is-locked{{/if}}"
-            data-slot="{{slot}}" data-name="{{name}}"
-            {{#if clickable}}role="button" tabindex="0" data-action="toggleSlot" aria-pressed="{{#if on}}true{{else}}false{{/if}}" aria-label="{{name}}"{{/if}}></div>
-        {{/each}}
-      </div>
-      <div class="hg-doll-side">
-        <span class="hg-item__label">{{localize 'HEROES_GLORY.Artifact.SlotsChosen'}}:</span>
-        <span class="hg-doll-side__value">{{slotSummary}}</span>
-      </div>
+  {{!-- Mini-paperdoll: a cell per hero-sheet slot, marked where the hero's
+    paperdoll accepts this artifact. Rings and «прочее» toggle as one group;
+    the book slot and 17–19 are locked. An enchanted weapon's slot follows
+    its weapon type, so its doll only shows it — no clicks. --}}
+  <div class="hg-doll-row">
+    <div class="hg-doll" data-color="{{panelColor}}">
+      {{#each dollCells}}
+        <div class="hg-doll__cell hg-doll__cell--{{slot}}{{#if on}} is-on{{/if}}{{#if locked}} is-locked{{/if}}"
+          data-slot="{{slot}}"
+          {{#if clickable}}role="button" tabindex="0" data-action="toggleSlot" aria-pressed="{{#if on}}true{{else}}false{{/if}}" aria-label="{{name}}"{{/if}}></div>
+      {{/each}}
     </div>
-  {{/if}}
+  </div>
 
   <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Artifact.Modifiers'}}</div>
   <div class="hg-item__list">

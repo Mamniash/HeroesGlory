@@ -3002,9 +3002,6 @@
 .heroes-glory .hg-item__section.is-expanded .hg-item__section-body {
   display: flex;
 }
-.heroes-glory .hg-item__value-line {
-  color: #ffffff;
-}
 .heroes-glory .hg-item__list {
   display: flex;
   flex-direction: column;
@@ -3061,8 +3058,7 @@
 }
 .heroes-glory .hg-doll-row {
   display: flex;
-  align-items: flex-start;
-  gap: calc(10px * var(--hg-pixel-scale));
+  justify-content: center;
 }
 .heroes-glory .hg-doll {
   position: relative;
@@ -3203,18 +3199,6 @@
 .heroes-glory .hg-doll__cell--19 {
   left: calc(192px * var(--hg-pixel-scale));
   top: calc(80.798496px * var(--hg-pixel-scale));
-}
-.heroes-glory .hg-doll-side {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: calc(273.6px * var(--hg-pixel-scale));
-  display: flex;
-  flex-direction: column;
-  gap: calc(3px * var(--hg-pixel-scale));
-}
-.heroes-glory .hg-doll-side__value {
-  color: #ffffff;
 }
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,
