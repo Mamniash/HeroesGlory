@@ -14,9 +14,10 @@
 //     as the drop-down arrow and the fold-out arrow;
 //   - the drop-down's list: the hero pickers' own `.hg-tooltip` +
 //     `.hg-option-list` markup.
-// States: hover lights the frame line white — the highlighted frame of
-// the HOMM3 sprites (their frame 3) — focus lights it bright gold, a press
-// shows the sprite's pressed frame. No animation, no size change.
+// States: hover changes only the HOMM3 sprites (their highlighted frame 3)
+// — frames and text stay as they are; keyboard focus lights the frame (or
+// the fold-out title) bright gold; a press shows the sprite's pressed
+// frame. No animation, no size change.
 //
 // Imported inside `.heroes-glory {}` after hero-paperdoll and tooltip —
 // reuses their `$hg-identity-*`, `$hg-stat-panel-darken`,
@@ -60,7 +61,6 @@ $hg-item-field-line: $hg-identity-line-width;
 $hg-item-field-line-color: $hg-identity-frame-color;
 $hg-item-field-fill: rgba(0, 0, 0, $hg-stat-panel-darken);
 // States.
-$hg-item-hover-color: $hg-parchment;
 $hg-item-focus-color: $hg-gold-mid;
 $hg-item-outline: 1px;
 // «Урон» holds up to 3 digits.
@@ -120,10 +120,6 @@ $hg-item-textarea-line-height: 1.2;
   background: $hg-item-field-fill;
   cursor: pointer;
 
-  &:hover:not(.disabled) {
-    border-color: $hg-item-hover-color;
-  }
-
   // Read-only sheet: core marks `img[data-edit]` with `.disabled`.
   &.disabled {
     cursor: default;
@@ -177,10 +173,6 @@ $hg-item-textarea-line-height: 1.2;
   color: $hg-parchment;
   @include hg-pixel-font($font-h3-small, $hg-font-h3-small-height);
 
-  &:hover:not(:disabled) {
-    border-color: $hg-item-hover-color;
-  }
-
   &:focus:not(:disabled) {
     border-color: $hg-item-focus-color;
   }
@@ -224,12 +216,14 @@ $hg-item-textarea-line-height: 1.2;
   padding-right: hg-item-px(($hg-item-field-height - $hg-item-arrow-height) * 0.5 - $hg-item-field-line);
   border-radius: 0;
   box-shadow: none;
+  // Core's own focus ring on buttons; keyboard focus is the gold frame below.
+  outline: none;
   transition: none;
   text-align: left;
   cursor: pointer;
 
   // A mouse click focuses the button too — only keyboard focus lights it.
-  &:focus:not(:focus-visible):not(:hover) {
+  &:focus:not(:focus-visible) {
     border-color: $hg-item-field-line-color;
   }
 
@@ -306,10 +300,6 @@ $hg-item-textarea-line-height: 1.2;
   height: hg-item-px($hg-item-field-height);
   cursor: pointer;
 
-  &:hover:not(:has(:disabled)) .hg-item__label {
-    color: $hg-item-hover-color;
-  }
-
   &:has(:disabled) {
     cursor: default;
   }
@@ -345,10 +335,6 @@ $hg-item-textarea-line-height: 1.2;
   }
 }
 
-.hg-item__checkbox:hover .hg-item__checkbox-box:not(:disabled) {
-  outline: hg-item-px($hg-item-outline) solid $hg-item-hover-color;
-}
-
 .hg-item__checkbox-box:focus-visible,
 .hg-item__checkbox .hg-item__checkbox-box:active:not(:disabled) {
   outline: hg-item-px($hg-item-outline) solid $hg-item-focus-color;
@@ -369,9 +355,8 @@ $hg-item-textarea-line-height: 1.2;
   cursor: pointer;
   outline: none;
 
-  &:hover,
   &:focus-visible {
-    color: $hg-item-hover-color;
+    color: $hg-item-focus-color;
   }
 }
 
