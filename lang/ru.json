@@ -455,7 +455,8 @@
       "VariantAdvanced": "Продвинутый Навык",
       "VariantExpert": "Экспертный Навык",
       "Description": "Описание эффекта",
-      "ManaCost": "Стоимость Маны"
+      "ManaCost": "Стоимость Маны",
+      "NeedsWisdom": "Недоступно: нужна {wisdom}"
     },
     "Spellbook": {
       "PrevPageHint": "Предыдущий разворот книги",

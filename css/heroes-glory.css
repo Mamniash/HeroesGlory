@@ -3216,6 +3216,21 @@
   left: calc(192px * var(--hg-pixel-scale));
   top: calc(80.798496px * var(--hg-pixel-scale));
 }
+.heroes-glory .hg-item__variant {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--hg-pixel-scale));
+  padding: calc(4px * var(--hg-pixel-scale));
+  border: round(max(2px, 2px * var(--hg-pixel-scale)), 1px) solid transparent;
+}
+.heroes-glory .hg-item__variant.is-active {
+  background: rgba(255, 228, 135, 0.3);
+  border: round(max(2px, 2px * var(--hg-pixel-scale)), 1px) solid transparent;
+  border-image: url("../assets/artifact/artifact_g00_f144.png") 1;
+}
+.heroes-glory .hg-item__note {
+  color: #ffffff;
+}
 .heroes-glory .effects .item .effect-source,
 .heroes-glory .effects .item .effect-duration,
 .heroes-glory .effects .item .effect-controls {

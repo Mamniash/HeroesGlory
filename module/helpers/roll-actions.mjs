@@ -816,7 +816,8 @@ export function wisdomRequiredKey(tier) {
 /**
  * §6.1/§11 (Мудрость, p. 38): whether this hero may cast this spell at
  * all, and if not, which Мудрость tier it needs. Creatures own no skills
- * and are never gated. Shared by castSpell and the spellbook tooltip.
+ * and are never gated. Shared by castSpell and the spell sheet opened from
+ * the hero's book.
  * @param {Actor} actor
  * @param {Item} spell
  * @returns {{allowed: boolean, requiredTier: 'base'|'advanced'|'expert'|null}}

@@ -506,6 +506,17 @@ $hg-doll-frame-min: 2px;
 $hg-doll-on-color: rgb(255, 228, 135);
 $hg-doll-on-fill: 0.3;
 
+// The «chosen» mark: HOMM3's slot highlight (artifact_g00_f144.png) as a
+// border never thinner than 2 screen px, with a light fill of its gold.
+// Used by a chosen mini-paperdoll cell and by the spell variant in effect.
+$hg-item-mark-width: round(max(#{$hg-doll-frame-min}, calc(2px * var(--hg-pixel-scale))), 1px);
+
+@mixin hg-item-chosen-mark {
+  background: rgba($hg-doll-on-color, $hg-doll-on-fill);
+  border: $hg-item-mark-width solid transparent;
+  border-image: url('../assets/artifact/artifact_g00_f144.png') 1;
+}
+
 @function hg-doll-px($native) {
   @return hg-item-px($native * $hg-doll-scale * 1px);
 }
@@ -546,9 +557,7 @@ $hg-doll-on-fill: 0.3;
   }
 
   &.is-on {
-    background: rgba($hg-doll-on-color, $hg-doll-on-fill);
-    border: round(max(#{$hg-doll-frame-min}, calc(2px * var(--hg-pixel-scale))), 1px) solid transparent;
-    border-image: url('../assets/artifact/artifact_g00_f144.png') 1;
+    @include hg-item-chosen-mark;
   }
 
   &.is-locked {
@@ -569,4 +578,28 @@ $hg-doll-on-fill: 0.3;
     left: hg-doll-px(nth($pos, 1) * 6 - $hg-doll-crop-x);
     top: hg-doll-px(nth($pos, 2) * 4.73 - $hg-doll-crop-y);
   }
+}
+
+
+// ---- Spell sheet: the four mastery variants ----
+
+// Room for the mark around a variant; the border is always there
+// (transparent) so marking one doesn't shift the layout.
+$hg-item-variant-padding: 4px;
+
+.hg-item__variant {
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-label-gap);
+  padding: hg-item-px($hg-item-variant-padding);
+  border: $hg-item-mark-width solid transparent;
+
+  &.is-active {
+    @include hg-item-chosen-mark;
+  }
+}
+
+// A plain text line on the sheet (e.g. the Мудрость notice).
+.hg-item__note {
+  color: $hg-parchment;
 }

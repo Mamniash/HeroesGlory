@@ -858,12 +858,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
     // Spellbook: a right click on a spell opens its own sheet (the left
     // click still casts) — editable for the GM, read-only for players,
-    // owners included; the item's ownership itself is untouched.
+    // owners included; the item's ownership itself is untouched. Opened
+    // from the book, it marks this hero's variant and his Мудрость gap.
     this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
       icon.addEventListener('contextmenu', (event) => {
         event.preventDefault();
         const spell = this.actor.items.get(icon.dataset.itemId);
-        spell?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+        spell?.sheet.render({ force: true, hgReadOnly: !game.user.isGM, hgFromBook: true });
       });
     });
 

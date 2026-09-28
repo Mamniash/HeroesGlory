@@ -15,9 +15,15 @@
     </label>
   </div>
 
+  {{!-- Opened from the hero's book only (spell-sheet.mjs): the hero lacks
+    Мудрость for this spell's level. --}}
+  {{#if wisdomLine}}<div class="hg-item__note">{{wisdomLine}}</div>{{/if}}
+
   {{!-- §6.3: all four mastery variants, one under another (readable in a
-    narrow window): the variant's name, then its description and mana cost. --}}
+    narrow window): the variant's name, then its description and mana cost.
+    From the hero's book, the variant in effect for him is marked. --}}
   {{#each variantRows}}
+    <div class="hg-item__variant{{#if active}} is-active{{/if}}">
     <div class="hg-item__section-title">{{localize label}}</div>
     {{!-- Labels on one line, fields on the next: a two-line label
       («Стоимость Маны») can't push its field below the description's. --}}
@@ -28,6 +34,7 @@
         aria-label="{{localize 'HEROES_GLORY.Spell.Description'}}">{{description}}</textarea>
       <input class="hg-item__input" type="number" name="system.variants.{{key}}.manaCost" value="{{manaCost}}" min="0" step="1"
         aria-label="{{localize 'HEROES_GLORY.Spell.ManaCost'}}">
+    </div>
     </div>
   {{/each}}
 </section>
