@@ -2,14 +2,24 @@
   fill, see components/_item-frame.scss): image + name header, then the
   sheet's own body passed as a partial block —
   {{#> "systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}…{{/…}}.
-  `data-color` picks the frame the same way `.hg-tooltip[data-color]` does. --}}
+  `data-color` picks the frame the same way `.hg-tooltip[data-color]` does.
+  A sheet whose item is named after a choice (the skill sheet) passes
+  `headerSelect` ({name, choices, value, placeholder}) — the header then
+  shows that drop-down instead of the name field. --}}
 <div class="hg-item" data-color="{{panelColor}}">
   <header class="hg-item__header">
     <img class="hg-item__image" src="{{item.img}}" alt="{{item.name}}"
       data-action="editImage" data-edit="img"
       aria-label="{{localize 'HEROES_GLORY.Item.ChangeImage'}}">
-    <input class="hg-item__input hg-item__name" type="text" name="name" value="{{item.name}}"
-      placeholder="{{localize 'HEROES_GLORY.Item.NamePlaceholder'}}">
+    {{#if headerSelect}}
+      <div class="hg-item__name-select">
+        {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" bare=true name=headerSelect.name
+          choices=headerSelect.choices value=headerSelect.value placeholder=headerSelect.placeholder}}
+      </div>
+    {{else}}
+      <input class="hg-item__input hg-item__name" type="text" name="name" value="{{item.name}}"
+        placeholder="{{localize 'HEROES_GLORY.Item.NamePlaceholder'}}">
+    {{/if}}
   </header>
   {{> @partial-block}}
 </div>

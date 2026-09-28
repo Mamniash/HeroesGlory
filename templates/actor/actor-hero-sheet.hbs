@@ -268,16 +268,11 @@
               {{#if this}}
                 <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
                   {{#if ../editMode}}data-action="openItem"{{/if}}
-                  data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
+                  data-skill-sheet>
                 {{#if ../editMode}}
                   <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
                     title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
                 {{/if}}
-                <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
-                  <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
-                  <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
-                  <p>{{this.effectText}}</p>
-                </template>
               {{/if}}
             </div>
             <div class="hero-paperdoll__skill-cell-desc">
@@ -293,16 +288,11 @@
         {{#if this}}
           <img class="hero-paperdoll__icon-img" src="{{this.icon}}" data-item-id="{{this.item.id}}"
             {{#if ../editMode}}data-action="openItem"{{/if}}
-            data-tooltip-trigger="secskill-{{inc @index}}" data-tooltip-click>
+            data-skill-sheet>
           {{#if ../editMode}}
             <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
               title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
           {{/if}}
-          <template class="hg-tooltip-tpl" data-tooltip-key="secskill-{{inc @index}}">
-            <img class="hg-tooltip__icon" src="{{this.iconLarge}}" width="82" height="93" alt="">
-            <p class="hg-tooltip__title">{{localize this.skillLabel}} — {{localize this.tierLabel}}</p>
-            <p>{{this.effectText}}</p>
-          </template>
         {{/if}}
       </div>
       <div class="hero-paperdoll__slot hero-paperdoll__slot--skill_desc_{{inc @index}}">

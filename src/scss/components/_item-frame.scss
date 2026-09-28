@@ -228,6 +228,18 @@ $hg-item-textarea-line-height: 1.2;
   }
 }
 
+// The header's drop-down in place of the name field (skill sheet): the
+// name field's width and height.
+.hg-item__name-select {
+  flex: 1;
+  min-width: 0;
+
+  .hg-select__trigger {
+    height: hg-item-px($hg-item-name-height);
+    min-height: 0;
+  }
+}
+
 // Name: the dialog title's font and color (.hg-tooltip__title).
 .hg-item__name {
   flex: 1;
@@ -618,6 +630,11 @@ $hg-item-variant-active-darken: 0.24;
   padding: hg-item-px($hg-item-variant-padding);
   background: rgba(0, 0, 0, $hg-stat-panel-darken);
   @include hg-item-bevel(hg-item-px($hg-item-variant-bevel));
+
+  // Skill sheet: another tier's block, clickable where the sheet is editable.
+  &[data-action] {
+    cursor: pointer;
+  }
 
   &.is-active {
     background: rgba(0, 0, 0, $hg-item-variant-active-darken);

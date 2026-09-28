@@ -626,10 +626,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         tierLabel: config.skillTiers[i.system.tier] ?? '',
         skillLabel: config.secondarySkills[i.system.skillKey] ?? '',
         icon: secondarySkillIconPath(i.system.skillKey, i.system.tier),
-        iconLarge: secondarySkillIconPath(i.system.skillKey, i.system.tier, { large: true }),
-        // Free text transcribed from the book (item-skill.mjs), only the
-        // hero's current tier — the tooltip shows just this, not all 3.
-        effectText: i.system.effects[i.system.tier],
       }));
     const secondarySkillCap = secondarySkillSlotCount(
       secondarySkills.map((s) => s.item.system),
@@ -860,6 +856,14 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // click still casts) — editable for the GM, read-only for players,
     // owners included; the item's ownership itself is untouched. Opened
     // from the book, it marks this hero's variant and his Мудрость gap.
+    // Secondary skills: the same — a right click opens the skill's sheet
+    // (it replaced the icon's info box, which only repeated that sheet).
+    this.element.querySelectorAll('[data-skill-sheet]').forEach((icon) => {
+      icon.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        this.actor.items.get(icon.dataset.itemId)?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+      });
+    });
     this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
       icon.addEventListener('contextmenu', (event) => {
         event.preventDefault();

@@ -418,9 +418,7 @@
       "ModeOverride": "Заменить значение"
     },
     "Skill": {
-      "Key": "Навык",
       "KeyPlaceholder": "— выберите навык —",
-      "Tier": "Текущий уровень",
       "EffectBase": "Эффект: базовый",
       "EffectAdvanced": "Эффект: продвинутый",
       "EffectExpert": "Эффект: эксперт"

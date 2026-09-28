@@ -1,6 +1,7 @@
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 import { followWeaponTypeSlots } from '../helpers/paperdoll-slots.mjs';
 import { SPELLBOOK_IMG } from '../helpers/item-images.mjs';
+import { secondarySkillIconPath } from '../helpers/skill-icons.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -94,6 +95,22 @@ export class HeroesGloryItem extends Item {
   async _preUpdate(changed, options, user) {
     const allowed = await super._preUpdate(changed, options, user);
     if (allowed === false) return false;
+    // A skill item is named after its skill: choosing another skill renames
+    // it and, if it still shows the old skill's icon (or none of its own),
+    // swaps the icon too.
+    const newKey = changed.system?.skillKey;
+    if (this.type === 'skill' && newKey && newKey !== this.system.skillKey) {
+      const labelKey = CONFIG.HEROES_GLORY.secondarySkills[newKey];
+      if (labelKey && !('name' in changed)) changed.name = game.i18n.localize(labelKey);
+      const oldIcon = this.system.skillKey ? secondarySkillIconPath(this.system.skillKey, 'base', { large: true }) : null;
+      const defaultIcon = this.constructor.getDefaultArtwork({ type: 'skill' }).img;
+      // The sheet's form always sends the header image back unchanged —
+      // only a different image counts as set by hand.
+      const imgByHand = 'img' in changed && changed.img !== this.img;
+      if (!imgByHand && (!this.img || this.img === oldIcon || this.img === defaultIcon)) {
+        changed.img = secondarySkillIconPath(newKey, 'base', { large: true });
+      }
+    }
     const newType = changed.system?.weaponType;
     if (this.type === 'artifact' && this.system.artifactType === 'enchantedWeapon'
       && newType !== undefined && newType !== this.system.weaponType && !('targetSlots' in changed.system)) {

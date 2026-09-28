@@ -2859,6 +2859,14 @@
   opacity: 1;
   cursor: default;
 }
+.heroes-glory .hg-item__name-select {
+  flex: 1;
+  min-width: 0;
+}
+.heroes-glory .hg-item__name-select .hg-select__trigger {
+  height: calc(28px * var(--hg-pixel-scale));
+  min-height: 0;
+}
 .heroes-glory .hg-item__name {
   flex: 1;
   height: calc(28px * var(--hg-pixel-scale));
@@ -3228,6 +3236,9 @@
   padding: calc(6px * var(--hg-pixel-scale));
   background: rgba(0, 0, 0, 0.32);
   box-shadow: 0 calc(-1 * calc(1px * var(--hg-pixel-scale))) 0 0 rgb(118, 96, 79), 0 calc(1px * var(--hg-pixel-scale)) 0 0 rgb(118, 96, 79), calc(-1 * calc(1px * var(--hg-pixel-scale))) 0 0 0 rgb(98, 74, 54), calc(1px * var(--hg-pixel-scale)) 0 0 0 rgb(92, 71, 53);
+}
+.heroes-glory .hg-item__variant[data-action] {
+  cursor: pointer;
 }
 .heroes-glory .hg-item__variant.is-active {
   background: rgba(0, 0, 0, 0.24);
