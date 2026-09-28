@@ -448,14 +448,14 @@
     },
     "Spell": {
       "School": "Школа",
-      "Level": "Уровень заклинания",
-      "Range": "Дальность (клетки)",
+      "Level": "Уровень",
+      "Range": "Дальность",
       "VariantNone": "Без Навыка",
       "VariantBasic": "Базовый Навык",
       "VariantAdvanced": "Продвинутый Навык",
       "VariantExpert": "Экспертный Навык",
       "Description": "Описание эффекта",
-      "ManaCost": "Стоимость Маны",
+      "ManaCost": "Мана",
       "NeedsWisdom": "Недоступно: нужна {wisdom}"
     },
     "Spellbook": {

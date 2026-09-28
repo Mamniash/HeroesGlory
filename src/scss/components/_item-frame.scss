@@ -158,6 +158,13 @@ $hg-item-textarea-line-height: 1.2;
   gap: hg-item-px($hg-item-row-gap);
 }
 
+// A row whose drop-down is exactly as tall as its plain fields (core gives
+// every button a 28px minimum, the fields are 24).
+.hg-item__row--even .hg-select__trigger {
+  height: hg-item-px($hg-item-field-height);
+  min-height: 0;
+}
+
 // A wide text field and a narrow number side by side: both labels on the
 // first line (bottom-aligned, so a two-line label just grows upward), both
 // fields on the second (top-aligned, the text may wrap downward).
@@ -508,7 +515,7 @@ $hg-doll-on-fill: 0.3;
 
 // The «chosen» mark: HOMM3's slot highlight (artifact_g00_f144.png) as a
 // border never thinner than 2 screen px, with a light fill of its gold.
-// Used by a chosen mini-paperdoll cell and by the spell variant in effect.
+// The mini-paperdoll's chosen cell.
 $hg-item-mark-width: round(max(#{$hg-doll-frame-min}, calc(2px * var(--hg-pixel-scale))), 1px);
 
 @mixin hg-item-chosen-mark {
@@ -583,19 +590,37 @@ $hg-item-mark-width: round(max(#{$hg-doll-frame-min}, calc(2px * var(--hg-pixel-
 
 // ---- Spell sheet: the four mastery variants ----
 
-// Room for the mark around a variant; the border is always there
-// (transparent) so marking one doesn't shift the layout.
-$hg-item-variant-padding: 4px;
+// Each variant is its own recessed panel — the hero sheet's own Скорость/
+// Зрение panel (_hero-paperdoll.scss, .hero-paperdoll__stat-backdrop): the
+// leather darkened in place ($hg-stat-panel-darken) with the sheet art's
+// one-pixel bevel ($hg-panel-bevel-*, sampled from heroscr4). The variant
+// in effect (sheet opened from the hero's book) swaps the bevel for a
+// light gold line — the HOMM3 slot-highlight color — and lifts the shade a
+// touch; no fill (the mini-paperdoll keeps its own, stronger mark).
+$hg-item-variant-padding: 6px;
+$hg-item-variant-bevel: 1px;
+$hg-item-variant-active-line: 2px;
+$hg-item-variant-active-darken: 0.24;
+
+@mixin hg-item-bevel($w) {
+  box-shadow:
+    0 calc(-1 * #{$w}) 0 0 $hg-panel-bevel-top-bottom,
+    0 $w 0 0 $hg-panel-bevel-top-bottom,
+    calc(-1 * #{$w}) 0 0 0 $hg-panel-bevel-left,
+    $w 0 0 0 $hg-panel-bevel-right;
+}
 
 .hg-item__variant {
   display: flex;
   flex-direction: column;
   gap: hg-item-px($hg-item-label-gap);
   padding: hg-item-px($hg-item-variant-padding);
-  border: $hg-item-mark-width solid transparent;
+  background: rgba(0, 0, 0, $hg-stat-panel-darken);
+  @include hg-item-bevel(hg-item-px($hg-item-variant-bevel));
 
   &.is-active {
-    @include hg-item-chosen-mark;
+    background: rgba(0, 0, 0, $hg-item-variant-active-darken);
+    box-shadow: inset 0 0 0 round(max(#{$hg-doll-frame-min}, calc(#{$hg-item-variant-active-line} * var(--hg-pixel-scale))), 1px) $hg-doll-on-color;
   }
 }
 
