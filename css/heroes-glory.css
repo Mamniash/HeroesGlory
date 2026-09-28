@@ -2800,7 +2800,8 @@
   row-gap: calc(3px * var(--hg-pixel-scale));
   align-items: start;
 }
-.heroes-glory .hg-item__pair > .hg-item__label {
+.heroes-glory .hg-item__pair > .hg-item__label,
+.heroes-glory .hg-item__pair > .hg-item__section-title {
   align-self: end;
 }
 .heroes-glory .hg-item__field {

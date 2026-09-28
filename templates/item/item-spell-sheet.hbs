@@ -24,11 +24,10 @@
     From the hero's book, the variant in effect for him is marked. --}}
   {{#each variantRows}}
     <div class="hg-item__variant{{#if active}} is-active{{/if}}">
-    <div class="hg-item__section-title">{{localize label}}</div>
-    {{!-- Labels on one line, fields on the next: the description and its
-      cost start on the same line whatever the labels' length. --}}
+    {{!-- The variant's name and «Мана» on one line, the description (no
+      visible label — aria-label only) and its cost on the next, tops aligned. --}}
     <div class="hg-item__pair">
-      <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+      <div class="hg-item__section-title">{{localize label}}</div>
       <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
       <textarea class="hg-item__input hg-item__textarea" name="system.variants.{{key}}.description" rows="1"
         aria-label="{{localize 'HEROES_GLORY.Spell.Description'}}">{{description}}</textarea>

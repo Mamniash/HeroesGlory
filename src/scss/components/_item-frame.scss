@@ -165,9 +165,9 @@ $hg-item-textarea-line-height: 1.2;
   min-height: 0;
 }
 
-// A wide text field and a narrow number side by side: both labels on the
-// first line (bottom-aligned, so a two-line label just grows upward), both
-// fields on the second (top-aligned, the text may wrap downward).
+// A wide text field and a narrow number side by side: their headings (a
+// label or a section title) on the first line, bottom-aligned; both fields
+// on the second, top-aligned (the text may wrap downward).
 .hg-item__pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) hg-item-px($hg-item-damage-width);
@@ -175,7 +175,8 @@ $hg-item-textarea-line-height: 1.2;
   row-gap: hg-item-px($hg-item-label-gap);
   align-items: start;
 
-  > .hg-item__label {
+  > .hg-item__label,
+  > .hg-item__section-title {
     align-self: end;
   }
 }
