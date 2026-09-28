@@ -856,13 +856,17 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // click still casts) — editable for the GM, read-only for players,
     // owners included; the item's ownership itself is untouched. Opened
     // from the book, it marks this hero's variant and his Мудрость gap.
-    // Secondary skills: the same — a right click opens the skill's sheet
-    // (it replaced the icon's info box, which only repeated that sheet).
+    // Secondary skills: a right click — and, outside edit mode, a left click
+    // too — opens the skill's sheet (they replaced the icon's info box,
+    // which only repeated that sheet). In edit mode the left click stays
+    // the icon's own openItem.
     this.element.querySelectorAll('[data-skill-sheet]').forEach((icon) => {
-      icon.addEventListener('contextmenu', (event) => {
+      const open = (event) => {
         event.preventDefault();
         this.actor.items.get(icon.dataset.itemId)?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
-      });
+      };
+      icon.addEventListener('contextmenu', open);
+      if (!icon.dataset.action) icon.addEventListener('click', open);
     });
     this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
       icon.addEventListener('contextmenu', (event) => {

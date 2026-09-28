@@ -110,6 +110,12 @@ export class HeroesGloryItem extends Item {
       if (!imgByHand && (!this.img || this.img === oldIcon || this.img === defaultIcon)) {
         changed.img = secondarySkillIconPath(newKey, 'base', { large: true });
       }
+      // Everything else that describes the skill — its three tiers' texts —
+      // comes from the compendium entry of the new skill (the owned tier
+      // stays). Not there: the texts are left alone.
+      const effects = await HeroesGloryItem.#compendiumSkillEffects(newKey);
+      if (effects) changed.system.effects = effects;
+      else console.warn(`heroes-glory | skill "${newKey}" not found in heroes-glory.skills; its tier texts were left as they were`);
     }
     const newType = changed.system?.weaponType;
     if (this.type === 'artifact' && this.system.artifactType === 'enchantedWeapon'
@@ -171,6 +177,21 @@ export class HeroesGloryItem extends Item {
 
     const conflict = this.#findEquippedSlotConflict();
     conflict?.update({ 'system.equipped': false });
+  }
+
+  /**
+   * The three tier texts of a skill's compendium entry, or null if the
+   * compendium has no entry for that skill key.
+   * @param {string} skillKey
+   * @returns {Promise<{base: string, advanced: string, expert: string}|null>}
+   */
+  static async #compendiumSkillEffects(skillKey) {
+    const pack = game.packs.get('heroes-glory.skills');
+    if (!pack) return null;
+    const entry = (await pack.getIndex({ fields: ['system.skillKey'] })).find((e) => e.system?.skillKey === skillKey);
+    if (!entry) return null;
+    const doc = await pack.getDocument(entry._id);
+    return doc ? foundry.utils.deepClone(doc.system.effects) : null;
   }
 
   /**
