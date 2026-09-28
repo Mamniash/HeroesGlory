@@ -3011,7 +3011,11 @@
   display: flex;
   align-items: center;
   gap: calc(10px * var(--hg-pixel-scale));
-  min-height: calc(32px * var(--hg-pixel-scale));
+}
+.heroes-glory .hg-item__list-row .hg-select__trigger,
+.heroes-glory .hg-item__list-row .hg-item__signed {
+  height: calc(28px * var(--hg-pixel-scale));
+  min-height: 0;
 }
 .heroes-glory .hg-item__list-grow {
   flex: 1;
@@ -3027,11 +3031,12 @@
 .heroes-glory .hg-item__sprite-button {
   appearance: none;
   flex: none;
-  width: round(46px * var(--hg-pixel-scale), 1px);
-  height: round(32px * var(--hg-pixel-scale), 1px);
+  width: round(40.25px * var(--hg-pixel-scale), 1px);
+  height: round(28px * var(--hg-pixel-scale), 1px);
   background: no-repeat 0 0/100% 100%;
   image-rendering: pixelated;
   will-change: transform;
+  min-height: 0;
   margin: 0;
   padding: 0;
   border: none;

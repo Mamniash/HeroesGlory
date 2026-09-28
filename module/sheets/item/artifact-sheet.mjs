@@ -24,16 +24,15 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
     context.isWeapon = system.artifactType === 'enchantedWeapon';
     context.hasLevel = system.artifactType === 'enchantedArmor' || system.artifactType === 'enchantedShield';
     // Marked = where the hero's paperdoll accepts this item — the same
-    // paperdollSlotAccepts the hero sheet's drop uses: targetSlots for most
-    // artifacts, the weapon type (1 or 16) for an enchanted weapon, whose
-    // doll therefore only shows and never toggles.
+    // paperdollSlotAccepts the hero sheet's drop uses (the item's own marks;
+    // an unmarked enchanted weapon — its weapon type's slot).
     const accepted = new Set(paperdollValidSlots(this.item));
     context.dollCells = Array.from({ length: SLOT_COUNT }, (_, i) => {
       const slot = i + 1;
       const locked = ARTIFACT_LOCKED_SLOTS.includes(slot);
       return {
         slot, name: slotName(slot), on: accepted.has(slot), locked,
-        clickable: !locked && !context.isWeapon && this.isEditable,
+        clickable: !locked && this.isEditable,
       };
     });
 
@@ -73,8 +72,9 @@ export class HeroesGloryArtifactSheet extends HeroesGloryFramedItemSheet {
    * @param {HTMLElement} target
    */
   static async #onToggleSlot(event, target) {
-    if (!this.isEditable || this.item.system.artifactType === 'enchantedWeapon') return;
-    const targetSlots = toggleArtifactSlot(this.item.system.targetSlots, Number(target.dataset.slot));
+    if (!this.isEditable) return;
+    const current = paperdollValidSlots(this.item);
+    const targetSlots = toggleArtifactSlot(current, Number(target.dataset.slot));
     return this.item.update({ 'system.targetSlots': targetSlots });
   }
 

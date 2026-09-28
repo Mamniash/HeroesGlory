@@ -1,4 +1,5 @@
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
+import { followWeaponTypeSlots } from '../helpers/paperdoll-slots.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -69,6 +70,22 @@ export class HeroesGloryItem extends Item {
     super._onCreate(data, options, userId);
     if (userId !== game.user.id) return;
     if (this.type === 'artifact') this.#syncModifierEffect();
+  }
+
+  /**
+   * §8.2: an enchanted weapon re-typed (bow → sword) moves its paperdoll
+   * mark along with the type — unless its marks were set by hand
+   * (followWeaponTypeSlots, paperdoll-slots.mjs).
+   * @override
+   */
+  async _preUpdate(changed, options, user) {
+    const allowed = await super._preUpdate(changed, options, user);
+    if (allowed === false) return false;
+    const newType = changed.system?.weaponType;
+    if (this.type === 'artifact' && this.system.artifactType === 'enchantedWeapon'
+      && newType !== undefined && newType !== this.system.weaponType && !('targetSlots' in changed.system)) {
+      changed.system.targetSlots = followWeaponTypeSlots(this.system.targetSlots, this.system.weaponType, newType);
+    }
   }
 
   /**

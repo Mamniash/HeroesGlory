@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildArtifactDocuments } from '../scripts/data/artifact-compendium-data.mjs';
-import { ARTIFACT_LOCKED_SLOTS, PAPERDOLL_SLOT_GROUPS } from '../module/helpers/paperdoll-slots.mjs';
+
 
 const docs = buildArtifactDocuments();
 const byName = Object.fromEntries(docs.map((d) => [d.name, d.system]));
@@ -15,16 +15,13 @@ describe('artifact compendium — slots (§11 «Куда надевается а
     }
   });
 
-  test('no artifact lists the book slot or a reserve slot', () => {
-    for (const d of docs) for (const s of d.system.targetSlots) assert.ok(!ARTIFACT_LOCKED_SLOTS.includes(s), `${d.name}: ${s}`);
+  test('the compendium uses neither the book slot nor the reserve 17–19', () => {
+    for (const d of docs) for (const s of d.system.targetSlots) assert.ok(![10, 17, 18, 19].includes(s), `${d.name}: ${s}`);
   });
 
-  test('ring and «прочее» groups are always whole', () => {
-    for (const d of docs) {
-      for (const group of PAPERDOLL_SLOT_GROUPS) {
-        const n = group.filter((s) => d.system.targetSlots.includes(s)).length;
-        assert.ok(n === 0 || n === group.length, d.name);
-      }
+  test('enchanted weapons are marked with their weapon type slot', () => {
+    for (const d of docs.filter((x) => x.system.artifactType === 'enchantedWeapon')) {
+      assert.deepEqual(d.system.targetSlots, [d.system.weaponType === 'ranged' ? 16 : 1], d.name);
     }
   });
 

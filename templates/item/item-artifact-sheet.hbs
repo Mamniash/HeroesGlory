@@ -28,9 +28,8 @@
 
   <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Artifact.Slots'}}</div>
   {{!-- Mini-paperdoll: a cell per hero-sheet slot, marked where the hero's
-    paperdoll accepts this artifact. Rings and «прочее» toggle as one group;
-    the book slot and 17–19 are locked. An enchanted weapon's slot follows
-    its weapon type, so its doll only shows it — no clicks. --}}
+    paperdoll accepts this artifact; a click marks or unmarks one cell. Only
+    the book slot is locked. --}}
   <div class="hg-doll-row">
     <div class="hg-doll" data-color="{{panelColor}}">
       {{#each dollCells}}

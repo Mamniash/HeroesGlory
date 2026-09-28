@@ -386,12 +386,14 @@ $hg-item-textarea-line-height: 1.2;
 
 // ---- Lists of rows (artifact modifiers) ----
 
-// Row height: the delete sprite's own 32px (IViewCr2).
-$hg-item-list-row-height: 32px;
+// One height for all three controls of a row: the drop-down's own (core's
+// button min-height, 28px at scale 1), now scaled with the sheet.
+$hg-item-list-control-height: 28px;
 $hg-item-list-gap: 4px;
-// IViewCr2 — the creature window's «dismiss» button, 46×32 native.
-$hg-item-delete-width: 46px;
-$hg-item-delete-height: 32px;
+// IViewCr2 — the creature window's «dismiss» button, 46×32 native, shown
+// at the row height (aspect kept: 46 × 28 / 32).
+$hg-item-delete-height: $hg-item-list-control-height;
+$hg-item-delete-width: 46px * $hg-item-list-control-height / 32px;
 
 .hg-item__list {
   display: flex;
@@ -403,7 +405,12 @@ $hg-item-delete-height: 32px;
   display: flex;
   align-items: center;
   gap: hg-item-px($hg-item-row-gap);
-  min-height: hg-item-px($hg-item-list-row-height);
+
+  .hg-select__trigger,
+  .hg-item__signed {
+    height: hg-item-px($hg-item-list-control-height);
+    min-height: 0;
+  }
 }
 
 .hg-item__list-grow {
@@ -424,6 +431,7 @@ $hg-item-delete-height: 32px;
 .hg-item__sprite-button {
   appearance: none;
   @include hg-item-sprite-box($hg-item-delete-width, $hg-item-delete-height);
+  min-height: 0; // core gives every button 28px
   margin: 0;
   padding: 0;
   border: none;

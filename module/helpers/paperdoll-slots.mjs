@@ -21,14 +21,18 @@
 export function paperdollSlotAccepts(item, slotIndex) {
   switch (item.type) {
     case 'weapon':
-      return slotIndex === (item.system.weaponType === 'ranged' ? 16 : 1);
+      return slotIndex === weaponTypeSlot(item.system.weaponType);
     case 'spellbook':
       return slotIndex === 10;
-    case 'artifact':
-      if (item.system.artifactType === 'enchantedWeapon') {
-        return slotIndex === (item.system.weaponType === 'ranged' ? 16 : 1);
+    case 'artifact': {
+      // The artifact's own marks decide, weapon or not. An enchanted weapon
+      // with no marks at all falls back to its weapon type's slot.
+      const marks = item.system.targetSlots ?? [];
+      if (item.system.artifactType === 'enchantedWeapon' && marks.length === 0) {
+        return slotIndex === weaponTypeSlot(item.system.weaponType);
       }
-      return (item.system.targetSlots ?? []).includes(slotIndex);
+      return marks.includes(slotIndex);
+    }
     default:
       return false;
   }
@@ -49,47 +53,50 @@ export function paperdollValidSlots(item) {
 }
 
 /**
- * Artifact sheet's mini-paperdoll: slots an artifact can never be given —
- * the spellbook's (10) and the three reserve ones (17–19, no meaning yet,
- * rules.md §8.2).
+ * The slot a weapon's type gives it: стрелковое — дальний бой (16), any
+ * other — правая рука (1).
+ * @param {string} weaponType
+ * @returns {number}
  */
-export const ARTIFACT_LOCKED_SLOTS = Object.freeze([10, 17, 18, 19]);
-
-/**
- * Interchangeable slots, picked as one on the artifact sheet: the two ring
- * slots and the five «прочее» slots. Marking a ring for one hand but not
- * the other would mean nothing at the table.
- */
-export const PAPERDOLL_SLOT_GROUPS = Object.freeze([
-  Object.freeze([2, 7]),
-  Object.freeze([11, 12, 13, 14, 15]),
-]);
-
-/**
- * The group `slot` belongs to (itself alone if ungrouped).
- * @param {number} slot
- * @returns {number[]}
- */
-export function paperdollSlotGroup(slot) {
-  return [...(PAPERDOLL_SLOT_GROUPS.find((group) => group.includes(slot)) ?? [slot])];
+export function weaponTypeSlot(weaponType) {
+  return weaponType === 'ranged' ? 16 : 1;
 }
 
 /**
+ * Artifact sheet's mini-paperdoll: slots an artifact can't be given. Only
+ * the book's (10): an artifact lying there would take away the one way a
+ * hero without a book opens race-granted spells (the empty slot 10).
+ */
+export const ARTIFACT_LOCKED_SLOTS = Object.freeze([10]);
+
+/**
  * New `targetSlots` after clicking `slot` on the artifact sheet's
- * mini-paperdoll: the slot's whole group goes on if any of it is off,
- * off if all of it is on. Locked slots change nothing. Sorted, no repeats.
+ * mini-paperdoll: that one slot goes on or off. Locked slots change
+ * nothing. Sorted, no repeats.
  * @param {number[]} targetSlots
  * @param {number} slot
  * @returns {number[]}
  */
 export function toggleArtifactSlot(targetSlots, slot) {
   const current = new Set(targetSlots);
-  if (ARTIFACT_LOCKED_SLOTS.includes(slot)) return [...current].sort((a, b) => a - b);
-  const group = paperdollSlotGroup(slot);
-  const allOn = group.every((s) => current.has(s));
-  for (const s of group) {
-    if (allOn) current.delete(s);
-    else current.add(s);
+  if (!ARTIFACT_LOCKED_SLOTS.includes(slot)) {
+    if (current.has(slot)) current.delete(slot);
+    else current.add(slot);
   }
   return [...current].sort((a, b) => a - b);
+}
+
+/**
+ * An enchanted weapon's marks after its weapon type changes: left alone if
+ * someone marked them by hand, moved along if they are just the old type's
+ * own slot (so a bow re-typed as a sword moves from 16 to 1).
+ * @param {number[]} targetSlots
+ * @param {string} oldType
+ * @param {string} newType
+ * @returns {number[]}
+ */
+export function followWeaponTypeSlots(targetSlots, oldType, newType) {
+  const untouched = targetSlots.length === 0
+    || (targetSlots.length === 1 && targetSlots[0] === weaponTypeSlot(oldType));
+  return untouched ? [weaponTypeSlot(newType)] : [...targetSlots];
 }

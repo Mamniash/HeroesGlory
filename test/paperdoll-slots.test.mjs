@@ -63,28 +63,34 @@ describe('paperdollValidSlots — the drag-start highlight set', () => {
   });
 });
 
-describe('toggleArtifactSlot — artifact sheet mini-paperdoll', async () => {
-  const { toggleArtifactSlot, paperdollSlotGroup, ARTIFACT_LOCKED_SLOTS } = await import('../module/helpers/paperdoll-slots.mjs');
+describe('artifact slots — marks decide (§8.2)', async () => {
+  const { toggleArtifactSlot, followWeaponTypeSlots, ARTIFACT_LOCKED_SLOTS } = await import('../module/helpers/paperdoll-slots.mjs');
 
-  test('a plain slot toggles alone, result sorted', () => {
+  test('one cell at a time, rings and «прочее» included; result sorted', () => {
     assert.deepEqual(toggleArtifactSlot([5], 3), [3, 5]);
     assert.deepEqual(toggleArtifactSlot([3, 5], 3), [5]);
+    assert.deepEqual(toggleArtifactSlot([], 7), [7]);
+    assert.deepEqual(toggleArtifactSlot([11, 12], 13), [11, 12, 13]);
+    assert.deepEqual(toggleArtifactSlot([], 18), [18]);
   });
 
-  test('rings go on and off together, from either hand', () => {
-    assert.deepEqual(toggleArtifactSlot([], 7), [2, 7]);
-    assert.deepEqual(toggleArtifactSlot([2, 7], 2), []);
-    // Only half the group on (hand-edited data): a click completes it.
-    assert.deepEqual(toggleArtifactSlot([2], 2), [2, 7]);
+  test('the book slot never changes', () => {
+    assert.deepEqual(ARTIFACT_LOCKED_SLOTS, [10]);
+    assert.deepEqual(toggleArtifactSlot([9], 10), [9]);
   });
 
-  test('«прочее» 11–15 is one group', () => {
-    assert.deepEqual(toggleArtifactSlot([4], 13), [4, 11, 12, 13, 14, 15]);
-    assert.deepEqual(toggleArtifactSlot([4, 11, 12, 13, 14, 15], 11), [4]);
-    assert.deepEqual(paperdollSlotGroup(9), [9]);
+  test('enchanted weapon: its marks decide; no marks — the weapon type slot', () => {
+    const sword = { type: 'artifact', system: { artifactType: 'enchantedWeapon', weaponType: 'slashing', targetSlots: [1, 6] } };
+    assert.equal(paperdollSlotAccepts(sword, 6), true);
+    assert.equal(paperdollSlotAccepts(sword, 16), false);
+    const bare = { type: 'artifact', system: { artifactType: 'enchantedWeapon', weaponType: 'ranged', targetSlots: [] } };
+    assert.deepEqual(paperdollValidSlots(bare), [16]);
   });
 
-  test('book and reserve slots never change', () => {
-    for (const slot of ARTIFACT_LOCKED_SLOTS) assert.deepEqual(toggleArtifactSlot([9], slot), [9]);
+  test('re-typing an enchanted weapon moves an untouched mark, keeps hand-set ones', () => {
+    assert.deepEqual(followWeaponTypeSlots([16], 'ranged', 'slashing'), [1]);
+    assert.deepEqual(followWeaponTypeSlots([], 'ranged', 'slashing'), [1]);
+    assert.deepEqual(followWeaponTypeSlots([1, 6], 'slashing', 'ranged'), [1, 6]);
+    assert.deepEqual(followWeaponTypeSlots([6], 'slashing', 'ranged'), [6]);
   });
 });
