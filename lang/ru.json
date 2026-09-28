@@ -464,8 +464,6 @@
       "SpellMeta": "{level} ур. Мана: {cost}",
       "SpellMetaNoCost": "{level} ур. Мана: —",
       "SchoolPickTitle": "Школа заклинания",
-      "SchoolPickPending": "Несколько школ на равной ступени — школа уточняется при касте",
-      "NeedsWisdom": "Недоступно: нужна {wisdom}",
       "RaceSpellsHint": "Заклинания расы (без Книги Магии)"
     },
     "Effect": {

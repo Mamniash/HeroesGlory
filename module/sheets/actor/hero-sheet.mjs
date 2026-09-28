@@ -1,7 +1,7 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
 import { moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { findSpellVariant, castSpell, spellLevelGate, wisdomRequiredKey, SPELL_VARIANT_LABELS } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant, castSpell } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
@@ -740,22 +740,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // player which school to credit; variant/variantData themselves are
       // already correct either way (tier — and so cost/description — is
       // identical across every tied candidate by construction).
-      const { variant, variantData, resolvedSchool, ambiguous } = findSpellVariant(this.actor, spell);
+      const { variant, variantData, resolvedSchool } = findSpellVariant(this.actor, spell);
       const iconSrc = (!spell.img || spell.img === defaultSpellIcon) ? config.unknownSpellIcon : spell.img;
-      // §11 (Мудрость): a tooltip line only — castSpell itself refuses.
-      const gate = spellLevelGate(this.actor, spell);
       return {
         item: spell,
         iconSrc,
-        wisdomLockLine: gate.allowed ? null : game.i18n.format('HEROES_GLORY.Spellbook.NeedsWisdom', {
-          wisdom: game.i18n.localize(wisdomRequiredKey(gate.requiredTier)),
-        }),
-        variantLabelKey: SPELL_VARIANT_LABELS[variant],
         variantData,
-        ambiguous,
-        schoolLabelKey: resolvedSchool
-          ? `HEROES_GLORY.School.${resolvedSchool.charAt(0).toUpperCase()}${resolvedSchool.slice(1)}`
-          : null,
         // null when no school is owned at all — see skill-icons.mjs's
         // schoolFramePath. For the ambiguous case this is the PREVIEW
         // school's frame (Сеня: showing no frame at all would read as
@@ -864,6 +854,17 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // interact feature without this fighting it.
       const clickToPin = triggerEl.hasAttribute('data-tooltip-click') && !this.#editMode;
       attachTooltip(triggerEl, template, { boundsEl, clickToPin });
+    });
+
+    // Spellbook: a right click on a spell opens its own sheet (the left
+    // click still casts) — editable for the GM, read-only for players,
+    // owners included; the item's ownership itself is untouched.
+    this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
+      icon.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        const spell = this.actor.items.get(icon.dataset.itemId);
+        spell?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+      });
     });
 
     // Primary-skill cells show the effective (post-artifact) value by

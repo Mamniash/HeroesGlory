@@ -1,75 +1,34 @@
-<section class="item-sheet__body item-sheet__body--spell">
-  <div class="grid grid-3col">
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.School'}}</span>
-      <select name="system.school">
-        {{selectOptions config.schools selected=system.school localize=true}}
-      </select>
+{{#> "systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}
+<section class="hg-item__body">
+  <div class="hg-item__row">
+    <div class="hg-item__field--grow">
+      {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" name="system.school"
+        choices=config.schools value=system.school label=(localize 'HEROES_GLORY.Spell.School')}}
+    </div>
+    <label class="hg-item__field hg-item__field--damage">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.Level'}}</span>
+      <input class="hg-item__input" type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
     </label>
-
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Level'}}</span>
-      <input type="number" name="system.level" value="{{system.level}}" min="1" max="5" step="1">
-    </label>
-
-    <label class="item-sheet__field">
-      <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Range'}}</span>
-      <input type="number" name="system.range" value="{{system.range}}" min="0" step="1">
+    <label class="hg-item__field hg-item__field--damage">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.Range'}}</span>
+      <input class="hg-item__input" type="number" name="system.range" value="{{system.range}}" min="0" step="1">
     </label>
   </div>
 
-  {{!--
-    §6.3: every spell has FOUR mastery variants, each with its own
-    effect description and its own mana cost. All four are shown at
-    once, not just the one matching the caster's current skill tier.
-  --}}
-  <div class="item-sheet__variants">
-    <article class="item-sheet__variant">
-      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantNone'}}</h3>
-      <label class="item-sheet__field item-sheet__field--wide">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
-        <textarea name="system.variants.none.description" rows="3">{{system.variants.none.description}}</textarea>
-      </label>
-      <label class="item-sheet__field">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
-        <input type="number" name="system.variants.none.manaCost" value="{{system.variants.none.manaCost}}" min="0" step="1">
-      </label>
-    </article>
-
-    <article class="item-sheet__variant">
-      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantBasic'}}</h3>
-      <label class="item-sheet__field item-sheet__field--wide">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
-        <textarea name="system.variants.basic.description" rows="3">{{system.variants.basic.description}}</textarea>
-      </label>
-      <label class="item-sheet__field">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
-        <input type="number" name="system.variants.basic.manaCost" value="{{system.variants.basic.manaCost}}" min="0" step="1">
-      </label>
-    </article>
-
-    <article class="item-sheet__variant">
-      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantAdvanced'}}</h3>
-      <label class="item-sheet__field item-sheet__field--wide">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
-        <textarea name="system.variants.advanced.description" rows="3">{{system.variants.advanced.description}}</textarea>
-      </label>
-      <label class="item-sheet__field">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
-        <input type="number" name="system.variants.advanced.manaCost" value="{{system.variants.advanced.manaCost}}" min="0" step="1">
-      </label>
-    </article>
-
-    <article class="item-sheet__variant">
-      <h3 class="item-sheet__variant-title">{{localize 'HEROES_GLORY.Spell.VariantExpert'}}</h3>
-      <label class="item-sheet__field item-sheet__field--wide">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
-        <textarea name="system.variants.expert.description" rows="3">{{system.variants.expert.description}}</textarea>
-      </label>
-      <label class="item-sheet__field">
-        <span class="item-sheet__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
-        <input type="number" name="system.variants.expert.manaCost" value="{{system.variants.expert.manaCost}}" min="0" step="1">
-      </label>
-    </article>
-  </div>
+  {{!-- §6.3: all four mastery variants, one under another (readable in a
+    narrow window): the variant's name, then its description and mana cost. --}}
+  {{#each variantRows}}
+    <div class="hg-item__section-title">{{localize label}}</div>
+    {{!-- Labels on one line, fields on the next: a two-line label
+      («Стоимость Маны») can't push its field below the description's. --}}
+    <div class="hg-item__pair">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.Description'}}</span>
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Spell.ManaCost'}}</span>
+      <textarea class="hg-item__input hg-item__textarea" name="system.variants.{{key}}.description" rows="1"
+        aria-label="{{localize 'HEROES_GLORY.Spell.Description'}}">{{description}}</textarea>
+      <input class="hg-item__input" type="number" name="system.variants.{{key}}.manaCost" value="{{manaCost}}" min="0" step="1"
+        aria-label="{{localize 'HEROES_GLORY.Spell.ManaCost'}}">
+    </div>
+  {{/each}}
 </section>
+{{/"systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}

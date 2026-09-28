@@ -25,6 +25,32 @@ export class HeroesGloryItemSheet extends HandlebarsApplicationMixin(ItemSheetV2
     },
   };
 
+  /**
+   * Opened as read-only on request (`render({ force: true, hgReadOnly: true })`,
+   * e.g. a player looking at a spell from the hero's book) — the document's
+   * ownership is untouched; only this sheet shows it locked. Set by the
+   * explicit opening, kept through re-renders, cleared on close.
+   * @type {boolean}
+   */
+  #readOnly = false;
+
+  /** @override */
+  get isEditable() {
+    return !this.#readOnly && super.isEditable;
+  }
+
+  /** @override */
+  _configureRenderOptions(options) {
+    super._configureRenderOptions(options);
+    if (options.force) this.#readOnly = !!options.hgReadOnly;
+  }
+
+  /** @override */
+  _onClose(options) {
+    super._onClose(options);
+    this.#readOnly = false;
+  }
+
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);

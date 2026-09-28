@@ -158,6 +158,21 @@ $hg-item-textarea-line-height: 1.2;
   gap: hg-item-px($hg-item-row-gap);
 }
 
+// A wide text field and a narrow number side by side: both labels on the
+// first line (bottom-aligned, so a two-line label just grows upward), both
+// fields on the second (top-aligned, the text may wrap downward).
+.hg-item__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) hg-item-px($hg-item-damage-width);
+  column-gap: hg-item-px($hg-item-row-gap);
+  row-gap: hg-item-px($hg-item-label-gap);
+  align-items: start;
+
+  > .hg-item__label {
+    align-self: end;
+  }
+}
+
 .hg-item__field {
   display: flex;
   flex-direction: column;

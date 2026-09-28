@@ -2789,6 +2789,16 @@
   align-items: flex-end;
   gap: calc(10px * var(--hg-pixel-scale));
 }
+.heroes-glory .hg-item__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(64px * var(--hg-pixel-scale));
+  column-gap: calc(10px * var(--hg-pixel-scale));
+  row-gap: calc(3px * var(--hg-pixel-scale));
+  align-items: start;
+}
+.heroes-glory .hg-item__pair > .hg-item__label {
+  align-self: end;
+}
 .heroes-glory .hg-item__field {
   display: flex;
   flex-direction: column;
