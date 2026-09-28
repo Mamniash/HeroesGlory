@@ -349,28 +349,28 @@ describe('resolveDamage × resolveArmorZoneMultiplier — §5.5 доспех 1-3
   }
 
   test('level 2 on the matching zone: epic damage halved', () => {
-    const helmet = { name: 'Шлем', level: 2, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 2, paperdollSlot: 3 };
     assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 12); // floor(12*2*0.5)
   });
 
   test('level 2 equipped but on a DIFFERENT zone than the hit: no reduction', () => {
-    const legs = { name: 'Поножи', level: 2, targetSlots: [9] };
+    const legs = { name: 'Поножи', level: 2, paperdollSlot: 9 };
     assert.equal(effectiveDamage(12, 6, [legs], 'head'), 24); // floor(12*2), unprotected
   });
 
   test('level 3 on the matching zone: damage fully removed, x0 not just x0.5', () => {
-    const helmet = { name: 'Шлем', level: 3, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 3, paperdollSlot: 3 };
     assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 0);
   });
 
   test('доспех 3 (защищает эту зону) + доспех 5 (безусловный) одновременно: итог 0, не floor(12*2*0.5*0.5)=12', () => {
-    const legs3 = { name: 'Поножи L3', level: 3, targetSlots: [9] };
-    const chest5 = { name: 'Нагрудник L5', level: 5, targetSlots: [5] };
+    const legs3 = { name: 'Поножи L3', level: 3, paperdollSlot: 9 };
+    const chest5 = { name: 'Нагрудник L5', level: 5, paperdollSlot: 5 };
     assert.equal(effectiveDamage(12, 6, [legs3, chest5], 'leg'), 0);
   });
 
   test('level 1 on the matching zone: damage untouched (only the consequence is suppressed, not modeled here)', () => {
-    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 1, paperdollSlot: 3 };
     assert.equal(effectiveDamage(12, 6, [helmet], 'head'), 24);
   });
 });
@@ -766,30 +766,56 @@ describe('resolveArmorZoneProtection — §5.5 доспех 1-3 уровня з�
     assert.equal(resolveArmorZoneProtection('head', []), null);
   });
 
+  // §11: the zone is the slot the piece is worn in, not the slots it may
+  // be marked for — «Доспех (2 уровень)» is marked for 3, 5 and 9.
+  test('«Доспех (2 уровень)» worn on the head guards the head, not the torso', () => {
+    const plain = { name: 'Доспех (2 уровень)', level: 2, paperdollSlot: 3 };
+    assert.equal(resolveArmorZoneProtection('head', [plain]), plain);
+    assert.equal(resolveArmorZoneProtection('torso', [plain]), null);
+    assert.equal(resolveArmorZoneProtection('leg', [plain]), null);
+  });
+
+  test('the same armor moved to the torso guards the torso, not the head', () => {
+    const plain = { name: 'Доспех (2 уровень)', level: 2, paperdollSlot: 5 };
+    assert.equal(resolveArmorZoneProtection('torso', [plain]), plain);
+    assert.equal(resolveArmorZoneProtection('head', [plain]), null);
+  });
+
+  test('armor worn in a slot outside the three zones guards nothing', () => {
+    const odd = { name: 'Шлем в кармане', level: 3, paperdollSlot: 12 };
+    for (const location of ['head', 'torso', 'leg', 'arm']) assert.equal(resolveArmorZoneProtection(location, [odd]), null);
+  });
+
+  test('an attack card rolled before this rule (targetSlots, no paperdollSlot) resolves as shown', () => {
+    const old = { name: 'Шлем', level: 2, targetSlots: [3] };
+    assert.equal(resolveArmorZoneProtection('head', [old]), old);
+    assert.equal(resolveArmorZoneProtection('torso', [old]), null);
+  });
+
   test('armor equipped, wrong slot: no protection', () => {
-    const chest = { name: 'Нагрудник', level: 2, targetSlots: [5] };
+    const chest = { name: 'Нагрудник', level: 2, paperdollSlot: 5 };
     assert.equal(resolveArmorZoneProtection('head', [chest]), null); // head needs slot 3
   });
 
   test('armor equipped, matching slot: protects', () => {
-    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 1, paperdollSlot: 3 };
     assert.deepEqual(resolveArmorZoneProtection('head', [helmet]), helmet);
   });
 
   test('leg (slot 9) and torso (slot 5) both resolve correctly', () => {
-    const legs = { name: 'Поножи', level: 3, targetSlots: [9] };
-    const chest = { name: 'Нагрудник', level: 2, targetSlots: [5] };
+    const legs = { name: 'Поножи', level: 3, paperdollSlot: 9 };
+    const chest = { name: 'Нагрудник', level: 2, paperdollSlot: 5 };
     assert.deepEqual(resolveArmorZoneProtection('leg', [legs, chest]), legs);
     assert.deepEqual(resolveArmorZoneProtection('torso', [legs, chest]), chest);
   });
 
   test('a level 4-5 piece on the matching slot does NOT count — only levels 1-3 protect', () => {
-    const helmet45 = { name: 'Шлем L5', level: 5, targetSlots: [3] };
+    const helmet45 = { name: 'Шлем L5', level: 5, paperdollSlot: 3 };
     assert.equal(resolveArmorZoneProtection('head', [helmet45]), null);
   });
 
   test('location null (not epic, not severe): no protection regardless of armor', () => {
-    const helmet = { name: 'Шлем', level: 1, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 1, paperdollSlot: 3 };
     assert.equal(resolveArmorZoneProtection(null, [helmet]), null);
   });
 
@@ -798,7 +824,7 @@ describe('resolveArmorZoneProtection — §5.5 доспех 1-3 уровня з�
     // §8.2) — a slot no real armor entry has ever used — to prove the
     // lookup itself has nowhere to find 'arm', not that a value-based
     // check rejected it.
-    const wristguard = { name: 'QA Наручи (гипотетические)', level: 1, targetSlots: [2] };
+    const wristguard = { name: 'QA Наручи (гипотетические)', level: 1, paperdollSlot: 2 };
     assert.equal(resolveArmorZoneProtection('arm', [wristguard]), null);
   });
 });
@@ -951,7 +977,7 @@ describe('resolveAttackResolution — §task shared pure "what this attack does"
   });
 
   test('epic hit to the head, level-2 armor covering the head slot: zone multiplier halves damage, consequence suppressed, that piece is the one that breaks', () => {
-    const helmet = { name: 'Шлем', level: 2, targetSlots: [3] };
+    const helmet = { name: 'Шлем', level: 2, paperdollSlot: 3 };
     const flags = {
       hitDie: 6, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
       stateMultiplier: 1, equippedArmor: [helmet], baseDamage: 6, location: 'head',
@@ -965,7 +991,7 @@ describe('resolveAttackResolution — §task shared pure "what this attack does"
   });
 
   test('level 4-5 armor halves damage unconditionally, independent of location/zone', () => {
-    const plate = { name: 'Латы', level: 4, targetSlots: [] };
+    const plate = { name: 'Латы', level: 4, paperdollSlot: null };
     const flags = {
       hitDie: 4, attackerAttack: 5, targetDefense: 3, defeatDie: 10,
       stateMultiplier: 1, equippedArmor: [plate], baseDamage: 10, location: null,

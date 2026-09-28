@@ -451,12 +451,13 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   // yet) contributes nothing, same as not wearing it at all. Frozen
   // here, at attack time, same category as stateMultiplier/targetDefense
   // above — the target's own gear can't change mid-resolution anyway.
-  // targetSlots included (not just name/level) so resolveArmorZoneProtection
-  // (§5.5 levels 1-3) can tell which body zone each piece actually
-  // covers — levels 4-5's own multiplier never looks at this field.
+  // paperdollSlot included (not just name/level) so resolveArmorZoneProtection
+  // (§5.5 levels 1-3) can tell which body zone each piece covers — the
+  // slot it is actually worn in (§11); levels 4-5's own multiplier never
+  // looks at it.
   const equippedArmor = (targetActor?.items ?? [])
     .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
-    .map((i) => ({ name: i.name, level: i.system.level, targetSlots: i.system.targetSlots ?? [] }));
+    .map((i) => ({ name: i.name, level: i.system.level, paperdollSlot: i.system.paperdollSlot ?? null }));
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.

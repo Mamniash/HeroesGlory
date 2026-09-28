@@ -653,7 +653,10 @@ const LOCATION_TO_SLOT = { leg: 9, torso: 5, head: 3 };
 
 /**
  * §5.5 (уровни 1-3): which equipped level-1-3 armor piece, if any,
- * actually covers a "Куда попал" location — the single source both
+ * actually covers a "Куда попал" location — the one worn in that zone's
+ * slot (§11: the slot it is worn in, not the slots it may be marked
+ * for — «Доспех (N уровень)» marked for head, torso and legs guards only
+ * where it sits). The single source both
  * rollAttack and rerollAttackDie's hit-reroll branch read (via
  * applyLocationConsequence, roll-actions.mjs) so neither can diverge.
  * Only ever returns a level 1-3 piece — level 4-5's own mitigation
@@ -661,13 +664,18 @@ const LOCATION_TO_SLOT = { leg: 9, torso: 5, head: 3 };
  * level 4-5 piece occupying the matching slot is irrelevant here.
  * @param {string|null} location   A resolveHitLocation result, or null
  *   (not epic, not severe, or reroll hasn't happened yet).
- * @param {Array<{name:string, level:number, targetSlots:number[]}>} equippedArmor
- * @returns {{name:string, level:number, targetSlots:number[]}|null}
+ * @param {Array<{name:string, level:number, paperdollSlot:number|null, targetSlots?:number[]}>} equippedArmor
+ *   `targetSlots` only on attack cards rolled before this rule (no
+ *   `paperdollSlot` in their flags) — read so an unconfirmed old card
+ *   still resolves the way it was shown.
+ * @returns {object|null}   The protecting piece, as passed in.
  */
 export function resolveArmorZoneProtection(location, equippedArmor) {
   const slot = LOCATION_TO_SLOT[location];
   if (slot == null) return null;
-  return equippedArmor.find((item) => item.level >= 1 && item.level <= 3 && (item.targetSlots ?? []).includes(slot)) ?? null;
+  return equippedArmor.find((item) => item.level >= 1 && item.level <= 3 && (
+    'paperdollSlot' in item ? item.paperdollSlot === slot : (item.targetSlots ?? []).includes(slot)
+  )) ?? null;
 }
 
 /**
