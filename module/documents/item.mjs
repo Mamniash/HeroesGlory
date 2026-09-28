@@ -1,5 +1,6 @@
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 import { followWeaponTypeSlots } from '../helpers/paperdoll-slots.mjs';
+import { SPELLBOOK_IMG } from '../helpers/item-images.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -13,6 +14,18 @@ const MODIFIER_EFFECT_FLAG = ['heroes-glory', 'artifactModifiers'];
  * @extends {Item}
  */
 export class HeroesGloryItem extends Item {
+  /**
+   * A new Книга Магии without an image of its own gets HOMM3's «Книга
+   * заклинаний» — core reads this for the `img` default of every created
+   * item, so it covers the book granted at hero creation, Джинн's, and one
+   * made by hand.
+   * @override
+   */
+  static getDefaultArtwork(itemData) {
+    if (itemData?.type === 'spellbook') return { img: SPELLBOOK_IMG };
+    return super.getDefaultArtwork(itemData);
+  }
+
   /**
    * Augment the basic Item data model with additional dynamic data.
    */

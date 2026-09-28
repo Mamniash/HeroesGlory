@@ -135,6 +135,7 @@ $hg-item-textarea-line-height: 1.2;
   width: hg-item-px($hg-item-image-size);
   height: hg-item-px($hg-item-image-size);
   object-fit: contain;
+  image-rendering: pixelated; // HOMM3 frames stay sharp at any scale
   border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
   background: $hg-item-field-fill;
   cursor: pointer;

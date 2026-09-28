@@ -2771,6 +2771,7 @@
   width: calc(48px * var(--hg-pixel-scale));
   height: calc(48px * var(--hg-pixel-scale));
   object-fit: contain;
+  image-rendering: pixelated;
   border: calc(2px * var(--hg-pixel-scale)) solid rgb(168, 141, 68);
   background: rgba(0, 0, 0, 0.32);
   cursor: pointer;
