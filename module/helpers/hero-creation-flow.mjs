@@ -26,6 +26,14 @@ import {
 } from './hero-creation.mjs';
 import { WEAPON_EPIC_TABLES } from './weapon-epic-tables.mjs';
 
+/** Starting weapon icons by name key (startingWeaponSpecs, hero-creation.mjs), assets/weapons/README.md. */
+const STARTING_WEAPON_IMG = {
+  'HEROES_GLORY.Creation.WeaponMageName': 'systems/heroes-glory/assets/weapons/dagger_new.png',
+  'HEROES_GLORY.Creation.WeaponWarriorName': 'systems/heroes-glory/assets/weapons/short_sword_2_old.png',
+  'HEROES_GLORY.Creation.WeaponRangedName': 'systems/heroes-glory/assets/weapons/longbow_1.png',
+  'HEROES_GLORY.Creation.WeaponMeleeName': 'systems/heroes-glory/assets/weapons/knife.png',
+};
+
 const FLAG_SCOPE = 'heroes-glory';
 const SPELLS_PACK = 'heroes-glory.spells';
 const ARTIFACTS_PACK = 'heroes-glory.artifacts';
@@ -220,7 +228,7 @@ export async function grantCreation(actor, targetLevel) {
     itemData.push(placeInPaperdoll({
       name: weapon.name,
       type: 'weapon',
-      img: 'icons/svg/sword.svg',
+      img: STARTING_WEAPON_IMG[weapon.nameKey],
       system: {
         weaponType: weapon.weaponType,
         damage: weapon.damage,

@@ -108,6 +108,65 @@ const WEAPON_CATEGORIES = [
 ];
 
 /**
+ * Иконки обычного оружия — тайлы Dungeon Crawl Stone Soup 32×32 (CC0),
+ * у Пистоля — из CC0 Firearm Icons (assets/weapons/README.md); выбраны
+ * Сеней по витрине кандидатов. Оружие без записи здесь осталось бы на
+ * стандартной иконке ядра.
+ */
+const WEAPON_ICONS = {
+  'Копье Кентавра': 'spear_1',
+  'Копье Троглодита': 'spear',
+  'Копье Пехотинца': 'spear_6',
+  'Алебарда': 'halberd_4',
+  'Крестьянские вилы': 'trident_1',
+  'Трезубец Никса': 'trident_2',
+  'Кинжал Гарпии': 'dagger_old',
+  'Искусный кинжал Наги': 'dagger_3',
+  'Короткий меч наездников на волках': 'short_sword_1_new',
+  'Короткий меч Скелета': 'ancient_sword',
+  'Короткий меч всадниц на пегасах': 'short_sword_7',
+  'Меч Крестоносца': 'long_sword_2',
+  'Короткий меч Мечника': 'short_sword_6',
+  'Ангельский короткий меч': 'blessed_blade',
+  'Короткий меч Титана': 'greatsword_4',
+  'Длинный меч Разбойника': 'long_sword_1_old',
+  'Длинный меч Наги': 'greatsword_3_new',
+  'Длинный меч Архангела': 'claymore_blessed',
+  'Топор Зомби': 'hand_axe_1_old',
+  'Боевой топор Минотавра': 'battle_axe_1',
+  'Хлыст Владыки бездны': 'demon_whip',
+  'Боевая коса Дьявола': 'scythe_3',
+  'Тесак Мертвеца': 'falchion_6',
+  'Сабля Кочевника': 'scimitar_3',
+  'Сабля Матроса': 'cutlass_1',
+  'Пиратская сабля': 'cutlass_9',
+  'Роковой хопеш черного рыцаря': 'urand_doom_knight_new',
+  'Булава Гоблина': 'mace_1_new',
+  'Дубина Огра': 'giant_spiked_club_new',
+  'Сдвоенный кистень Гнолла': 'great_flail_1',
+  'Кистень Гнолла': 'spiked_flail_1_new',
+  'Гномский боевой молот': 'hammer_1_new',
+  'Длинный лук снайпера': 'longbow_3',
+  'Эльфийский длинный лук': 'longbow_2',
+  'Арбалет': 'crossbow_1',
+  'Короткий лук ящеров': 'shortbow_1',
+  'Короткий лук медуз': 'shortbow_3',
+  'Праща': 'sling_1',
+  'Метательный топорик орков': 'tomahawk_1',
+  'Пистоль': 'colt_peacemaker',
+  'Металлический шар гремлина': 'sling_bullet_1_new',
+};
+
+/**
+ * @param {string} name   Название оружия в компендиуме.
+ * @returns {string}   Путь к иконке.
+ */
+function weaponIconPath(name) {
+  const file = WEAPON_ICONS[name];
+  return file ? `systems/heroes-glory/assets/weapons/${file}.png` : 'icons/svg/sword.svg';
+}
+
+/**
  * Разворачивает WEAPON_CATEGORIES в плоский список записей компендиума,
  * подставляя каждой запиcи эпик-таблицу её категории.
  * @returns {Array<{name: string, type: string, damage: number, twoHanded: boolean, source: string, epicTable: string[]}>}
@@ -133,10 +192,7 @@ export function buildWeaponDocuments() {
   return getWeaponEntries().map((entry, index) => buildItemDocument({
     name: entry.name,
     type: 'weapon',
-    // No dedicated art per weapon yet (assets/ has no weapon icons) — the
-    // same core-Foundry fallback used elsewhere in the system without its
-    // own art (cf. icons/svg/aura.svg in module/documents/actor.mjs).
-    img: 'icons/svg/sword.svg',
+    img: weaponIconPath(entry.name),
     system: {
       weaponType: entry.type,
       damage: entry.damage,
