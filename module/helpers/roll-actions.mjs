@@ -1,3 +1,5 @@
+import { HeroesGloryDialog } from '../apps/dialog.mjs';
+
 /**
  * Foundry-facing roll orchestration: builds and evaluates Rolls, reads
  * `game.user.targets`, posts ChatMessages. All the actual rules
@@ -197,7 +199,8 @@ async function rollEpicCascade(hit, epicTable, legendary) {
  * @returns {Promise<ChatMessage|null>}   `null` if the attacker declined.
  */
 async function killIncapacitatedTarget(actor, targetActor) {
-  const confirmed = await foundry.applications.api.DialogV2.confirm({
+  const confirmed = await HeroesGloryDialog.confirm({
+    hgColor: HeroesGloryDialog.actorColor(actor),
     window: { title: 'HEROES_GLORY.Roll.KillConfirmTitle' },
     content: `<p>${game.i18n.format('HEROES_GLORY.Roll.KillConfirmContent', { attacker: actor.name, target: targetActor.name })}</p>`,
   });

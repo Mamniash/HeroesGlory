@@ -5,6 +5,7 @@
  */
 import { resolveRest } from './rolls.mjs';
 import { ownersAndGmIds } from './roll-actions.mjs';
+import { HeroesGloryDialog, checkboxRow } from '../apps/dialog.mjs';
 
 /**
  * Rest one hero: Health to max, Mana +10 (not above max), Удача back to its
@@ -64,13 +65,10 @@ function hasPlayerOwner(actor) {
 export async function openMassRest() {
   if (!game.user.isGM) return;
   const heroes = game.actors.filter((a) => a.type === 'hero').sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  const rows = heroes.map((actor) => `<div><label>
-      <input type="checkbox" name="hero" value="${actor.id}" ${hasPlayerOwner(actor) ? 'checked' : ''}>
-      ${foundry.utils.escapeHTML(actor.name)}
-    </label></div>`).join('');
-  const ids = await foundry.applications.api.DialogV2.wait({
+  const rows = heroes.map((actor) => checkboxRow('hero', actor.id, actor.name, hasPlayerOwner(actor))).join('');
+  const ids = await HeroesGloryDialog.wait({
     window: { title: 'HEROES_GLORY.Rest.MassTitle' },
-    content: `<p>${game.i18n.localize('HEROES_GLORY.Rest.MassHint')}</p>${rows}`,
+    content: `<p>${game.i18n.localize('HEROES_GLORY.Rest.MassHint')}</p><div class="hg-dialog__checklist">${rows}</div>`,
     buttons: [
       {
         action: 'rest',

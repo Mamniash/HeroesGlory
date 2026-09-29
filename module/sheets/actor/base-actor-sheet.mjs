@@ -6,6 +6,7 @@ import {
   rollPostBattleCheck,
   helpIncapacitatedActor,
 } from '../../helpers/roll-actions.mjs';
+import { HeroesGloryDialog } from '../../apps/dialog.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -184,7 +185,8 @@ export class HeroesGloryActorSheet extends HandlebarsApplicationMixin(ActorSheet
   static async #onDeleteItem(event, target) {
     const item = this.actor.items.get(target.dataset.itemId);
     if (!item) return;
-    const confirmed = await foundry.applications.api.DialogV2.confirm({
+    const confirmed = await HeroesGloryDialog.confirm({
+      hgColor: HeroesGloryDialog.actorColor(this.actor),
       window: { title: 'HEROES_GLORY.Item.DeleteConfirmTitle' },
       content: `<p>${game.i18n.format('HEROES_GLORY.Item.DeleteConfirmContent', { name: item.name })}</p>`,
     });

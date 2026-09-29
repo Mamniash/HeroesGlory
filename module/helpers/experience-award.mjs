@@ -12,6 +12,7 @@
 import { experienceAward, isDefeatedForExperience, aptitudeBonusPerDie } from './rolls.mjs';
 import { ownersAndGmIds } from './roll-actions.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
+import { HeroesGloryDialog, checkboxRow } from '../apps/dialog.mjs';
 
 /**
  * @param {Roll} roll   An evaluated roll of d6s.
@@ -77,21 +78,25 @@ export async function openExperienceWindow({ creatures, heroes, defaultBonus = 0
   if (!game.user.isGM || !heroes.length) return;
   const i18n = game.i18n;
   const esc = foundry.utils.escapeHTML;
-  const creatureRows = creatures.map((c) => `<div><label>
-      <input type="checkbox" name="creature" value="${c.key}" ${c.defeated ? 'checked' : ''}>
-      ${esc(c.name)} — ${i18n.format('HEROES_GLORY.Experience.LevelShort', { level: c.level })}
-    </label></div>`).join('');
-  const heroRows = heroes.map((h) => `<div><label>
-      <input type="checkbox" name="hero" value="${h.actor.uuid}" ${h.checked ? 'checked' : ''}>
-      ${esc(h.actor.name)}
-    </label></div>`).join('');
-  const bonusOptions = [0, 1, 2].map((n) => `<option value="${n}" ${n === defaultBonus ? 'selected' : ''}>${n}d6</option>`).join('');
-  const content = `
-    ${creatures.length ? `<p><strong>${i18n.localize('HEROES_GLORY.Experience.CreaturesHeading')}</strong></p>${creatureRows}` : ''}
-    <p><strong>${i18n.localize('HEROES_GLORY.Experience.HeroesHeading')}</strong></p>${heroRows}
-    <p><label>${i18n.localize('HEROES_GLORY.Experience.BonusLabel')} <select name="bonus">${bonusOptions}</select></label></p>`;
+  const creatureRows = creatures.map((c) => checkboxRow('creature', c.key,
+    `${c.name} — ${i18n.format('HEROES_GLORY.Experience.LevelShort', { level: c.level })}`, c.defeated)).join('');
+  const heroRows = heroes.map((h) => checkboxRow('hero', h.actor.uuid, h.actor.name, h.checked)).join('');
+  // The item sheets' drop-down (hg-select.hbs): a hidden <select name="bonus">
+  // carries the value, as the plain select did.
+  const bonusSelect = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/item/parts/hg-select.hbs',
+    { name: 'bonus', choices: { 0: '0d6', 1: '1d6', 2: '2d6' }, value: String(defaultBonus), label: i18n.localize('HEROES_GLORY.Experience.BonusLabel') },
+  );
+  const heading = (key) => `<p class="hg-confirm__block-title">${esc(i18n.localize(key))}</p>`;
+  // An element, not a string: core cleans string content, and the cleaning
+  // drops the drop-down's `hidden`.
+  const content = document.createElement('div');
+  content.innerHTML = `
+    ${creatures.length ? `<div class="hg-confirm__block">${heading('HEROES_GLORY.Experience.CreaturesHeading')}<div class="hg-dialog__checklist">${creatureRows}</div></div>` : ''}
+    <div class="hg-confirm__block">${heading('HEROES_GLORY.Experience.HeroesHeading')}<div class="hg-dialog__checklist">${heroRows}</div></div>
+    <div class="hg-confirm__block">${bonusSelect}</div>`;
 
-  const choice = await foundry.applications.api.DialogV2.wait({
+  const choice = await HeroesGloryDialog.wait({
     window: { title: 'HEROES_GLORY.Experience.Title' },
     content,
     buttons: [

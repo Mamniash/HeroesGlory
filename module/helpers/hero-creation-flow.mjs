@@ -15,6 +15,7 @@ import { concreteClassKey, statsForClass } from './class-stats.mjs';
 import { raceGrantedItems, CREATION_TIME_RACE_GRANTS } from './race-granted-items.mjs';
 import { grantSecondarySkill } from './skill-grant.mjs';
 import { ownersAndGmIds } from './roll-actions.mjs';
+import { HeroesGloryDialog } from '../apps/dialog.mjs';
 import { experienceForLevel } from './experience.mjs';
 import { paperdollValidSlots } from './paperdoll-slots.mjs';
 import {
@@ -310,7 +311,8 @@ export async function resetHeroCreation(actor) {
   if (!creation.complete) return;
   const levelUps = creation.levelUps ?? [];
   const levelAfter = Math.max(0, source.level - levelUps.length);
-  const confirmed = await foundry.applications.api.DialogV2.confirm({
+  const confirmed = await HeroesGloryDialog.confirm({
+    hgColor: HeroesGloryDialog.actorColor(actor),
     window: { title: game.i18n.localize('HEROES_GLORY.Creation.ResetConfirmTitle') },
     content: `<p>${game.i18n.format('HEROES_GLORY.Creation.ResetConfirmText', {
       gold: creation.gold, level: source.level, levelAfter,

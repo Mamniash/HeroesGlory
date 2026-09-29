@@ -1,0 +1,43 @@
+// Small dialogs the system opens itself (module/apps/dialog.mjs): core's
+// DialogV2 dressed as the picker's confirm (picker.hbs) — the form is the
+// `.hg-tooltip` frame, the footer is `.hg-confirm__buttons` with the
+// `.hg-confirm__yes`/`__no` sprites; lists use the item sheets' SYSOPCHK
+// checkbox and drop-down. Only the layout of what's inside lives here.
+//
+// Imported inside `.heroes-glory {}` after tooltip and item-frame.
+
+// Same as `.window-content:has(.hg-picker)`: the frame sits flush with the
+// window, no core padding around it.
+.window-content:has(.hg-dialog) {
+  padding: 0;
+}
+
+.hg-dialog {
+  // The checkbox and drop-down are sized native px × this (the item
+  // sheets' scale); a dialog is always native, as the picker is.
+  --hg-pixel-scale: 1;
+  // `.hg-confirm`'s own gap between the body and the buttons.
+  gap: 8px;
+}
+
+// Body: stretched to the frame's width like `.hg-confirm`, so the lists
+// and blocks can sit left-aligned; a lone paragraph stays centered.
+.hg-dialog__content {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+// A list of checkbox lines (rest, experience).
+.hg-dialog__checklist {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+// The line's text: body text, as `.hg-tooltip`'s own (core colors labels).
+.hg-dialog__check-label {
+  color: $hg-parchment;
+}
