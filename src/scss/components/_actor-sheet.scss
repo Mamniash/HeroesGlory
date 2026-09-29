@@ -94,53 +94,6 @@
   font-weight: bold;
 }
 
-.actor-sheet__computed {
-  margin: 0;
-  font-size: 12px;
-  color: $c-tan;
-}
-
-.actor-sheet__attack-row {
-  padding: $padding-sm $padding-md;
-  border: $border-groove;
-  font-weight: bold;
-  text-align: center;
-  cursor: pointer;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-}
-
-.actor-sheet__special-skills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $padding-sm;
-  border: $border-groove;
-  padding: $padding-sm $padding-md $padding-md;
-
-  legend {
-    padding: 0 $padding-sm;
-    font-weight: bold;
-  }
-
-  .actor-sheet__special-skill {
-    flex: 1 1 140px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: $padding-sm;
-
-    input {
-      flex: 1 1 140px;
-    }
-
-    .content-link {
-      white-space: nowrap;
-    }
-  }
-}
-
 // ---------------------------------------------------------------
 // Hero sheet: two-column layout modelled on the HoMM3 hero screen.
 // ---------------------------------------------------------------

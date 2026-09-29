@@ -1,0 +1,251 @@
+// Creature sheet (templates/actor/actor-creature-sheet.hbs, creature-sheet.mjs)
+// on the item frame (_item-frame.scss — imported before this, its
+// `hg-item-px` and `$hg-item-*` are reused). Ordinary mode follows HOMM3's
+// creature window, CrStkPu: the portrait on the left, a column of stat rows
+// with the window's own icons on the right, the rest below. The rows and
+// buttons are the item frame's recessed panels (`.hg-item__variant`).
+
+// TwCrPort frame (assets/twcrport/), native; shown ×2 in the window — near
+// the 100×130 portrait box of CrStkPu.
+$hg-creature-portrait-width: 58px;
+$hg-creature-portrait-height: 64px;
+$hg-creature-portrait-zoom: 2;
+// CrStkPu's icon cells (scripts/crop_creature_stat_icons.py) and IMRL22.
+$hg-creature-icon-width: 21px;
+$hg-creature-icon-height: 18px;
+$hg-creature-morale-icon-width: 22px;
+$hg-creature-morale-icon-height: 12px;
+// A stat row: one line of the medium font; numbers and fields in it.
+$hg-creature-row-height: 20px;
+$hg-creature-row-gap: 3px;
+$hg-creature-row-padding-inline-start: 3px;
+$hg-creature-row-padding-inline-end: 6px;
+$hg-creature-row-padding-block: 1px;
+$hg-creature-number-width: 48px;
+$hg-creature-number-pair-width: 40px;
+$hg-creature-column-gap: 8px;
+$hg-creature-cell-gap: 6px;
+$hg-creature-tag-gap: 4px;
+$hg-creature-tag-padding-block: 3px;
+$hg-creature-tag-padding-inline: 7px;
+$hg-creature-action-padding-block: 5px;
+$hg-creature-action-padding-inline: 4px;
+// The hero sheet's edit-mode toggle (assets/buttons/edit/), 52×36 native.
+$hg-creature-edit-width: 52px;
+$hg-creature-edit-height: 36px;
+// A value the eye should find first: the dialog title's font and color.
+$hg-creature-highlight: $hg-doll-on-color;
+
+.hg-creature__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: hg-item-px(2px);
+  text-align: center;
+}
+
+.hg-creature__legendary {
+  color: $hg-creature-highlight;
+}
+
+.hg-creature__portrait {
+  flex: none;
+  box-sizing: content-box;
+  width: hg-item-px($hg-creature-portrait-width);
+  height: hg-item-px($hg-creature-portrait-height);
+  image-rendering: pixelated; // HOMM3 frames stay sharp at any scale
+  border: hg-item-px($hg-item-field-line) solid $hg-item-field-line-color;
+  background: $hg-item-field-fill;
+
+  &--large {
+    width: hg-item-px($hg-creature-portrait-width * $hg-creature-portrait-zoom);
+    height: hg-item-px($hg-creature-portrait-height * $hg-creature-portrait-zoom);
+  }
+
+  // Edit mode only: the picture is changed by a click.
+  &[data-edit] {
+    cursor: pointer;
+  }
+}
+
+.hg-creature__main {
+  display: flex;
+  align-items: flex-start;
+  gap: hg-item-px($hg-creature-column-gap);
+}
+
+.hg-creature__stat-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-creature-row-gap);
+}
+
+.hg-creature__stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: hg-item-px($hg-creature-row-gap) hg-item-px($hg-creature-cell-gap);
+}
+
+.hg-item__variant.hg-creature__stat {
+  flex-direction: row;
+  align-items: center;
+  gap: hg-item-px($hg-creature-cell-gap);
+  min-height: hg-item-px($hg-creature-row-height);
+  padding: hg-item-px($hg-creature-row-padding-block) hg-item-px($hg-creature-row-padding-inline-end)
+    hg-item-px($hg-creature-row-padding-block) hg-item-px($hg-creature-row-padding-inline-start);
+}
+
+.hg-creature__stat-icon {
+  flex: none;
+  width: hg-item-px($hg-creature-icon-width);
+  height: hg-item-px($hg-creature-icon-height);
+  image-rendering: pixelated;
+  border: none;
+
+  &--morale {
+    width: hg-item-px($hg-creature-morale-icon-width);
+    height: hg-item-px($hg-creature-morale-icon-height);
+  }
+}
+
+// A number as text, right-aligned in its row.
+.hg-creature__value {
+  color: $hg-creature-highlight;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+}
+
+// The row's number (text or field) goes to the right edge; «/ max» after
+// the Health field follows it.
+.hg-creature__stat > .hg-item__label + * {
+  margin-left: auto;
+}
+
+.hg-item__input.hg-creature__number {
+  flex: none;
+  width: hg-item-px($hg-creature-number-width);
+  height: hg-item-px($hg-creature-row-height);
+  text-align: right;
+
+  &--pair {
+    width: hg-item-px($hg-creature-number-pair-width);
+  }
+}
+
+.hg-creature__morale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hg-creature__morale-value {
+  display: flex;
+  align-items: center;
+  gap: hg-item-px($hg-creature-cell-gap);
+}
+
+.hg-creature__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: hg-item-px($hg-creature-tag-gap);
+}
+
+// Abilities: a panel per tag; one with an article in «База знаний» is a
+// link (core opens it — `a[data-link]`), in the highlight color.
+.hg-item__variant.hg-creature__tag {
+  display: inline-flex;
+  padding: hg-item-px($hg-creature-tag-padding-block) hg-item-px($hg-creature-tag-padding-inline);
+  color: $hg-parchment;
+  text-decoration: none;
+  outline: none;
+
+  &--link {
+    color: $hg-creature-highlight;
+    cursor: pointer;
+  }
+
+  // Hover changes nothing (core's `a:hover` glow included).
+  &:hover {
+    text-shadow: none;
+  }
+
+  &.hg-focus-kb {
+    box-shadow: inset 0 0 0 hg-item-px($hg-item-field-line) $hg-item-focus-color;
+  }
+}
+
+.hg-creature__actions {
+  display: flex;
+  gap: hg-item-px($hg-creature-cell-gap);
+}
+
+.hg-item__variant.hg-creature__action {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: hg-item-px($hg-creature-cell-gap);
+  padding: hg-item-px($hg-creature-action-padding-block) hg-item-px($hg-creature-action-padding-inline);
+  color: $hg-creature-highlight;
+  outline: none;
+
+  &.hg-focus-kb {
+    box-shadow: inset 0 0 0 hg-item-px($hg-item-field-line) $hg-item-focus-color;
+  }
+}
+
+.hg-creature__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: hg-item-px($hg-item-row-gap);
+}
+
+.hg-creature__sections {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: hg-item-px($hg-item-gap);
+}
+
+.hg-creature__edit-toggle {
+  @include hg-image-button;
+  flex: none;
+  width: hg-item-px($hg-creature-edit-width);
+  height: hg-item-px($hg-creature-edit-height);
+  min-height: 0; // core gives every button 28px
+  background-image: url('../assets/buttons/edit/edit-1.png');
+  background-size: 100% 100%;
+
+  &[aria-pressed='true'] {
+    background-image: url('../assets/buttons/edit/edit-2.png');
+  }
+}
+
+// Tag fields: the list row's height (artifact modifiers).
+.hg-item__input.hg-creature__tag-input {
+  height: hg-item-px($hg-item-list-control-height);
+}
+
+// Keeps the new-tag field as wide as the fields above it (they share the
+// row with a delete button).
+.hg-creature__delete-space {
+  flex: none;
+  width: hg-item-px($hg-item-delete-width);
+}
+
+// The book text: pictogram crop, magic with charges, the article.
+.hg-creature__description {
+  color: $hg-parchment;
+
+  img {
+    max-width: 100%;
+    border: none;
+  }
+
+  p {
+    margin: 0;
+  }
+}

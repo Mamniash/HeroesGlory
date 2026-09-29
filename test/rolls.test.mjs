@@ -37,6 +37,8 @@ import {
   ownersAndGmRecipients,
   hadUnconfirmedAttackBefore,
   isIncapacitated,
+  parseHealthInput,
+  quickHealthClearsIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
   resolvePostBattleCheck,
@@ -1110,6 +1112,45 @@ describe('isIncapacitated — §5.9 "ОЗ ≤ 0 → недееспособен"'
   test('false above 0', () => {
     assert.equal(isIncapacitated(1), false);
     assert.equal(isIncapacitated(10), false);
+  });
+});
+
+describe('quickHealthClearsIncapacitated — Health from 0 back above 0', () => {
+  test('0 → above 0 lifts «недееспособен»', () => {
+    assert.equal(quickHealthClearsIncapacitated(0, 1), true);
+    assert.equal(quickHealthClearsIncapacitated(0, 20), true);
+  });
+
+  test('anything else leaves it', () => {
+    assert.equal(quickHealthClearsIncapacitated(0, 0), false);
+    assert.equal(quickHealthClearsIncapacitated(5, 13), false);
+    assert.equal(quickHealthClearsIncapacitated(13, 0), false);
+  });
+});
+
+describe('parseHealthInput — quick Health field of the creature sheet', () => {
+  test('a bare number sets the value', () => {
+    assert.equal(parseHealthInput('12', 20), 12);
+    assert.equal(parseHealthInput(' 0 ', 20), 0);
+  });
+
+  test('a signed number changes the current value', () => {
+    assert.equal(parseHealthInput('-7', 20), 13);
+    assert.equal(parseHealthInput('+3', 13), 16);
+    assert.equal(parseHealthInput('- 5', 10), 5);
+  });
+
+  test('the typographic minus and the en dash count as minus', () => {
+    assert.equal(parseHealthInput('−7', 20), 13);
+    assert.equal(parseHealthInput('–7', 20), 13);
+  });
+
+  test('never below 0', () => {
+    assert.equal(parseHealthInput('-30', 20), 0);
+  });
+
+  test('anything else is not a Health entry', () => {
+    for (const text of ['', 'abc', '7-2', '1.5', '--3', '+']) assert.equal(parseHealthInput(text, 20), null);
   });
 });
 

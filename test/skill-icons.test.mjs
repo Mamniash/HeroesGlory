@@ -79,6 +79,11 @@ describe('moraleIconPath / luckIconPath — frame = value + 3', () => {
     assert.equal(moraleIconPath(0, { large: true }), 'systems/heroes-glory/assets/imrl82/imrl82_g00_f003.png');
     assert.equal(luckIconPath(0, { large: true }), 'systems/heroes-glory/assets/ilck82/ilck82_g00_f003.png');
   });
+
+  test('the small (22x12) morale variant uses the imrl22 set', () => {
+    assert.equal(moraleIconPath(-3, { small: true }), 'systems/heroes-glory/assets/imrl22/imrl22_g00_f000.png');
+    assert.equal(moraleIconPath(0, { small: true }), 'systems/heroes-glory/assets/imrl22/imrl22_g00_f003.png');
+  });
 });
 
 describe('schoolFramePath — §6.3 spellbook corner-ornament frame, one set per school', () => {

@@ -56,16 +56,6 @@
   color: $c-tan;
 }
 
-.item-sheet__epic-table {
-  border: $border-groove;
-  padding: $padding-sm $padding-md $padding-md;
-
-  legend {
-    padding: 0 $padding-sm;
-    font-weight: bold;
-  }
-}
-
 .item-sheet__variants {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

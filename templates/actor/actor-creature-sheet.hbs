@@ -1,136 +1,218 @@
-<section class="actor-sheet__body actor-sheet__body--creature">
-  <div class="grid grid-3col">
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Faction'}}</span>
-      <select name="system.faction">
-        {{selectOptions config.factions selected=system.faction localize=true}}
-      </select>
-    </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Level'}}</span>
-      <input type="number" name="system.level" value="{{system.level}}" min="0">
-    </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">
-        {{localize 'HEROES_GLORY.Creature.Speed'}}
-        {{#unless (eq source.speed system.speed)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.speed}}</span>{{/unless}}
-      </span>
-      <input type="number" name="system.speed" value="{{source.speed}}" min="0">
-    </label>
-  </div>
+{{!-- §9 creature sheet (creature-sheet.mjs) in the item frame
+  (_item-frame.scss) — ordinary mode laid out as HOMM3's creature window
+  (CrStkPu: portrait, a column of stat rows, abilities below), numbers as
+  text; edit mode (GM) turns every stored value into a field. --}}
+<div class="hg-item hg-creature" data-color="{{panelColor}}">
+{{#if editMode}}
+  <header class="hg-item__header">
+    <img class="hg-creature__portrait" src="{{actor.img}}" alt="{{actor.name}}"
+      data-action="editImage" data-edit="img" aria-label="{{localize 'HEROES_GLORY.Actor.ChangeImage'}}">
+    <input class="hg-item__input hg-item__name" type="text" name="name" value="{{actor.name}}"
+      placeholder="{{localize 'HEROES_GLORY.Actor.NamePlaceholder'}}">
+    {{> editToggle}}
+  </header>
 
-  <div class="grid grid-4col">
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">
-        {{localize 'HEROES_GLORY.Creature.Attack'}}
-        {{#unless (eq source.attack system.attack)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</span>{{/unless}}
-      </span>
-      <input type="number" name="system.attack" value="{{source.attack}}" min="0">
-    </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">
-        {{localize 'HEROES_GLORY.Creature.Defense'}}
-        {{#unless (eq source.defense system.defense)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</span>{{/unless}}
-      </span>
-      <input type="number" name="system.defense" value="{{source.defense}}" min="0">
-    </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.Damage'}}</span>
-      <input type="number" name="system.damage" value="{{system.damage}}" min="0">
-    </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.AttacksCount'}}</span>
-      <input type="number" name="system.attacksCount" value="{{system.attacksCount}}" min="0">
-    </label>
-  </div>
-
-  <div class="grid grid-2col">
-    <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageWeak'}}: {{damageWeak}}</p>
-    <p class="actor-sheet__computed">{{localize 'HEROES_GLORY.Creature.DamageStrong'}}: {{damageStrong}}</p>
-  </div>
-
-  {{#if isArcher}}
-    <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
-      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
-      {{localize 'HEROES_GLORY.Roll.AttackRowMelee' attack=system.attack damage=system.damage count=system.attacksCount}}
+  <div class="hg-item__row hg-item__row--even">
+    <div class="hg-item__field--grow">
+      {{> "systems/heroes-glory/templates/item/parts/hg-select.hbs" name="system.faction" choices=config.factions
+        value=system.faction label=(localize 'HEROES_GLORY.Creature.Faction') placeholder=(localize 'HEROES_GLORY.Creature.NoFaction')}}
     </div>
-    <div class="actor-sheet__attack-row" data-action="rollAttack" data-ranged="true" role="button" tabindex="0"
-      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
-      {{localize 'HEROES_GLORY.Roll.AttackRowRanged' attack=system.attack damage=system.damage count=system.attacksCount}}
-    </div>
-  {{else}}
-    <div class="actor-sheet__attack-row" data-action="rollAttack" role="button" tabindex="0"
-      title="{{localize 'HEROES_GLORY.Roll.AttackHint'}}">
-      {{localize 'HEROES_GLORY.Roll.AttackRow' attack=system.attack damage=system.damage count=system.attacksCount}}
-    </div>
-  {{/if}}
-
-  <div class="actor-sheet__attack-row" data-action="toggleDefending" role="button" tabindex="0">
-    {{#if defending}}{{localize 'HEROES_GLORY.Roll.DefendingRowActive'}}{{else}}{{localize 'HEROES_GLORY.Roll.DefendingRow'}}{{/if}}
-  </div>
-
-  <div class="grid grid-2col">
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">
-        {{localize 'HEROES_GLORY.Hero.Morale'}}
-        {{#unless (eq source.morale system.morale)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.morale}}</span>{{/unless}}
-      </span>
-      <input type="number" name="system.morale" value="{{source.morale}}">
+    <label class="hg-item__field hg-item__field--damage">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Creature.Level'}}</span>
+      <input class="hg-item__input" type="number" name="system.level" value="{{source.level}}" min="0" step="1">
     </label>
-    <label class="actor-sheet__field">
-      <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.MoraleThreshold'}}</span>
-      <input type="number" name="system.moraleThreshold" value="{{source.moraleThreshold}}" min="2" max="6" placeholder="4">
+    <label class="hg-item__checkbox">
+      <input class="hg-item__checkbox-box" type="checkbox" name="system.legendary" {{checked system.legendary}}>
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Creature.Legendary'}}</span>
     </label>
   </div>
 
-  {{#if moraleCheck}}
-    <div class="actor-sheet__attack-row" data-action="rollMoraleCheck" role="button" tabindex="0">
-      {{#if moraleCheck.negative}}
-        {{localize 'HEROES_GLORY.Roll.MoraleSkipRow' remaining=moraleCheck.remaining total=moraleCheck.total}}
-      {{else}}
-        {{localize 'HEROES_GLORY.Roll.MoraleRow' threshold=moraleCheck.threshold remaining=moraleCheck.remaining total=moraleCheck.total}}
-      {{/if}}
-    </div>
-  {{/if}}
-
-  <div class="actor-sheet__field">
-    <span class="actor-sheet__label">
-      {{localize 'HEROES_GLORY.Creature.Health'}}
-      {{#unless (eq source.health.max system.health.max)}}<span class="actor-sheet__field-total">{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.health.max}}</span>{{/unless}}
-    </span>
-    <div class="actor-sheet__value-pair">
-      <input type="number" name="system.health.value" value="{{system.health.value}}" min="0">
-      <span class="actor-sheet__value-sep">/</span>
-      <input type="number" name="system.health.max" value="{{source.health.max}}" min="0">
-    </div>
-  </div>
-
-  <fieldset class="actor-sheet__special-skills">
-    <legend>{{localize 'HEROES_GLORY.Creature.SpecialSkills'}}</legend>
-    {{#each specialSkillRows}}
-      <div class="actor-sheet__special-skill">
-        <input type="text" name="system.specialSkills.{{@index}}" value="{{tag}}">
-        {{#each links}}{{{this}}}{{/each}}
+  <div class="hg-creature__stat-grid">
+    {{#each statRows}}
+      <div class="hg-item__variant hg-creature__stat">
+        <img class="hg-creature__stat-icon" src="{{icon}}" alt="">
+        <span class="hg-item__label">{{localize label}}</span>
+        {{#if health}}
+          <input class="hg-item__input hg-creature__number hg-creature__number--pair" type="number" name="system.health.value"
+            value="{{../system.health.value}}" min="0" step="1" aria-label="{{localize label}}">
+          <span>/</span>
+          <input class="hg-item__input hg-creature__number hg-creature__number--pair" type="number" name="system.health.max"
+            value="{{../source.health.max}}" min="0" step="1" aria-label="{{localize label}}">
+        {{else}}
+          <input class="hg-item__input hg-creature__number" type="number" name="system.{{key}}" value="{{stored}}" min="0" step="1"
+            aria-label="{{localize label}}">
+        {{/if}}
       </div>
     {{/each}}
-    <div class="actor-sheet__special-skill">
-      <input type="text" name="system.specialSkills.{{system.specialSkills.length}}" value="">
+    <div class="hg-item__variant hg-creature__stat">
+      <img class="hg-creature__stat-icon hg-creature__stat-icon--morale" src="{{moraleIcon}}" alt="">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Hero.Morale'}}</span>
+      <input class="hg-item__input hg-creature__number" type="number" name="system.morale" value="{{source.morale}}" step="1"
+        aria-label="{{localize 'HEROES_GLORY.Hero.Morale'}}">
     </div>
-  </fieldset>
+    <div class="hg-item__variant hg-creature__stat">
+      <img class="hg-creature__stat-icon hg-creature__stat-icon--morale" src="{{moraleIcon}}" alt="">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Creature.WildMorale'}}</span>
+      <input class="hg-item__input hg-creature__number" type="number" name="system.moraleThreshold" value="{{source.moraleThreshold}}"
+        min="2" max="6" step="1" placeholder="4" aria-label="{{localize 'HEROES_GLORY.Creature.MoraleThreshold'}}">
+    </div>
+  </div>
 
-  <fieldset class="item-sheet__epic-table">
-    <legend>{{localize 'HEROES_GLORY.Creature.EpicTable'}}</legend>
-    {{#each system.epicTable}}
-      <label class="actor-sheet__field">
-        <span class="actor-sheet__label">{{localize 'HEROES_GLORY.Creature.EpicRow'}} {{inc @index}}</span>
-        <input type="text" name="system.epicTable.{{@index}}" value="{{this}}">
-      </label>
+  <div class="hg-item__section-title">{{localize 'HEROES_GLORY.Creature.SpecialSkills'}}</div>
+  <div class="hg-item__list">
+    {{#each tagRows}}
+      <div class="hg-item__list-row">
+        <div class="hg-item__list-grow">
+          <input class="hg-item__input hg-creature__tag-input" type="text" name="system.specialSkills.{{index}}" value="{{tag}}">
+        </div>
+        <button type="button" class="hg-item__sprite-button hg-item__delete" data-action="deleteSpecialSkill"
+          aria-label="{{localize 'HEROES_GLORY.Creature.DeleteSpecialSkill'}}"></button>
+      </div>
     {{/each}}
-  </fieldset>
+    <div class="hg-item__list-row">
+      <div class="hg-item__list-grow">
+        <input class="hg-item__input hg-creature__tag-input" type="text" name="system.specialSkills.{{newTagIndex}}" value=""
+          placeholder="{{localize 'HEROES_GLORY.Creature.AddSpecialSkill'}}">
+      </div>
+      <span class="hg-creature__delete-space"></span>
+    </div>
+  </div>
 
-  <fieldset class="actor-sheet__description">
-    <legend>{{localize 'HEROES_GLORY.Creature.Description'}}</legend>
-    <prose-mirror name="system.description" value="{{system.description}}" toggled
-      data-document-uuid="{{actor.uuid}}">{{{enrichedDescription}}}</prose-mirror>
-  </fieldset>
-</section>
+  {{> epicSection}}
+  {{> descriptionSection}}
+{{else}}
+  <header class="hg-creature__title">
+    <span class="hg-item__section-title">{{actor.name}}</span>
+    <span class="hg-item__label">{{subline}}{{#if system.legendary}} · <span class="hg-creature__legendary">{{localize 'HEROES_GLORY.Creature.Legendary'}}</span>{{/if}}</span>
+  </header>
+
+  <div class="hg-creature__main">
+    <img class="hg-creature__portrait hg-creature__portrait--large" src="{{actor.img}}" alt="{{actor.name}}">
+    <div class="hg-creature__stat-column">
+      {{#each statRows}}
+        <div class="hg-item__variant hg-creature__stat">
+          <img class="hg-creature__stat-icon" src="{{icon}}" alt="">
+          <span class="hg-item__label">{{localize label}}</span>
+          {{#if health}}
+            {{!-- Quick Health (creature-sheet.mjs `_onRender`): no name — its
+              own update, not the form's. --}}
+            <input class="hg-item__input hg-creature__number hg-creature__number--pair" type="text" inputmode="numeric"
+              value="{{../system.health.value}}" data-health-input
+              aria-label="{{localize 'HEROES_GLORY.Creature.HealthInputHint'}}" data-tooltip="HEROES_GLORY.Creature.HealthInputHint">
+            <span class="hg-creature__value">/ {{../system.health.max}}</span>
+          {{else}}
+            <span class="hg-creature__value">{{value}}</span>
+          {{/if}}
+        </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <div class="hg-creature__morale">
+    <span class="hg-creature__morale-value">
+      <img class="hg-creature__stat-icon hg-creature__stat-icon--morale" src="{{moraleIcon}}" alt="">
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Hero.Morale'}}: {{system.morale}}</span>
+    </span>
+    {{#if system.moraleThreshold}}
+      <span class="hg-item__label">{{localize 'HEROES_GLORY.Creature.WildMoraleLine' threshold=system.moraleThreshold}}</span>
+    {{/if}}
+  </div>
+
+  {{#if tags.length}}
+    <div class="hg-creature__tags">
+      {{#each tags}}
+        {{#if uuid}}
+          <a class="hg-item__variant hg-creature__tag hg-creature__tag--link" data-link data-uuid="{{uuid}}" draggable="true">{{tag}}</a>
+        {{else}}
+          <span class="hg-item__variant hg-creature__tag">{{tag}}</span>
+        {{/if}}
+      {{/each}}
+    </div>
+  {{/if}}
+
+  <div class="hg-creature__actions">
+    {{#if isArcher}}
+      <div class="hg-item__variant hg-creature__action" data-action="rollAttack" role="button" tabindex="0">
+        <img class="hg-creature__stat-icon" src="systems/heroes-glory/assets/crstkpu/crstkpu_attack.png" alt="">
+        <span>{{localize 'HEROES_GLORY.Roll.MeleeButton'}}</span>
+      </div>
+      <div class="hg-item__variant hg-creature__action" data-action="rollAttack" data-ranged="true" role="button" tabindex="0">
+        <img class="hg-creature__stat-icon" src="systems/heroes-glory/assets/crstkpu/crstkpu_shots.png" alt="">
+        <span>{{localize 'HEROES_GLORY.Roll.RangedButton'}}</span>
+      </div>
+    {{else}}
+      <div class="hg-item__variant hg-creature__action" data-action="rollAttack" role="button" tabindex="0">
+        <img class="hg-creature__stat-icon" src="systems/heroes-glory/assets/crstkpu/crstkpu_attack.png" alt="">
+        <span>{{localize 'HEROES_GLORY.Roll.AttackButton'}}</span>
+      </div>
+    {{/if}}
+    <div class="hg-item__variant hg-creature__action{{#if defending}} is-active{{/if}}" data-action="toggleDefending" role="button" tabindex="0"
+      aria-pressed="{{#if defending}}true{{else}}false{{/if}}"
+      data-tooltip="{{#if defending}}HEROES_GLORY.Roll.DefendActiveHint{{else}}HEROES_GLORY.Roll.DefendHint{{/if}}">
+      <img class="hg-creature__stat-icon" src="systems/heroes-glory/assets/crstkpu/crstkpu_defense.png" alt="">
+      <span>{{localize 'HEROES_GLORY.Roll.DefendButton'}}</span>
+    </div>
+    {{#if moraleCheck}}
+      <div class="hg-item__variant hg-creature__action" data-action="rollMoraleCheck" role="button" tabindex="0"
+        data-tooltip="{{#if moraleCheck.negative}}{{localize 'HEROES_GLORY.Roll.CreatureMoraleSkipHint' remaining=moraleCheck.remaining total=moraleCheck.total}}{{else}}{{localize 'HEROES_GLORY.Roll.CreatureMoraleHint' threshold=moraleCheck.threshold remaining=moraleCheck.remaining total=moraleCheck.total}}{{/if}}">
+        <img class="hg-creature__stat-icon hg-creature__stat-icon--morale" src="{{moraleIcon}}" alt="">
+        <span>{{localize 'HEROES_GLORY.Hero.Morale'}}</span>
+      </div>
+    {{/if}}
+  </div>
+
+  <div class="hg-creature__footer">
+    <div class="hg-creature__sections">
+      {{> epicSection}}
+      {{> descriptionSection}}
+    </div>
+    {{> editToggle}}
+  </div>
+{{/if}}
+</div>
+
+{{#*inline "editToggle"}}
+  <button type="button" class="hg-creature__edit-toggle" data-action="toggleEditMode" aria-pressed="{{#if editMode}}true{{else}}false{{/if}}"
+    aria-label="{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}"></button>
+{{/inline}}
+
+{{!-- Folded on every opening, as on the weapon sheet. --}}
+{{#*inline "epicSection"}}
+  <div class="hg-item__section{{#if openSections.epic}} is-expanded{{/if}}" data-section="epic">
+    <div class="hg-item__section-title hg-item__toggle" data-action="toggleSection" role="button" tabindex="0"
+      aria-expanded="{{#if openSections.epic}}true{{else}}false{{/if}}">
+      <span class="hg-item__toggle-arrow"></span>
+      <span>{{localize 'HEROES_GLORY.Creature.EpicTable'}}</span>
+    </div>
+    <div class="hg-item__section-body">
+      {{#each system.epicTable}}
+        {{#if ../editMode}}
+          <label class="hg-item__field">
+            <span class="hg-item__label">{{localize 'HEROES_GLORY.Creature.EpicRow'}} {{inc @index}}</span>
+            <textarea class="hg-item__input hg-item__textarea" name="system.epicTable.{{@index}}" rows="1">{{this}}</textarea>
+          </label>
+        {{else}}
+          <div class="hg-item__note"><span class="hg-item__label">{{inc @index}}.</span> {{this}}</div>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+{{/inline}}
+
+{{#*inline "descriptionSection"}}
+  <div class="hg-item__section{{#if openSections.description}} is-expanded{{/if}}" data-section="description">
+    <div class="hg-item__section-title hg-item__toggle" data-action="toggleSection" role="button" tabindex="0"
+      aria-expanded="{{#if openSections.description}}true{{else}}false{{/if}}">
+      <span class="hg-item__toggle-arrow"></span>
+      <span>{{localize 'HEROES_GLORY.Creature.Description'}}</span>
+    </div>
+    <div class="hg-item__section-body hg-creature__description">
+      {{#if editMode}}
+        <prose-mirror name="system.description" value="{{system.description}}" toggled
+          data-document-uuid="{{actor.uuid}}">{{{enrichedDescription}}}</prose-mirror>
+      {{else}}
+        {{{enrichedDescription}}}
+      {{/if}}
+    </div>
+  </div>
+{{/inline}}

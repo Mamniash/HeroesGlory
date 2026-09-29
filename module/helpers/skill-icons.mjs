@@ -136,10 +136,11 @@ function valueFrame(value) {
  * @param {number} value
  * @param {object} [options]
  * @param {boolean} [options.large]   82×93 version instead of the 42×38 slot icon.
+ * @param {boolean} [options.small]   22×12 version (IMRL22, the creature sheet's line).
  * @returns {string}
  */
-export function moraleIconPath(value, { large = false } = {}) {
-  const set = large ? 'imrl82' : 'imrl42';
+export function moraleIconPath(value, { large = false, small = false } = {}) {
+  const set = large ? 'imrl82' : small ? 'imrl22' : 'imrl42';
   return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(valueFrame(value))}.png`;
 }
 

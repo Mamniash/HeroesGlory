@@ -883,6 +883,34 @@ export function isIncapacitated(healthValue) {
 }
 
 /**
+ * The creature sheet's quick Health field lifts «недееспособен» when it
+ * brings Health from 0 back above 0 (the GM's own call; «повержен» is not
+ * touched — that one is death).
+ * @param {number} before
+ * @param {number} after
+ * @returns {boolean}
+ */
+export function quickHealthClearsIncapacitated(before, after) {
+  return isIncapacitated(before) && !isIncapacitated(after);
+}
+
+/**
+ * The creature sheet's quick Health field: «12» sets the value, «−7» /
+ * «+3» change the current one. Any minus sign a keyboard gives (hyphen,
+ * «−», «–») counts. Never below 0; anything else is not a Health entry.
+ * @param {string} text
+ * @param {number} current
+ * @returns {number|null}   The new value, or `null` for an unreadable entry.
+ */
+export function parseHealthInput(text, current) {
+  const match = String(text ?? '').trim().replace(/[−–]/g, '-').match(/^([+-])?\s*(\d+)$/);
+  if (!match) return null;
+  const amount = Number(match[2]);
+  const next = match[1] === '-' ? current - amount : match[1] === '+' ? current + amount : amount;
+  return Math.max(0, next);
+}
+
+/**
  * §5.9: how much Health/Mana an incapacitated hero wakes up with,
  * whether they passed the post-battle check or were simply helped.
  * @type {number}
