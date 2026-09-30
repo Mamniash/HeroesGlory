@@ -1,4 +1,4 @@
-import { HeroesGloryDialog } from '../apps/dialog.mjs';
+import { HeroesGloryDialog, radioRow } from '../apps/dialog.mjs';
 
 /**
  * Foundry-facing roll orchestration: builds and evaluates Rolls, reads
@@ -48,7 +48,7 @@ import {
   secondarySkillSlotCount,
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
-import { hasArmorSpecialization, specializationManaDiscount } from './specializations.mjs';
+import { hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
@@ -57,6 +57,7 @@ import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
   creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
+  resolveLastingSpellLimit, lastingSpellRounds,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -538,16 +539,17 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
     buildAttackContext(actor, flags),
   );
 
-  return createAttackVisibilityCard(actor, {
+  return createActorVisibilityCard(actor, {
     content,
     flags: { [FLAG_SCOPE]: { reroll: flags } },
   }, [mainRoll, ...epicCascade.rolls]);
 }
 
 /**
- * Post an actor's card with the attack cards' visibility (rules.md §10):
- * the chat-bar mode is respected, except `self` is raised to the actor's
- * owners + GM so the GM still sees it (and can confirm an attack's damage).
+ * Post an actor's card with the attack and cast cards' visibility (rules.md
+ * §10): the chat-bar mode is respected, except `self` is raised to the
+ * actor's owners + GM so the GM still sees it (and can confirm the damage
+ * or the spell).
  * A whispered card carries no `rolls`: Foundry shows non-recipients of a
  * whispered roll a "rolled privately" stub (ChatMessage#visible returns
  * true for any roll), and a private card must not show up for them at
@@ -557,7 +559,7 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
  * @param {Roll[]} rolls
  * @returns {Promise<ChatMessage>}
  */
-async function createAttackVisibilityCard(actor, data, rolls) {
+async function createActorVisibilityCard(actor, data, rolls) {
   const mode = resolveAttackMessageMode(game.settings.get('core', 'messageMode'));
   const whispered = !['public', 'ic'].includes(mode);
   const message = { speaker: ChatMessage.getSpeaker({ actor }), ...data };
@@ -948,10 +950,7 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     },
   );
 
-  return ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content,
-  });
+  return createActorVisibilityCard(actor, { content }, []);
 }
 
 /** §6.4: the spell compendium, where a hero's spell item finds its effect. */
@@ -1076,31 +1075,44 @@ async function spellTargetEntry(tokenDoc, spell, effect, factor, { resist = true
  * @returns {Promise<ChatMessage|null>}
  */
 async function castDamageSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
-  const selected = [...game.user.targets];
-  if (selected.length > 1) {
-    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name }));
+  const targeting = effect.targeting ?? {};
+  // p. 23 (rules.md §11): the specialization lets the player pick two more
+  // targets — targeted after the first one, which the chain starts from.
+  const chainSpec = targeting.mode === 'chain'
+    ? chainLightningSpecialization(actor.system.specialization, spell.name)
+    : chainLightningSpecialization(null, '');
+  const selected = [...game.user.targets].map((token) => token.document);
+  if (!selected.length) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
     return null;
   }
-  const targetDoc = selected[0]?.document ?? null;
-  const casterToken = targetDoc ? attackerTokenFor(actor, targetDoc) : null;
+  const maxSelected = 1 + chainSpec.chosenTargets;
+  if (selected.length > maxSelected) {
+    ui.notifications.warn(maxSelected === 1
+      ? game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name })
+      : game.i18n.format('HEROES_GLORY.Roll.SpellTooManyTargets', { spell: spell.name, count: maxSelected }));
+    return null;
+  }
+  const [targetDoc, ...chosenDocs] = selected;
+  const casterToken = attackerTokenFor(actor, targetDoc);
   let rangeUnknown = false;
-  if (targetDoc) {
-    const cells = tokenDistanceCells(casterToken, targetDoc);
+  for (const doc of selected) {
+    const cells = tokenDistanceCells(attackerTokenFor(actor, doc), doc);
     if (cells === null) {
       rangeUnknown = true;
     } else if (cells > SPELL_RANGE_CELLS) {
       ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
-        spell: spell.name, target: targetDoc.actor?.name ?? targetDoc.name, cells, range: SPELL_RANGE_CELLS,
+        spell: spell.name, target: doc.actor?.name ?? doc.name, cells, range: SPELL_RANGE_CELLS,
       }));
       return null;
     }
   }
 
-  // Цепная Молния: the chain's extra targets aren't limited by range.
+  // Цепная Молния: the chain's extra targets aren't limited by range; the
+  // targets picked by the specialization are left out of it.
   let chainDocs = [];
-  const targeting = effect.targeting ?? {};
-  if (targetDoc && targeting.mode === 'chain' && targeting.extraTargets > 0) {
-    const pool = targetDoc.parent.tokens.filter((t) => t !== targetDoc && t.actor
+  if (targeting.mode === 'chain' && targeting.extraTargets > 0) {
+    const pool = targetDoc.parent.tokens.filter((t) => t !== targetDoc && t.actor && !chosenDocs.includes(t)
       && t !== casterToken && t.actor !== actor && !isDownForSpell(t.actor));
     chainDocs = pickChainTargets({
       first: targetDoc,
@@ -1137,12 +1149,20 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
   };
   const sorcerySkill = await extraRoll(sorcery.skill);
   const sorcerySpecialization = await extraRoll(sorcery.specialization);
-  const total = spellRoll.total + (sorcerySkill?.total ?? 0) + (sorcerySpecialization?.total ?? 0);
+  const chainSpecialization = await extraRoll(chainSpec.bonusDice);
+  const total = spellRoll.total + (sorcerySkill?.total ?? 0) + (sorcerySpecialization?.total ?? 0)
+    + (chainSpecialization?.total ?? 0);
 
   const targets = [];
-  const targetDocs = targetDoc ? [[targetDoc, 1], ...chainDocs.map((doc) => [doc, targeting.extraFactor ?? 1])] : [];
-  for (const [doc, factor] of targetDocs) {
+  const extraFactor = chainSpec.active ? chainSpec.extraFactor : (targeting.extraFactor ?? 1);
+  const targetDocs = [
+    [targetDoc, 1, false],
+    ...chosenDocs.map((doc) => [doc, extraFactor, true]),
+    ...chainDocs.map((doc) => [doc, extraFactor, false]),
+  ];
+  for (const [doc, factor, chosen] of targetDocs) {
     const { entry, roll } = await spellTargetEntry(doc, spell, effect, factor);
+    if (chosen) entry.chosen = true;
     targets.push(entry);
     if (roll) rolls.push(roll);
   }
@@ -1164,6 +1184,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     sorceryTier,
     sorcerySkill,
     sorcerySpecialization,
+    chainSpecialization,
     total,
     rangeUnknown,
     targets,
@@ -1174,12 +1195,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     'systems/heroes-glory/templates/chat/spell-cast.hbs',
     buildSpellCardContext(flags),
   );
-  return ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content,
-    rolls,
-    flags: { [FLAG_SCOPE]: { spell: flags } },
-  });
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, rolls);
 }
 
 /** Chat-card labels for a damage spell's immunity reasons. */
@@ -1231,6 +1247,7 @@ function buildSpellCardContext(flags) {
     const done = flags.confirmed;
     const notes = [];
     if (target.factor < 1) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainHalf'));
+    if (target.chosen) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainChosen'));
     if (target.resistDie != null) {
       notes.push(i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
         source: i18n.localize(SPELL_RESIST_LABELS[target.resistSource]),
@@ -1271,6 +1288,9 @@ function buildSpellCardContext(flags) {
       count: flags.sorcerySpecialization.count,
       total: flags.sorcerySpecialization.total,
     }));
+  }
+  if (flags.chainSpecialization) {
+    context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellChainSpecLine', { total: flags.chainSpecialization.total }));
   }
   context.totalLine = i18n.format('HEROES_GLORY.Roll.SpellTotalLine', { total: flags.total });
   return context;
@@ -1395,6 +1415,10 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
   }
   const limit = modifierTargetLimit(effect, actor.system.magicPower);
   const selected = [...game.user.targets].map((token) => token.document);
+  if (!selected.length) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
+    return null;
+  }
   if (selected.length > limit) {
     ui.notifications.warn(limit === 1
       ? game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name })
@@ -1417,6 +1441,11 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
       return null;
     }
   }
+
+  // p. 32: a fourth lasting spell ends one of the three — the player picks
+  // which; cancelling cancels the cast, no Mana spent.
+  const endCast = await chooseLastingSpellToEnd(actor, spell, selected);
+  if (endCast === false) return null;
 
   const manaRemaining = actor.system.mana.value - manaCost;
   await actor.update({ 'system.mana.value': manaRemaining });
@@ -1443,8 +1472,11 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     manaCost,
     manaRemaining,
     modifier: { stat: effect.modifier.stat, value: effect.modifier.value, floorOne: !!effect.modifier.floorOne },
-    rounds: Math.max(0, actor.system.magicPower ?? 0),
+    rounds: lastingSpellRounds(actor.system.magicPower,
+      actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
     castStart,
+    castId: foundry.utils.randomID(),
+    endCast,
     rangeUnknown,
     targets,
     confirmed: false,
@@ -1454,13 +1486,82 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     'systems/heroes-glory/templates/chat/spell-cast.hbs',
     buildSpellCardContext(flags),
   );
-  const message = {
-    speaker: ChatMessage.getSpeaker({ actor }),
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, rolls);
+}
+
+/**
+ * The lasting-spell casts of `caster` still on anyone — world actors and
+ * unlinked tokens on every scene — one entry per cast, whatever the number
+ * of targets. Effects from before `castId` existed group by spell and round.
+ * @param {Actor} caster
+ * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[]}>}
+ */
+function lastingSpellCasts(caster) {
+  const actors = new Set(game.actors);
+  for (const scene of game.scenes) {
+    for (const token of scene.tokens) if (token.actor && !token.actorLink) actors.add(token.actor);
+  }
+  const casts = new Map();
+  for (const target of actors) {
+    for (const effect of target.effects) {
+      const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
+      if (!data || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
+      const castId = data.castId ?? `${data.spellName}|${data.combatId}|${effect._source.start?.round}`;
+      if (!casts.has(castId)) {
+        casts.set(castId, { castId, spellName: data.spellName, targetIds: [], targetNames: [], remaining: effect.duration.remaining, effects: [] });
+      }
+      const cast = casts.get(castId);
+      cast.targetIds.push(target.uuid);
+      cast.targetNames.push(target.name);
+      cast.effects.push(effect);
+    }
+  }
+  return [...casts.values()];
+}
+
+/**
+ * p. 32 (rules.md §11): with three lasting spells already up, the player
+ * picks one to end before a fourth goes on — in a dialog in the system's
+ * style. `null` — no choice needed; `false` — cancelled (the cast is off);
+ * otherwise the cast to end, applied by the GM's confirm with the new one.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {TokenDocument[]} targetDocs
+ * @returns {Promise<{castId: string, label: string}|null|false>}
+ */
+async function chooseLastingSpellToEnd(actor, spell, targetDocs) {
+  const casts = lastingSpellCasts(actor);
+  const { needsChoice, candidates } = resolveLastingSpellLimit({
+    casts,
+    newSpellName: spell.name,
+    newTargetIds: targetDocs.map((doc) => doc.actor?.uuid).filter(Boolean),
+  });
+  if (!needsChoice) return null;
+  const i18n = game.i18n;
+  const labelOf = (cast) => i18n.format('HEROES_GLORY.Roll.SpellLimitRow', {
+    spell: cast.spellName, targets: cast.targetNames.join(', '), rounds: cast.remaining,
+  });
+  const content = document.createElement('div');
+  content.innerHTML = `<p>${foundry.utils.escapeHTML(i18n.format('HEROES_GLORY.Roll.SpellLimitText', { caster: actor.name, spell: spell.name }))}</p>
+    <div class="hg-dialog__checklist">${candidates.map((cast, index) => radioRow('cast', cast.castId, labelOf(cast), index === 0)).join('')}</div>`;
+  const castId = await HeroesGloryDialog.wait({
+    hgColor: HeroesGloryDialog.actorColor(actor),
+    window: { title: 'HEROES_GLORY.Roll.SpellLimitTitle' },
     content,
-    flags: { [FLAG_SCOPE]: { spell: flags } },
-  };
-  if (rolls.length) message.rolls = rolls;
-  return ChatMessage.create(message);
+    buttons: [
+      {
+        action: 'end',
+        label: 'HEROES_GLORY.Roll.SpellLimitEnd',
+        default: true,
+        callback: (event, button) => button.form.querySelector('input[name="cast"]:checked')?.value ?? null,
+      },
+      { action: 'cancel', label: 'HEROES_GLORY.Rest.Cancel' },
+    ],
+    rejectClose: false,
+  });
+  const chosen = candidates.find((cast) => cast.castId === castId);
+  if (!chosen) return false;
+  return { castId: chosen.castId, label: labelOf(chosen) };
 }
 
 /**
@@ -1477,6 +1578,9 @@ function buildModifierSpellCardContext(flags, context) {
   const effectText = spellModifierText({ spellName: flags.spellName, value: flags.modifier.value });
   context.targetSpell = true;
   context.confirmHintKey = 'HEROES_GLORY.Roll.SpellModifierConfirmHint';
+  context.endCastLine = flags.endCast
+    ? i18n.format(done ? 'HEROES_GLORY.Roll.SpellEndApplied' : 'HEROES_GLORY.Roll.SpellEndPending', { cast: flags.endCast.label })
+    : null;
   context.noTarget = !flags.targets.length;
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
@@ -1525,6 +1629,11 @@ async function confirmModifierSpell(message, flags) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
     return;
   }
+  if (flags.endCast) {
+    const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
+      .find((cast) => cast.castId === flags.endCast.castId);
+    for (const effect of ending?.effects ?? []) await effect.delete();
+  }
   const results = resolveModifierSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     if (results[index].outcome !== 'applied') continue;
@@ -1551,6 +1660,7 @@ async function confirmModifierSpell(message, flags) {
             ...flags.modifier,
             casterUuid: flags.actorUuid,
             combatId: flags.castStart.combat,
+            castId: flags.castId,
           },
         },
       },
@@ -1690,7 +1800,7 @@ export async function rollMoraleCheck(actor) {
     },
   );
 
-  return createAttackVisibilityCard(actor, { content }, [roll]);
+  return createActorVisibilityCard(actor, { content }, [roll]);
 }
 
 /**

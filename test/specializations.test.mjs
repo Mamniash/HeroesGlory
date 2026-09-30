@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
-  hasArmorSpecialization, specializationManaDiscount, availableSpecializations,
+  hasArmorSpecialization, specializationManaDiscount, availableSpecializations, chainLightningSpecialization,
 } from '../module/helpers/specializations.mjs';
 
 describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
@@ -114,5 +114,17 @@ describe('availableSpecializations — §4.3 what a hero currently qualifies for
       { type: 'skill', key: 'intellect' },
       { type: 'spell', key: 'Клон' },
     ]);
+  });
+});
+
+describe('chainLightningSpecialization — p. 23 (rules.md §11)', () => {
+  const spec = { type: 'spell', key: 'Цепная Молния' };
+  test('on Цепная Молния: +1d6, full damage for the extras, two picked targets', () => {
+    assert.deepEqual(chainLightningSpecialization(spec, 'Цепная Молния'), { active: true, bonusDice: 1, extraFactor: 1, chosenTargets: 2 });
+  });
+  test('another spell, or another specialization: nothing', () => {
+    assert.equal(chainLightningSpecialization(spec, 'Молния').active, false);
+    assert.equal(chainLightningSpecialization({ type: 'skill', key: 'sorcery' }, 'Цепная Молния').active, false);
+    assert.equal(chainLightningSpecialization(null, 'Цепная Молния').active, false);
   });
 });

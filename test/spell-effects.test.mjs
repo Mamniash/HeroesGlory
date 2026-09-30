@@ -5,6 +5,7 @@ import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula,
   sorceryDice, creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
+  resolveLastingSpellLimit, MAX_LASTING_SPELLS, lastingSpellRounds,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -310,5 +311,49 @@ describe('resolveModifierSpellResolution — per target', () => {
   });
   test('an incapacitated target just gets the effect (rules.md §11)', () => {
     assert.deepEqual(resolveModifierSpellResolution({ targets: [{ incapacitated: true }] }), [{ outcome: 'applied' }]);
+  });
+});
+
+describe('resolveLastingSpellLimit — p. 32, at most 3 lasting spells', () => {
+  const cast = (castId, spellName, targetIds) => ({ castId, spellName, targetIds });
+  test('the limit is 3', () => {
+    assert.equal(MAX_LASTING_SPELLS, 3);
+  });
+  test('fewer than 3 active: no choice', () => {
+    const r = resolveLastingSpellLimit({ casts: [cast('a', 'Щит', ['x']), cast('b', 'Благословение', ['y'])], newSpellName: 'Проклятие', newTargetIds: ['z'] });
+    assert.equal(r.needsChoice, false);
+  });
+  test('3 active and a 4th: choose among the 3', () => {
+    const casts = [cast('a', 'Щит', ['x']), cast('b', 'Благословение', ['y']), cast('c', 'Проклятие', ['z'])];
+    const r = resolveLastingSpellLimit({ casts, newSpellName: 'Слабость', newTargetIds: ['w'] });
+    assert.equal(r.needsChoice, true);
+    assert.deepEqual(r.candidates.map((c) => c.castId), ['a', 'b', 'c']);
+  });
+  test('an expert cast on several targets counts once', () => {
+    const casts = [cast('a', 'Щит', ['x', 'y', 'z']), cast('b', 'Благословение', ['y'])];
+    assert.equal(resolveLastingSpellLimit({ casts, newSpellName: 'Проклятие', newTargetIds: ['w'] }).needsChoice, false);
+  });
+  test('recasting the same spell on the same target replaces it — no choice', () => {
+    const casts = [cast('a', 'Щит', ['x']), cast('b', 'Благословение', ['y']), cast('c', 'Проклятие', ['z'])];
+    const r = resolveLastingSpellLimit({ casts, newSpellName: 'Благословение', newTargetIds: ['y'] });
+    assert.equal(r.needsChoice, false);
+  });
+  test('the same spell on another target still counts', () => {
+    const casts = [cast('a', 'Щит', ['x']), cast('b', 'Благословение', ['y']), cast('c', 'Проклятие', ['z'])];
+    assert.equal(resolveLastingSpellLimit({ casts, newSpellName: 'Благословение', newTargetIds: ['w'] }).needsChoice, true);
+  });
+});
+
+describe('lastingSpellRounds — Сила Магии plus the artifacts (pp. 32, 49, 50)', () => {
+  test('Сила Магии rounds', () => {
+    assert.equal(lastingSpellRounds(3), 3);
+  });
+  test('Магический ошейник +1, Магическая накидка +3, both +4', () => {
+    assert.equal(lastingSpellRounds(3, ['Магический ошейник']), 4);
+    assert.equal(lastingSpellRounds(3, ['Магическая накидка']), 6);
+    assert.equal(lastingSpellRounds(3, ['Магический ошейник', 'Магическая накидка', 'Щит гнолла']), 7);
+  });
+  test('the same artifact twice counts once', () => {
+    assert.equal(lastingSpellRounds(2, ['Магический ошейник', 'Магический ошейник']), 3);
   });
 });

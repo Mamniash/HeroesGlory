@@ -259,3 +259,40 @@ export function resolveModifierSpellResolution(flags) {
     return { outcome: 'applied' };
   });
 }
+
+/** p. 32: at most 3 lasting spells a hero keeps up at once (rules.md §11: this hero's casts). */
+export const MAX_LASTING_SPELLS = 3;
+
+/**
+ * p. 32, «Если вы накладываете новое и заклинаний становится 4, вы должны
+ * решить, какое из ранее сотворенных закончить». A cast counts once however
+ * many targets it has (rules.md §11). A cast the new one fully replaces —
+ * the same spell on targets all among the new ones (rules.md §11: a recast
+ * refreshes) — doesn't count: it is ending anyway.
+ * @param {object} args
+ * @param {Array<{castId: string, spellName: string, targetIds: string[]}>} args.casts   the hero's active casts
+ * @param {string} args.newSpellName
+ * @param {string[]} args.newTargetIds
+ * @param {number} [args.limit]
+ * @returns {{needsChoice: boolean, candidates: Array<{castId: string, spellName: string, targetIds: string[]}>}}
+ */
+export function resolveLastingSpellLimit({ casts = [], newSpellName, newTargetIds = [], limit = MAX_LASTING_SPELLS }) {
+  const candidates = casts.filter((cast) => !(cast.spellName === newSpellName
+    && cast.targetIds.length && cast.targetIds.every((id) => newTargetIds.includes(id))));
+  return { needsChoice: candidates.length >= limit, candidates };
+}
+
+/** Artifacts that lengthen the hero's spells (pp. 49, 50; ход = раунд, rules.md §11). */
+export const SPELL_DURATION_ARTIFACTS = { 'Магический ошейник': 1, 'Магическая накидка': 3 };
+
+/**
+ * A lasting spell's rounds: Сила Магии (p. 32) plus the worn artifacts that
+ * lengthen spells, each counted once.
+ * @param {number} magicPower
+ * @param {string[]} [equippedArtifactNames]
+ * @returns {number}
+ */
+export function lastingSpellRounds(magicPower, equippedArtifactNames = []) {
+  const bonus = [...new Set(equippedArtifactNames)].reduce((sum, name) => sum + (SPELL_DURATION_ARTIFACTS[name] ?? 0), 0);
+  return Math.max(0, magicPower ?? 0) + bonus;
+}

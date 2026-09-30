@@ -244,10 +244,26 @@
     Icons show the derived total, the same in and out of edit mode. The
     GM's manual correction (the only stored part, rules.md §2.2/§11) has
     no field on the sheet. --}}
+  {{!-- §2.2: in edit mode (GM only) a click opens the manual-correction
+    window (hero-sheet.mjs); otherwise as before. --}}
   <img class="hero-paperdoll__slot hero-paperdoll__slot--morale" src="{{icons.morale}}" alt=""
-    data-tooltip-trigger="morale"{{#if canRollMorale}} data-action="rollMoraleCheck"{{/if}}>
+    data-tooltip-trigger="morale"{{#if editMode}} data-action="editMoraleCorrection"{{else if canRollMorale}} data-action="rollMoraleCheck"{{/if}}>
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
-    data-tooltip-trigger="luck" data-tooltip-click>
+    data-tooltip-trigger="luck"{{#if editMode}} data-action="editLuckCorrection"{{else}} data-tooltip-click{{/if}}>
+
+  {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6) and the amount.
+    Everyone who sees the sheet sees it; the GM changes it with a quick
+    field — no name, its own update (hero-sheet.mjs `_onRender`). --}}
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--gold hero-paperdoll__gold" title="{{localize 'HEROES_GLORY.Hero.Gold'}}">
+    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="">
+    {{#if isGM}}
+      <input class="hero-paperdoll__gold-value hero-paperdoll__gold-input" type="text" inputmode="numeric"
+        value="{{source.gold}}" data-gold-input
+        aria-label="{{localize 'HEROES_GLORY.Hero.GoldInputHint'}}" data-tooltip="HEROES_GLORY.Hero.GoldInputHint">
+    {{else}}
+      <span class="hero-paperdoll__gold-value">{{system.gold}}</span>
+    {{/if}}
+  </div>
 
   {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
     see _hero-paperdoll.scss's own comment on

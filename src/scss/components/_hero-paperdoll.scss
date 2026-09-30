@@ -380,6 +380,9 @@ $hg-named-slots: (
   // $hg-stat-panel-darken's own comment for why this is a darkened copy
   // of the underlying leather rather than a patch cut from elsewhere.
   stat_backdrop: (314 / 600 * 100, 15 / 473 * 100, 115 / 600 * 100, 31 / 473 * 100),
+  // Gold — the free strip left of the specialization cell, under the
+  // paperdoll's bottom line.
+  gold: (312 / 600 * 100, 425 / 473 * 100, 66 / 600 * 100, 30 / 473 * 100),
 );
 
 @each $name, $box in $hg-named-slots {
@@ -2058,4 +2061,35 @@ $hg-experience-highlight-pulse-duration: 2.6s;
     color: $c-tan;
     padding: $padding-sm 0;
   }
+}
+
+// ---- Gold (the free strip left of the specialization cell) ----
+// HOMM3's resource bar: the small gold sprite (SMALRES, 20×18 native —
+// 20 / 66 of the slot's width) and the amount beside it, in the primary
+// values' font. The GM's quick field looks the same as the plain number.
+.hero-paperdoll__gold {
+  display: flex;
+  align-items: center;
+  gap: 4%;
+}
+
+.hero-paperdoll__gold-icon {
+  flex: none;
+  width: calc(20 / 66 * 100%);
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.hero-paperdoll__gold-value {
+  flex: 1;
+  min-width: 0;
+  color: $hg-parchment;
+  text-align: left;
+  @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
+}
+
+.hero-paperdoll__gold-input {
+  @include hg-canvas-input-reset;
+  width: 100%;
+  cursor: text;
 }

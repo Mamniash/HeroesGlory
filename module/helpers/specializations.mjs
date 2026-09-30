@@ -148,3 +148,19 @@ export function availableSpecializations(ownedSkills, ownedSpellNames) {
     .map((name) => ({ type: 'spell', key: name }));
   return [...skillOptions, ...spellOptions];
 }
+
+/**
+ * §4.3 p. 23, specialization «Цепная Молния» on that spell (rules.md §11,
+ * our reading — Сеня may adjust): +1d6 to the damage, every extra target
+ * takes the full damage, and two more targets the player picks, on top of
+ * the ordinary chain.
+ * @param {{type?: string, key?: string}|null} specialization
+ * @param {string} spellName
+ * @returns {{active: boolean, bonusDice: number, extraFactor: number|null, chosenTargets: number}}
+ */
+export function chainLightningSpecialization(specialization, spellName) {
+  const active = specialization?.type === 'spell' && specialization?.key === 'Цепная Молния' && spellName === 'Цепная Молния';
+  return active
+    ? { active: true, bonusDice: 1, extraFactor: 1, chosenTargets: 2 }
+    : { active: false, bonusDice: 0, extraFactor: null, chosenTargets: 0 };
+}

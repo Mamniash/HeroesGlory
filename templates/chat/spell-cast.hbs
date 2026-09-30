@@ -19,6 +19,10 @@
     {{#each targetLines}}
       <p class="heroes-glory-chat-card__damage">{{this}}</p>
     {{/each}}
+    {{!-- p. 32: the lasting spell this cast ends (a fourth one). --}}
+    {{#if endCastLine}}
+      <p class="heroes-glory-chat-card__line">{{endCastLine}}</p>
+    {{/if}}
   {{/if}}
 
   {{!-- Details: collapsed by default. --}}

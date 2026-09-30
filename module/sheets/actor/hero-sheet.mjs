@@ -1,5 +1,7 @@
 import { HeroesGloryActorSheet } from './base-actor-sheet.mjs';
-import { moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount } from '../../helpers/rolls.mjs';
+import {
+  moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount, parseGoldInput, parseCorrectionInput,
+} from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
 import { findSpellVariant, castSpell } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
@@ -31,6 +33,7 @@ import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../../helpers/skill-grant.mjs';
 import { restHero } from '../../helpers/rest.mjs';
 import { openManualExperience } from '../../helpers/experience-award.mjs';
+import { HeroesGloryDialog } from '../../apps/dialog.mjs';
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
@@ -162,6 +165,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       restHero: this.#onRestHero,
       awardExperience: this.#onAwardExperience,
       resetHeroCreation: this.#onResetHeroCreation,
+      editLuckCorrection: this.#onEditLuckCorrection,
+      editMoraleCorrection: this.#onEditMoraleCorrection,
     },
   };
 
@@ -762,24 +767,91 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onEditLuckCorrection() {
+    return this.#editCorrection('luck');
+  }
+
+  /**
+   * @this {HeroesGloryHeroSheet}
+   */
+  static #onEditMoraleCorrection() {
+    return this.#editCorrection('morale');
+  }
+
+  /**
+   * §2.2: the GM's manual Удача / Боевой дух correction (`system.luck` /
+   * `system.morale` in the source) — a window in the system's style with
+   * the icon tooltip's own breakdown and the correction's field. OK saves,
+   * Cancel / Escape leave it. The total is computed as before
+   * (prepareDerivedData): Удача clamped to ±3, Боевой дух unlimited.
+   * @param {'luck'|'morale'} stat
+   * @returns {Promise<void>}
+   */
+  async #editCorrection(stat) {
+    if (!this.#canEdit) return;
+    const i18n = game.i18n;
+    const esc = foundry.utils.escapeHTML;
+    const lines = this.#skillStatLines(this.actor.system, { full: true })[stat === 'luck' ? 'luckLines' : 'moraleLines'];
+    const current = this.actor._source.system[stat];
+    const content = document.createElement('div');
+    content.innerHTML = `<div class="hg-confirm__block">${lines.map((line) => `<p>${esc(line)}</p>`).join('')}</div>
+      <label class="hg-item__field hg-confirm__block">
+        <span class="hg-item__label">${esc(i18n.localize('HEROES_GLORY.Hero.CorrectionLabel'))}</span>
+        <input class="hg-item__input" type="text" inputmode="numeric" name="correction" value="${current}" autofocus>
+      </label>`;
+    const value = await HeroesGloryDialog.wait({
+      hgColor: HeroesGloryDialog.actorColor(this.actor),
+      window: { title: stat === 'luck' ? 'HEROES_GLORY.Hero.LuckCorrectionTitle' : 'HEROES_GLORY.Hero.MoraleCorrectionTitle' },
+      content,
+      buttons: [
+        {
+          action: 'save',
+          label: 'HEROES_GLORY.Hero.CorrectionSave',
+          default: true,
+          callback: (event, button) => button.form.elements.correction.value,
+        },
+        { action: 'cancel', label: 'HEROES_GLORY.Rest.Cancel' },
+      ],
+      rejectClose: false,
+    });
+    if (typeof value !== 'string') return;
+    const next = parseCorrectionInput(value);
+    if (next === null) {
+      ui.notifications.warn(i18n.localize('HEROES_GLORY.Hero.CorrectionInvalid'));
+      return;
+    }
+    if (next !== current) await this.actor.update({ [`system.${stat}`]: next });
+  }
+
+  /**
    * §3: pre-localized breakdown lines for the Скорость / Удача / Боевой
    * дух tooltips. Parts that are zero are left out, except the base and
    * the manual correction, which the GM edits and so always sees.
    * @param {object} system   The hero's derived `actor.system`.
+   * @param {object} [options]
+   * @param {boolean} [options.full]   Every part, zeros included — the GM's
+   *   correction window shows the whole breakdown.
    * @returns {{speedLines: string[], luckLines: string[], moraleLines: string[]}}
    */
-  #skillStatLines(system) {
+  #skillStatLines(system, { full = false } = {}) {
     const config = CONFIG.HEROES_GLORY;
     const i18n = game.i18n;
     const signed = (n) => (n > 0 ? `+${n}` : String(n));
     const owned = this.actor.items
       .filter((i) => i.type === 'skill')
       .map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
-    const skillLine = (key, value) => i18n.format('HEROES_GLORY.Tooltip.SkillPart', {
-      skill: i18n.localize(config.secondarySkills[key]),
-      tier: i18n.localize(config.skillTiers[highestSkillTier(owned, key)]),
-      value: signed(value),
-    });
+    const skillLine = (key, value) => {
+      const tier = highestSkillTier(owned, key);
+      return tier
+        ? i18n.format('HEROES_GLORY.Tooltip.SkillPart', {
+          skill: i18n.localize(config.secondarySkills[key]),
+          tier: i18n.localize(config.skillTiers[tier]),
+          value: signed(value),
+        })
+        : i18n.format('HEROES_GLORY.Tooltip.SkillNonePart', { skill: i18n.localize(config.secondarySkills[key]) });
+    };
     const effectsLine = (value) => i18n.format('HEROES_GLORY.Tooltip.EffectsPart', { value: signed(value) });
     const manualLine = (value) => i18n.format('HEROES_GLORY.Tooltip.ManualPart', { value: signed(value) });
     const totalLine = (value) => i18n.format('HEROES_GLORY.Tooltip.TotalPart', { value });
@@ -799,23 +871,23 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
     const luck = system.luckParts;
     const luckLines = [];
-    if (luck.skill) luckLines.push(skillLine('luck', luck.skill));
+    if (luck.skill || full) luckLines.push(skillLine('luck', luck.skill));
     luckLines.push(manualLine(luck.manual));
-    if (luck.effects) luckLines.push(effectsLine(luck.effects));
+    if (luck.effects || full) luckLines.push(effectsLine(luck.effects));
     luckLines.push(totalLine(luck.total));
     if (luck.clamped) luckLines.push(i18n.format('HEROES_GLORY.Tooltip.LuckClamped', { raw: luck.raw }));
 
     const morale = system.moraleParts;
     const moraleLines = [];
-    if (morale.skill) moraleLines.push(skillLine('leadership', morale.skill));
-    if (morale.race) {
+    if (morale.skill || full) moraleLines.push(skillLine('leadership', morale.skill));
+    if (morale.race || (full && system.race)) {
       moraleLines.push(i18n.format('HEROES_GLORY.Tooltip.RacePart', {
         race: i18n.localize(config.races[system.race]),
         value: signed(morale.race),
       }));
     }
     moraleLines.push(manualLine(morale.manual));
-    if (morale.effects) moraleLines.push(effectsLine(morale.effects));
+    if (morale.effects || full) moraleLines.push(effectsLine(morale.effects));
     moraleLines.push(totalLine(morale.total));
 
     return { speedLines, luckLines, moraleLines };
@@ -824,6 +896,26 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
+
+    // Gold (GM only): «150» sets, «−30» / «+20» change it, never below 0 —
+    // the creature's quick Health field, the same parse. Applied on Enter or
+    // on leaving the field; the field has no name, its change stops here.
+    const goldInput = this.element.querySelector('[data-gold-input]');
+    goldInput?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      goldInput.blur();
+    });
+    goldInput?.addEventListener('change', async (event) => {
+      event.stopPropagation();
+      const current = this.actor._source.system.gold;
+      const next = parseGoldInput(goldInput.value, current);
+      if (next === null || next === current) {
+        goldInput.value = current;
+        return;
+      }
+      await this.actor.update({ 'system.gold': next });
+    });
 
     // A re-render can swap out a trigger element mid right-click-hold or
     // mid-pin — attachTooltip's own listeners on the old (now-detached)

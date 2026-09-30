@@ -38,6 +38,8 @@ import {
   hadUnconfirmedAttackBefore,
   isIncapacitated,
   parseHealthInput,
+  parseGoldInput,
+  parseCorrectionInput,
   quickHealthClearsIncapacitated,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -1326,5 +1328,36 @@ describe('moraleCheckVariant — §5.8 who rolls which test', () => {
   test('no attempts left or zero morale → nothing', () => {
     assert.equal(moraleCheckVariant({ ...base, morale: 2, used: 2, isOwner: true, isGM: true }), null);
     assert.equal(moraleCheckVariant({ ...base, morale: 0, isOwner: true, isGM: true }), null);
+  });
+});
+
+describe('parseGoldInput — quick gold field of the hero sheet', () => {
+  test('«150» sets, «−30» / «+20» change', () => {
+    assert.equal(parseGoldInput('150', 60), 150);
+    assert.equal(parseGoldInput('−30', 60), 30);
+    assert.equal(parseGoldInput('+20', 60), 80);
+  });
+  test('never below 0', () => {
+    assert.equal(parseGoldInput('-99999', 60), 0);
+  });
+  test('anything else is not an entry', () => {
+    assert.equal(parseGoldInput('много', 60), null);
+  });
+});
+
+describe('parseCorrectionInput — manual Удача / Боевой дух correction by the GM', () => {
+  test('signed or not, any minus sign', () => {
+    assert.equal(parseCorrectionInput('1'), 1);
+    assert.equal(parseCorrectionInput('+1'), 1);
+    assert.equal(parseCorrectionInput('-2'), -2);
+    assert.equal(parseCorrectionInput('−2'), -2);
+    assert.equal(parseCorrectionInput(' 0 '), 0);
+  });
+  test('no limit of its own (the total is clamped where it is computed)', () => {
+    assert.equal(parseCorrectionInput('7'), 7);
+    assert.equal(parseCorrectionInput('-9'), -9);
+  });
+  test('anything else is not a correction', () => {
+    for (const text of ['', 'abc', '1.5', '--1', '+']) assert.equal(parseCorrectionInput(text), null);
   });
 });

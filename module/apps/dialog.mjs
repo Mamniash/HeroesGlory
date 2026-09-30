@@ -32,6 +32,23 @@ export function checkboxRow(name, value, label, checked) {
 }
 
 /**
+ * One line of a dialog's single choice — the same SYSOPCHK sprite as
+ * checkboxRow, on a radio input (one of the group checked at a time).
+ * @param {string} name
+ * @param {string} value
+ * @param {string} label   Plain text.
+ * @param {boolean} checked
+ * @returns {string}
+ */
+export function radioRow(name, value, label, checked) {
+  const esc = foundry.utils.escapeHTML;
+  return `<label class="hg-item__checkbox">
+      <input class="hg-item__checkbox-box" type="radio" name="${esc(name)}" value="${esc(value)}" ${checked ? 'checked' : ''}>
+      <span class="hg-dialog__check-label">${esc(label)}</span>
+    </label>`;
+}
+
+/**
  * Every small dialog the system opens itself (confirmations, rest, the
  * experience window) — core's `DialogV2` with the picker's look: the
  * `.hg-tooltip` frame and leather (picker.hbs), OK/Отмена as the HOMM3

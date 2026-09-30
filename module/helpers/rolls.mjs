@@ -930,9 +930,10 @@ export function quickHealthClearsIncapacitated(before, after) {
 }
 
 /**
- * The creature sheet's quick Health field: «12» sets the value, «−7» /
- * «+3» change the current one. Any minus sign a keyboard gives (hyphen,
- * «−», «–») counts. Never below 0; anything else is not a Health entry.
+ * A quick number field — the creature sheet's Health, the hero sheet's
+ * gold: «12» sets the value, «−7» / «+3» change the current one. Any minus
+ * sign a keyboard gives (hyphen, «−», «–») counts. Never below 0; anything
+ * else is not an entry.
  * @param {string} text
  * @param {number} current
  * @returns {number|null}   The new value, or `null` for an unreadable entry.
@@ -943,6 +944,24 @@ export function parseHealthInput(text, current) {
   const amount = Number(match[2]);
   const next = match[1] === '-' ? current - amount : match[1] === '+' ? current + amount : amount;
   return Math.max(0, next);
+}
+
+/** The hero sheet's quick gold field reads the same way (never below 0). */
+export const parseGoldInput = parseHealthInput;
+
+/**
+ * The GM's manual Удача / Боевой дух correction (§2.2): a whole number,
+ * signed or not — «1», «+1», «−2», «0». Any minus sign a keyboard gives
+ * counts. No limit here: Удача's total is clamped to ±3 where it is
+ * computed (resolveLuckTotal), Боевой дух has none (rules.md §11).
+ * @param {string} text
+ * @returns {number|null}   `null` for an unreadable entry
+ */
+export function parseCorrectionInput(text) {
+  const match = String(text ?? '').trim().replace(/[−–]/g, '-').match(/^([+-])?\s*(\d+)$/);
+  if (!match) return null;
+  const amount = Number(match[2]);
+  return match[1] === '-' ? -amount : amount;
 }
 
 /**
