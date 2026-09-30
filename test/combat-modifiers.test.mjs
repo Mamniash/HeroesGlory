@@ -10,6 +10,10 @@ import {
   resolveAttackResolution,
   resolveSpellDamageDealt,
   resolveSpellDamageTaken,
+  initiativeRollParts,
+  elfRerolledInitiative,
+  canElfReroll,
+  compareTurnOrder,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -186,5 +190,66 @@ describe('resolveAttackResolution — spell effects frozen on the card', () => {
   test('potential damage (no target) follows the same rules', () => {
     const r = resolveAttackResolution({ ...base, defeatDie: null, targetDefense: null, damageDealtModifiers: [{ value: 4 }] });
     assert.equal(r.potentialDamage, 18);
+  });
+});
+
+describe('initiativeRollParts — §5.1 extra initiative terms', () => {
+  test('an ordinary hero: Тактика as is, no bonus', () => {
+    assert.deepEqual(initiativeRollParts({ race: 'human', tactics: 3 }), { tactics: 3, initiativeBonus: 0 });
+  });
+  test('p. 12: a Минотавр hero +2', () => {
+    assert.deepEqual(initiativeRollParts({ race: 'minotaur', tactics: 0 }), { tactics: 0, initiativeBonus: 2 });
+  });
+  test('p. 25: didn’t spot the enemy — −10 and no Тактика', () => {
+    assert.deepEqual(initiativeRollParts({ race: 'human', tactics: 5, surprised: true }), { tactics: 0, initiativeBonus: -10 });
+  });
+  test('a surprised Минотавр: +2 −10', () => {
+    assert.deepEqual(initiativeRollParts({ race: 'minotaur', tactics: 3, surprised: true }), { tactics: 0, initiativeBonus: -8 });
+  });
+  test('a creature: no race, no Тактика', () => {
+    assert.deepEqual(initiativeRollParts({ surprised: true }), { tactics: 0, initiativeBonus: -10 });
+    assert.deepEqual(initiativeRollParts({}), { tactics: 0, initiativeBonus: 0 });
+  });
+});
+
+describe('Эльф — p. 9, one reroll of the initiative d20, the new result stands', () => {
+  test('only the d20 changes', () => {
+    assert.equal(elfRerolledInitiative(20, 12, 3), 11);
+    assert.equal(elfRerolledInitiative(20, 12, 19), 27);
+  });
+  const base = { race: 'elf', rerolled: false, current: true, round: 0, isOwner: true, isGM: false };
+  test('offered to the elf’s owner or the GM, once, while initiative is rolled', () => {
+    assert.equal(canElfReroll(base), true);
+    assert.equal(canElfReroll({ ...base, round: 1 }), true);
+    assert.equal(canElfReroll({ ...base, isOwner: false, isGM: true }), true);
+  });
+  test('not for another race, a second time, a stale card, round 2+, or another player', () => {
+    assert.equal(canElfReroll({ ...base, race: 'human' }), false);
+    assert.equal(canElfReroll({ ...base, rerolled: true }), false);
+    assert.equal(canElfReroll({ ...base, current: false }), false);
+    assert.equal(canElfReroll({ ...base, round: 2 }), false);
+    assert.equal(canElfReroll({ ...base, isOwner: false }), false);
+  });
+});
+
+describe('compareTurnOrder — p. 24: initiative, then Скорость, then a coin (rules.md §11)', () => {
+  const c = (id, initiative, speed, coin = null) => ({ id, initiative, speed, coin });
+  const order = (...list) => [...list].sort(compareTurnOrder).map((x) => x.id);
+  test('higher initiative first', () => {
+    assert.deepEqual(order(c('a', 10, 9), c('b', 15, 3)), ['b', 'a']);
+  });
+  test('a tie: the higher Скорость (the one in the roll, Тактика included)', () => {
+    assert.deepEqual(order(c('a', 12, 6), c('b', 12, 9)), ['b', 'a']);
+  });
+  test('equal Скорость: the coin, the same every time it is sorted', () => {
+    const list = [c('a', 12, 6, 0.2), c('b', 12, 6, 0.8)];
+    assert.deepEqual(order(...list), ['b', 'a']);
+    assert.deepEqual(order(...list.reverse()), ['b', 'a']);
+  });
+  test('no initiative yet: after everyone, by id', () => {
+    assert.deepEqual(order(c('z', null, 9), c('a', 3, 1), c('b', null, 1)), ['a', 'b', 'z']);
+  });
+  test('an old combatant without a coin: the id settles it', () => {
+    assert.deepEqual(order(c('b', 12, 6), c('a', 12, 6)), ['a', 'b']);
   });
 });

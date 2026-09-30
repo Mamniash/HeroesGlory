@@ -1183,3 +1183,79 @@ export function experienceAward({ creatures = [], bonusDice = [], aptitudeTier =
 export function isDefeatedForExperience({ healthValue, incapacitated = false, defeated = false, unconscious = false }) {
   return healthValue <= 0 || incapacitated || defeated || unconscious;
 }
+
+/** p. 12, Минотавр: «+2 к тесту на инициативу». Heroes of these races add it. */
+export const RACE_INITIATIVE_BONUS = { minotaur: 2 };
+
+/** p. 25: who didn't spot the enemy before the fight — −10 to the initiative roll. */
+export const SURPRISE_INITIATIVE_PENALTY = -10;
+
+/**
+ * §5.1: the extra terms of `1d20 + @speed + @tactics + @initiativeBonus`.
+ * p. 25: a combatant who didn't spot the enemy gets −10 and «не может
+ * использовать вторичный навык Тактика»; p. 12: a Минотавр hero +2.
+ * @param {object} args
+ * @param {string} [args.race]       a hero's race key; none for a creature
+ * @param {number} [args.tactics]    the Тактика first-round bonus
+ * @param {boolean} [args.surprised]
+ * @returns {{tactics: number, initiativeBonus: number}}
+ */
+export function initiativeRollParts({ race = '', tactics = 0, surprised = false } = {}) {
+  return {
+    tactics: surprised ? 0 : tactics,
+    initiativeBonus: (RACE_INITIATIVE_BONUS[race] ?? 0) + (surprised ? SURPRISE_INITIATIVE_PENALTY : 0),
+  };
+}
+
+/**
+ * p. 9, Эльф: «При броске Инициативы эльф может перебросить кубик.
+ * Примените новый результат броска, каким бы он ни был.» Only the d20 is
+ * rolled again; every other term of the roll stays.
+ * @param {number} total     the initiative the roll gave
+ * @param {number} oldDie    its d20
+ * @param {number} newDie    the new d20
+ * @returns {number}
+ */
+export function elfRerolledInitiative(total, oldDie, newDie) {
+  return total - oldDie + newDie;
+}
+
+/**
+ * Whether the Эльф reroll button is offered on an initiative card: a hero
+ * elf's card not rerolled yet, whose roll is still the combatant's
+ * initiative, while initiative is being rolled (before round 2), to the
+ * elf's owner or the GM.
+ * @param {object} args
+ * @param {string} args.race
+ * @param {boolean} args.rerolled
+ * @param {boolean} args.current   the card's total is still the combatant's initiative
+ * @param {number} args.round      the combat's round (0 — not started)
+ * @param {boolean} args.isOwner
+ * @param {boolean} args.isGM
+ * @returns {boolean}
+ */
+export function canElfReroll({ race, rerolled, current, round, isOwner, isGM }) {
+  return race === 'elf' && !rerolled && current && round <= 1 && (isOwner || isGM);
+}
+
+/**
+ * §5.1 (p. 24): the turn order. Higher initiative first; a tie — the higher
+ * Скорость, the one that went into the initiative roll (a hero's Тактика
+ * included, rules.md §11); equal Скорость — the coin, drawn once per
+ * combatant for the whole battle. Combatants with no initiative go last;
+ * the id settles anything left (an old combatant has no coin).
+ * @param {{initiative: number|null, speed: number, coin: number|null, id: string}} a
+ * @param {{initiative: number|null, speed: number, coin: number|null, id: string}} b
+ * @returns {number}   negative — `a` goes first
+ */
+export function compareTurnOrder(a, b) {
+  const ia = Number.isFinite(a.initiative) ? a.initiative : -Infinity;
+  const ib = Number.isFinite(b.initiative) ? b.initiative : -Infinity;
+  if (ia !== ib) return ib - ia;
+  if (!Number.isFinite(ia)) return a.id > b.id ? 1 : -1;
+  if (a.speed !== b.speed) return b.speed - a.speed;
+  const ca = a.coin ?? -1;
+  const cb = b.coin ?? -1;
+  if (ca !== cb) return cb - ca;
+  return a.id > b.id ? 1 : -1;
+}

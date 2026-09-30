@@ -1,7 +1,7 @@
 import HeroesGloryDataModel from "./base-model.mjs";
 import { applyWoundPenalty } from "../helpers/wounds.mjs";
 import { manaMultiplier } from "../helpers/mana.mjs";
-import { halveBase } from "../helpers/rolls.mjs";
+import { halveBase, initiativeRollParts } from "../helpers/rolls.mjs";
 import {
   highestSkillTier, tacticsSpeedBonus, pathfindingSpeedBonus,
   luckSkillBase, leadershipMoraleBase, raceMoraleBonus, resolveLuckTotal,
@@ -320,11 +320,13 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
   }
 
   /**
-   * Exposes `speed` and `tactics` at the top level of roll data so the
-   * initiative formula `1d20 + @speed + @tactics` (rules.md §5.1, §3
-   * Тактика) resolves.
+   * Exposes `speed`, `tactics` and `initiativeBonus` at the top level of
+   * roll data so the initiative formula `1d20 + @speed + @tactics +
+   * @initiativeBonus` (rules.md §5.1, §3 Тактика) resolves: Минотавр +2
+   * (p. 12), «не обнаружил врага» −10 and no Тактика (p. 25).
    */
   getRollData() {
-    return { ...this };
+    const surprised = !!this.parent?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.surprised);
+    return { ...this, ...initiativeRollParts({ race: this.race, tactics: this.tactics, surprised }) };
   }
 }

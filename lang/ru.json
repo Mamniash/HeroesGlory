@@ -519,10 +519,14 @@
       "Unconscious": "Без сознания",
       "Incapacitated": "Недееспособен",
       "Defending": "Защита",
-      "Unrested": "Без отдыха"
+      "Unrested": "Без отдыха",
+      "Surprised": "Не обнаружил врага"
     },
     "Roll": {
       "CheckHint": "Клик — проверка (d20 + значение)",
+      "ElfReroll": "Перебросить (Эльф)",
+      "ElfRerollHint": "Эльф может один раз перебросить кубик инициативы — новый результат остаётся, каким бы он ни был",
+      "ElfRerollLine": "{name} (Эльф) перебрасывает кубик инициативы: d20 {oldDie} → {newDie}, инициатива {oldTotal} → {newTotal}",
       "AttackButton": "Атака",
       "MeleeButton": "Ближняя",
       "RangedButton": "Дальняя",

@@ -33,10 +33,11 @@ export function resetMoraleAfterCombat(combat) {
 export function clearCombatStatesAfterCombat(combat) {
   if (game.users.activeGM !== game.user) return;
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
-  const { prone, unconscious, defending } = CONFIG.HEROES_GLORY.statusEffects;
+  const { prone, unconscious, defending, surprised } = CONFIG.HEROES_GLORY.statusEffects;
   for (const actor of actors) {
     if (actor.statuses.has(prone)) actor.toggleStatusEffect(prone, { active: false });
     if (actor.statuses.has(unconscious)) actor.toggleStatusEffect(unconscious, { active: false });
+    if (actor.statuses.has(surprised)) actor.toggleStatusEffect(surprised, { active: false });
     if (actor.effects.some((e) => e.statuses.has(defending))) actor.toggleStatusEffect(defending, { active: false });
   }
 }

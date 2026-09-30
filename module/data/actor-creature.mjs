@@ -1,4 +1,5 @@
 import HeroesGloryDataModel from "./base-model.mjs";
+import { initiativeRollParts } from "../helpers/rolls.mjs";
 
 /**
  * Data model for a bestiary creature (rules.md §9).
@@ -67,10 +68,12 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
 
   /**
    * Exposes `speed` at the top level of roll data so the initiative
-   * formula `1d20 + @speed + @tactics` (rules.md §5.1) resolves.
-   * Creatures own no secondary skills, so `tactics` is always 0.
+   * formula `1d20 + @speed + @tactics + @initiativeBonus` (rules.md §5.1)
+   * resolves. Creatures own no secondary skills, so `tactics` is always 0;
+   * «не обнаружил врага» gives −10 (initiativeRollParts).
    */
   getRollData() {
-    return { ...this, tactics: 0 };
+    const surprised = !!this.parent?.statuses?.has(CONFIG.HEROES_GLORY.statusEffects.surprised);
+    return { ...this, ...initiativeRollParts({ tactics: 0, surprised }) };
   }
 }

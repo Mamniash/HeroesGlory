@@ -13,6 +13,8 @@ import { HeroesGlorySpellbookSheet } from './sheets/item/spellbook-sheet.mjs';
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
+import { decorateInitiativeCard } from './helpers/initiative.mjs';
+import { HeroesGloryCombat, drawCombatantCoin } from './documents/combat.mjs';
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat,
@@ -43,12 +45,16 @@ Hooks.once('init', function () {
    * @type {String}
    */
   CONFIG.Combat.initiative = {
-    formula: '1d20 + @speed + @tactics',
+    // §5.1: `initiativeBonus` — Минотавр +2 (p. 12), «не обнаружил врага»
+    // −10 (p. 25); the latter also drops Тактика (initiativeRollParts).
+    formula: '1d20 + @speed + @tactics + @initiativeBonus',
     decimals: 2,
   };
 
   // Define custom Document and DataModel classes
   CONFIG.Actor.documentClass = HeroesGloryActor;
+  // §5.1: ties in initiative — Скорость, then a coin (documents/combat.mjs).
+  CONFIG.Combat.documentClass = HeroesGloryCombat;
 
   CONFIG.Actor.dataModels = {
     hero: models.HeroesGloryHero,
@@ -90,6 +96,10 @@ Hooks.once('init', function () {
     // §5.10 (p. 33): «Без отдыха» — set by the GM "на начало нового дня",
     // lifted by a rest; halves the primary skills' base (actor-hero.mjs).
     { id: HEROES_GLORY.statusEffects.unrested, name: 'HEROES_GLORY.Status.Unrested', img: 'icons/svg/sleep.svg' },
+    // §5.1 (p. 25): «Тот, кто не обнаружил врага до начала боя» — the GM
+    // marks it before initiative is rolled: −10 and no Тактика. Lifted at
+    // the end of the battle.
+    { id: HEROES_GLORY.statusEffects.surprised, name: 'HEROES_GLORY.Status.Surprised', img: 'icons/svg/daze.svg' },
   );
 
   // Register sheet application classes.
@@ -167,6 +177,10 @@ Handlebars.registerHelper('inc', function (value) {
 // it has to be decided at render time on each client, not baked into the
 // stored HTML.
 Hooks.on('renderChatMessageHTML', activateChatListeners);
+// §5.1 (p. 9): the Эльф's initiative reroll button.
+Hooks.on('renderChatMessageHTML', decorateInitiativeCard);
+// §5.1: the tie coin, drawn once per combatant.
+Hooks.on('preCreateCombatant', drawCombatantCoin);
 
 // §5.8: Боевой дух resets to 0, and its per-battle attempt counter clears,
 // once the encounter ends.
