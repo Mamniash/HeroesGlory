@@ -8,6 +8,8 @@ import {
   attackSeriesCount,
   resolveNextAttack,
   resolveAttackResolution,
+  resolveSpellDamageDealt,
+  resolveSpellDamageTaken,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -132,5 +134,57 @@ describe('resolveAttackResolution — modifiers and old cards', () => {
     assert.equal(r.defeat.contested, true);
     assert.equal(r.defeat.success, false); // 15 + 5 = 20 vs 10 + 10 = 20 — a tie
     assert.equal(r.damage, 0);
+  });
+});
+
+describe('resolveSpellDamageDealt — Благословение / Слабость / Проклятие on the Урон (rules.md §11)', () => {
+  test('no effects: the Урон as is', () => {
+    assert.equal(resolveSpellDamageDealt(5), 5);
+  });
+  test('Благословение +4', () => {
+    assert.equal(resolveSpellDamageDealt(5, [{ value: 4 }]), 9);
+  });
+  test('Слабость −2, down to 1 at least', () => {
+    assert.equal(resolveSpellDamageDealt(5, [{ value: -2, floorOne: true }]), 3);
+    assert.equal(resolveSpellDamageDealt(2, [{ value: -4, floorOne: true }]), 1);
+  });
+  test('different spells add up: Благословение +4 and Проклятие −2 = +2; Слабость and Проклятие −4', () => {
+    assert.equal(resolveSpellDamageDealt(5, [{ value: 4 }, { value: -2, floorOne: true }]), 7);
+    assert.equal(resolveSpellDamageDealt(3, [{ value: -2, floorOne: true }, { value: -2, floorOne: true }]), 1);
+  });
+});
+
+describe('resolveSpellDamageTaken — Щит / Воздушный Щит after multipliers and armor (rules.md §11)', () => {
+  test('no effects or no damage: unchanged', () => {
+    assert.equal(resolveSpellDamageTaken(8), 8);
+    assert.equal(resolveSpellDamageTaken(0, [{ value: -6 }]), 0);
+    assert.equal(resolveSpellDamageTaken(null, [{ value: -6 }]), null);
+  });
+  test('−6, down to 1 at least', () => {
+    assert.equal(resolveSpellDamageTaken(10, [{ value: -6 }]), 4);
+    assert.equal(resolveSpellDamageTaken(4, [{ value: -6 }]), 1);
+  });
+});
+
+describe('resolveAttackResolution — spell effects frozen on the card', () => {
+  const base = {
+    hitDie: 5, defeatDie: 15, attackerAttack: 5, targetDefense: 10, baseDamage: 5,
+    stateMultiplier: 1, equippedArmor: [], location: null,
+  };
+  test('Благословение +4 goes in before the ×2 of a strong hit', () => {
+    const r = resolveAttackResolution({ ...base, damageDealtModifiers: [{ value: 4 }] });
+    assert.equal(r.baseDamage, 9);
+    assert.equal(r.damage, 18);
+  });
+  test('Щит −6 comes off the final damage, at least 1', () => {
+    assert.equal(resolveAttackResolution({ ...base, damageTakenModifiers: [{ value: -6 }] }).damage, 4);
+    assert.equal(resolveAttackResolution({ ...base, hitDie: 3, damageTakenModifiers: [{ value: -6 }] }).damage, 1);
+  });
+  test('a miss stays 0 under Щит', () => {
+    assert.equal(resolveAttackResolution({ ...base, hitDie: 1, damageTakenModifiers: [{ value: -6 }] }).damage, 0);
+  });
+  test('potential damage (no target) follows the same rules', () => {
+    const r = resolveAttackResolution({ ...base, defeatDie: null, targetDefense: null, damageDealtModifiers: [{ value: 4 }] });
+    assert.equal(r.potentialDamage, 18);
   });
 });

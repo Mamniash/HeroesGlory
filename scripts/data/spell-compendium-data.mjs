@@ -107,10 +107,35 @@ function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = fal
   };
 }
 
+/**
+ * rules.md §6.4, stage 2: a lasting modifier (item-spell.mjs's `effect`),
+ * read off the book text — Сила Магии rounds; «Работает на количество …,
+ * равное СМ» → `perMagicPowerTargets` (all СМ targets, the first included,
+ * rules.md §11).
+ * @param {'damageDealt'|'meleeDamageTaken'|'rangedDamageTaken'} stat
+ * @param {number} value   signed
+ * @param {object} [options]
+ * @param {boolean} [options.floorOne]        «до минимума 1»
+ * @param {boolean} [options.hostile]         resisted (rules.md §11)
+ * @param {boolean} [options.excludeUndead]   «не являющееся нежитью»
+ * @param {boolean} [options.perMagicPowerTargets]
+ */
+function modifierEffect(stat, value, { floorOne = false, hostile = false, excludeUndead = false, perMagicPowerTargets = false } = {}) {
+  return {
+    kind: 'modifier',
+    targeting: { mode: 'single', perMagicPowerTargets, extraTargets: 0, extraFactor: 1 },
+    dice: { count: 0, flat: 0, perMagicPower: false, addMagicPower: false },
+    element: '',
+    modifier: { stat, value, floorOne },
+    hostile,
+    excludeUndead,
+  };
+}
+
 // --- Магия Земли, стр. 53-54 — 10 заклинаний ---
 const EARTH = [
   { name: 'Замедление', level: 1, icon: 54, base: { desc: 'Выбранное существо снижает свою скорость на 3, до минимума 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость уменьшается на 6, до минимума 1' }, expert: { desc: 'Работает на количество противников, равное СМ' } },
-  { name: 'Щит', level: 1, icon: 27, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 6, до минимума 1. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 10, до минимума в 1' }, expert: { desc: 'Работает на количество союзников, равное СМ' } },
+  { name: 'Щит', level: 1, icon: 27, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 6, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('meleeDamageTaken', -6, { floorOne: true }) }, basicCost: 4, advanced: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 10, до минимума в 1', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Работает на количество союзников, равное СМ', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
   { name: 'Каменная Кожа', level: 1, icon: 46, base: { desc: 'Увеличивает Защиту выбранного существа на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Увеличивает Защиту на 6' }, expert: { desc: 'Работает на количество союзников, равное СМ' } },
   { name: 'Волна Смерти', level: 2, icon: 24, base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } },
   { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
@@ -128,7 +153,7 @@ const AIR = [
   { name: 'Удача', level: 1, icon: 51, base: { desc: 'Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.', cost: 12 }, basicCost: 4, advanced: { desc: 'Параметр удачи цели увеличивается на 2 до максимума в 3' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   { name: 'Молния', level: 2, icon: 17, base: { desc: 'Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.', cost: 24, effect: damageEffect(3, 0, { plusMagicPower: true, element: 'lightning' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'lightning' }) }, expert: { desc: 'Урон увеличивается до 5d6+СМ', effect: damageEffect(5, 0, { plusMagicPower: true, element: 'lightning' }) } },
   { name: 'Разрушительный Луч', level: 2, icon: 47, base: { desc: 'Выбранное существо снижает свою Защиту на 3, до минимума 0. Длительность = СМ.', cost: 10 }, basicCost: 8, advanced: { desc: 'Снижает Защиту на 5, минимум 0' }, expert: { desc: 'Снижает Защиту на 7, минимум 0' } },
-  { name: 'Воздушный Щит', level: 3, icon: 28, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.', cost: 12 }, basicCost: 10, advanced: { desc: 'Снижает получаемый урон в дальнем бою на 10, до минимума в 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Воздушный Щит', level: 3, icon: 28, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.', cost: 12, effect: modifierEffect('rangedDamageTaken', -5, { floorOne: true }) }, basicCost: 10, advanced: { desc: 'Снижает получаемый урон в дальнем бою на 10, до минимума в 1', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
   { name: 'Уничтожить Нежить', level: 3, icon: 25, base: { desc: 'Вся нежить в поле зрения получает урон, равный 2d6+СМ урона.', cost: 20 }, basicCost: 14, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } },
   // p. 56: «Три других ближайших существа получают половину от этого
   // урона»; эксперт — «Воздействует на 4 дополнительных цели вместо 3».
@@ -139,11 +164,11 @@ const AIR = [
 
 // --- Магия Воды, стр. 57-58 — 10 заклинаний, три исключения по стоимости ---
 const WATER = [
-  { name: 'Благословение', level: 1, icon: 41, base: { desc: 'Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус урона увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Благословение', level: 1, icon: 41, base: { desc: 'Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.', cost: 5, effect: modifierEffect('damageDealt', 4, { excludeUndead: true }) }, basicCost: 4, advanced: { desc: 'Бонус урона увеличивается до +6', effect: modifierEffect('damageDealt', 6, { excludeUndead: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', 6, { excludeUndead: true, perMagicPowerTargets: true }) } },
   { name: 'Лечение', level: 1, icon: 37, base: { desc: 'Снимает с существа все негативные заклинания, и лечит его на 1d6+СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Лечит 2d6+СМ' }, expert: { desc: 'Лечит 3d6+СМ и может воздействовать на количество существ, равное СМ' } },
   { name: 'Развеивание Магии', level: 1, icon: 35, base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } },
   { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20, effect: damageEffect(2, 0, { plusMagicPower: true, element: 'ice' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true, element: 'ice' }) }, expert: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'ice' }) } },
-  { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8 }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true }) }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, perMagicPowerTargets: true }) } },
   { name: 'Забывчивость', level: 3, icon: 61, base: { desc: 'Выбранное существо при стрельбе совершает на одну атаку меньше, чем обычно. Если оно может стрелять лишь единожды, оно не может стрелять вообще. Длительность = СМ.', cost: 20 }, basicCost: 18, advanced: { desc: 'Существо теряет все стрелковые атаки' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
   // BOOK DEFECT: Экспертный не усиливает эффект, а просто повторяет
   // стоимость Базового — единственный такой случай во всей книге.
@@ -162,7 +187,7 @@ const WATER = [
 // стихий — подтверждено независимой сверкой по бумажной книге).
 const FIRE = [
   { name: 'Жажда Крови', level: 1, icon: 43, base: { desc: 'Выбранное существо получает +3 к Атаке. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус к Атаке увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Урон снижается на 4, до минимума 1' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true, excludeUndead: true }) }, basicCost: 4, advanced: { desc: 'Урон снижается на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true, perMagicPowerTargets: true }) } },
   { name: 'Слепота', level: 2, icon: 62, base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } },
   // BOOK DEFECT (пропуск издания, сверено по бумажной книге): у "Без
   // Навыка" в книге нет числа стоимости вообще. 15 — не книжное

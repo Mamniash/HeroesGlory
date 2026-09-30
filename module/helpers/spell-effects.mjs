@@ -215,3 +215,47 @@ export function resolveSpellResolution(flags) {
 export function canConfirmSpell(flags) {
   return !!flags && flags.kind === 'spell' && !flags.confirmed && (flags.targets?.length ?? 0) > 0;
 }
+
+/**
+ * p. 114 «Нежить» — Благословение and Проклятие don't work on it. Only
+ * creatures carry the tag; no hero race is called undead (pp. 8–13,
+ * rules.md §11).
+ * @param {string[]} tags   creature `system.specialSkills`
+ * @returns {boolean}
+ */
+export function isUndeadCreature(tags = []) {
+  return tags.some((raw) => /^нежить(\s|,|\.|$)/.test(normalize(raw)));
+}
+
+/**
+ * How many targets a modifier spell's variant takes: one, or «количество
+ * …, равное СМ» at Эксперт — all Сила Магии targets, the first included
+ * (rules.md §11), at least one.
+ * @param {{targeting?: {perMagicPowerTargets?: boolean}}} effect
+ * @param {number} magicPower
+ * @returns {number}
+ */
+export function modifierTargetLimit(effect, magicPower) {
+  if (!effect?.targeting?.perMagicPowerTargets) return 1;
+  return Math.max(1, magicPower ?? 0);
+}
+
+/**
+ * What a modifier spell card applies, target by target — the one source
+ * both the card and the GM's confirm read. Immune («ко всем заклинаниям»,
+ * useful spells too — rules.md §11) or resisted (hostile spells only, the
+ * die rolled at the cast): nothing; otherwise the effect goes on. An
+ * incapacitated target just gets it (rules.md §11: a modifier isn't an
+ * attack).
+ * @param {{targets: object[]}} flags
+ * @returns {Array<{outcome: 'immune'|'resisted'|'applied'}>}
+ */
+export function resolveModifierSpellResolution(flags) {
+  return (flags.targets ?? []).map((target) => {
+    if (target.immunity) return { outcome: 'immune' };
+    if (target.resistThreshold != null && target.resistDie != null && target.resistDie >= target.resistThreshold) {
+      return { outcome: 'resisted' };
+    }
+    return { outcome: 'applied' };
+  });
+}

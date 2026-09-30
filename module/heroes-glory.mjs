@@ -13,7 +13,10 @@ import { HeroesGlorySpellbookSheet } from './sheets/item/spellbook-sheet.mjs';
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
-import { resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending } from './helpers/combat.mjs';
+import {
+  resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
+  stampEffectStartFromActorCombat,
+} from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
 // Import DataModel classes
@@ -172,6 +175,11 @@ Hooks.on('deleteCombat', resetMoraleAfterCombat);
 // §5.6: Падение and Без сознания both clear at the end of the battle.
 Hooks.on('deleteCombat', clearCombatStatesAfterCombat);
 Hooks.on('updateActiveEffect', expireDefending);
+// §6.4, stage 2: spell effects end with their rounds and with the battle.
+Hooks.on('updateActiveEffect', expireSpellEffect);
+Hooks.on('deleteCombat', clearSpellEffectsAfterCombat);
+// An effect's duration counts in its actor's own combat, not the one on screen.
+Hooks.on('preCreateActiveEffect', stampEffectStartFromActorCombat);
 
 // §4.1: the GM's experience window for the battle that just ended.
 Hooks.on('deleteCombat', offerCombatExperience);

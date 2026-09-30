@@ -52,10 +52,11 @@ import { hasArmorSpecialization, specializationManaDiscount } from './specializa
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
+import { actorCombat } from './combat.mjs';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
   creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
-  resolveSpellResolution, canConfirmSpell,
+  resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -282,9 +283,16 @@ function hitModifierLine(hit, modifiers) {
  */
 function buildAttackContext(actor, flags) {
   const {
-    hit, defeat, damage, damageKnown, potentialDamage,
+    hit, defeat, damage, damageKnown, potentialDamage, baseDamage,
     armorItemMultiplier, armorZoneMultiplier, protectingItem, destroyedArmor,
   } = resolveAttackResolution(flags);
+  // §6.4, stage 2: the spell effects on this card, one line each, and the
+  // Урон they changed before the multiplier.
+  const spellModifierLines = [...(flags.damageDealtModifiers ?? []), ...(flags.damageTakenModifiers ?? [])]
+    .map((modifier) => spellModifierText(modifier));
+  const baseDamageLine = baseDamage !== flags.baseDamage
+    ? game.i18n.format('HEROES_GLORY.Roll.SpellBaseDamageLine', { base: flags.baseDamage, total: baseDamage })
+    : null;
   const equippedArmor = flags.equippedArmor ?? [];
   const confirmed = !!flags.confirmed;
 
@@ -344,6 +352,8 @@ function buildAttackContext(actor, flags) {
     // §5.2/§5.3/§5.7: hit modifiers, adjacency the grid couldn't measure,
     // the legendary contested defeat test.
     hitModifierLine: hitModifierLine(hit, flags.hitModifiers),
+    spellModifierLines,
+    baseDamageLine,
     adjacencyUnknown: flags.adjacencyUnknown ?? false,
     contestedDefeat: defeat.contested ? defeat : null,
     attackerAttack: flags.attackerAttack,
@@ -462,6 +472,13 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
     .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
     .map((i) => ({ name: i.name, level: i.system.level, paperdollSlot: i.system.paperdollSlot ?? null }));
 
+  // §6.4, stage 2: spell effects, frozen at roll time — Благословение /
+  // Слабость / Проклятие on the attacker, Щит (melee) or Воздушный Щит
+  // (ranged) on the target. A series' next attack reads them anew.
+  const damageDealtModifiers = spellModifierEffects(actor).filter((m) => m.stat === 'damageDealt');
+  const takenStat = isRanged ? 'rangedDamageTaken' : 'meleeDamageTaken';
+  const damageTakenModifiers = spellModifierEffects(targetActor).filter((m) => m.stat === takenStat);
+
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
   // The legendary contested test adds the target's own d20 (§11: both on
@@ -496,6 +513,8 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
     targetName: targetActor?.name ?? null,
     attackerAttack: actor.system.attack,
     baseDamage,
+    damageDealtModifiers,
+    damageTakenModifiers,
     targetDefense,
     stateMultiplier,
     equippedArmor,
@@ -905,6 +924,9 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     if (effect?.kind === 'damage') {
       return castDamageSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
+    if (effect?.kind === 'modifier') {
+      return castModifierSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
   }
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -984,9 +1006,14 @@ function isDownForSpell(actor) {
  * @param {Item} spell
  * @param {object} effect
  * @param {number} factor   share of the damage (½ for the chain's extras)
+ * @param {object} [options]
+ * @param {boolean} [options.resist]   roll the resistance at all (a useful
+ *   stage-2 spell isn't resisted, rules.md §11)
+ * @param {boolean} [options.skipIncapacitated]   no roll for an
+ *   incapacitated target (a damage spell kills it anyway)
  * @returns {Promise<{entry: object, roll: Roll|null}>}
  */
-async function spellTargetEntry(tokenDoc, spell, effect, factor) {
+async function spellTargetEntry(tokenDoc, spell, effect, factor, { resist = true, skipIncapacitated = true } = {}) {
   const target = tokenDoc.actor;
   const system = target.system;
   let immunity = null;
@@ -1009,7 +1036,7 @@ async function spellTargetEntry(tokenDoc, spell, effect, factor) {
 
   let roll = null;
   let resistDie = null;
-  if (resistThreshold !== null && !immunity && !incapacitated) {
+  if (resist && resistThreshold !== null && !immunity && !(skipIncapacitated && incapacitated)) {
     roll = new Roll('1d6');
     await roll.evaluate();
     resistDie = roll.dice[0].total;
@@ -1187,11 +1214,14 @@ function buildSpellCardContext(flags) {
     manaCost: flags.manaCost,
     manaRemaining: flags.manaRemaining,
   };
+  if (flags.effectKind === 'modifier') return buildModifierSpellCardContext(flags, context);
   if (flags.total === undefined) return context;
 
   const results = resolveSpellResolution(flags);
   const elementLabel = (element) => i18n.localize(`HEROES_GLORY.Roll.SpellElement.${element || 'none'}`);
   context.damageSpell = true;
+  context.targetSpell = true;
+  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellConfirmHint';
   context.noTarget = !flags.targets.length;
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
@@ -1259,6 +1289,7 @@ function buildSpellCardContext(flags) {
 export async function confirmSpellOutcome(message) {
   const flags = message.getFlag(FLAG_SCOPE, 'spell');
   if (!canConfirmSpell(flags)) return;
+  if (flags.effectKind === 'modifier') return confirmModifierSpell(message, flags);
   const results = resolveSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     const result = results[index];
@@ -1273,6 +1304,257 @@ export async function confirmSpellOutcome(message) {
     } else if (result.damage) {
       await targetActor.update({ 'system.health.value': targetActor.system.health.value - result.damage });
     }
+  }
+  const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/** Flag on an ActiveEffect a stage-2 spell put on its target (§6.4). */
+export const SPELL_EFFECT_FLAG = 'spellEffect';
+
+/**
+ * «+4», «−6» — a spell modifier's signed value for the chat.
+ * @param {number} value
+ * @returns {string}
+ */
+function signedValue(value) {
+  return value > 0 ? `+${value}` : `−${Math.abs(value)}`;
+}
+
+/**
+ * «Благословение +4».
+ * @param {{spellName: string, value: number}} modifier
+ * @returns {string}
+ */
+function spellModifierText({ spellName, value }) {
+  return game.i18n.format('HEROES_GLORY.Roll.SpellModifierLine', { spell: spellName, value: signedValue(value) });
+}
+
+/**
+ * The stage-2 spell effects an actor carries now (§6.4) — one per spell,
+ * expired or disabled ones left out.
+ * @param {Actor|null} actor
+ * @returns {Array<{spellName: string, stat: string, value: number, floorOne: boolean}>}
+ */
+export function spellModifierEffects(actor) {
+  const byName = new Map();
+  for (const effect of actor?.effects ?? []) {
+    const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
+    if (!data || effect.disabled || effect.duration?.expired) continue;
+    if (!byName.has(data.spellName)) {
+      byName.set(data.spellName, { spellName: data.spellName, stat: data.stat, value: data.value, floorOne: !!data.floorOne });
+    }
+  }
+  return [...byName.values()];
+}
+
+/**
+ * The caster's place in its own combat (actorCombat — not `game.combat`,
+ * the one the tracker happens to show), frozen at the cast: the effect's
+ * duration counts from the caster's turn (p. 32, rules.md §11), not from
+ * whenever the GM confirms. `null` when the caster fights in no started
+ * combat.
+ * @param {Actor} actor
+ * @returns {object|null}   ActiveEffect `start` data
+ */
+function casterCombatStart(actor) {
+  const found = actorCombat(actor);
+  if (!found) return null;
+  const { combat, combatant } = found;
+  return {
+    combat: combat.id,
+    combatant: combatant.id,
+    initiative: combatant.initiative ?? null,
+    round: combat.round,
+    turn: combat.turn ?? 0,
+    time: game.time.worldTime,
+  };
+}
+
+/**
+ * §6.4, stage 2: a hero's lasting modifier spell (Благословение,
+ * Проклятие, Слабость, Щит, Воздушный Щит). Refused before any Mana is
+ * spent: outside combat (rules.md §11), more targets than the variant
+ * takes, a target past 24 cells, undead for a spell that excludes it. A
+ * hostile spell's targets roll their resistance now; nothing reaches them
+ * until the GM confirms (confirmModifierSpell).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castModifierSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
+  const castStart = casterCombatStart(actor);
+  if (!castStart) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
+    return null;
+  }
+  const limit = modifierTargetLimit(effect, actor.system.magicPower);
+  const selected = [...game.user.targets].map((token) => token.document);
+  if (selected.length > limit) {
+    ui.notifications.warn(limit === 1
+      ? game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name })
+      : game.i18n.format('HEROES_GLORY.Roll.SpellTooManyTargets', { spell: spell.name, count: limit }));
+    return null;
+  }
+  let rangeUnknown = false;
+  for (const doc of selected) {
+    const cells = tokenDistanceCells(attackerTokenFor(actor, doc), doc);
+    if (cells === null) {
+      rangeUnknown = true;
+    } else if (cells > SPELL_RANGE_CELLS) {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
+        spell: spell.name, target: doc.actor?.name ?? doc.name, cells, range: SPELL_RANGE_CELLS,
+      }));
+      return null;
+    }
+    if (effect.excludeUndead && doc.actor?.type === 'creature' && isUndeadCreature(doc.actor.system.specialSkills ?? [])) {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellUndead', { spell: spell.name, target: doc.actor.name }));
+      return null;
+    }
+  }
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+
+  const rolls = [];
+  const targets = [];
+  for (const doc of selected.filter((d) => d.actor)) {
+    const { entry, roll } = await spellTargetEntry(doc, spell, effect, 1, { resist: effect.hostile, skipIncapacitated: false });
+    targets.push(entry);
+    if (roll) rolls.push(roll);
+  }
+
+  const flags = {
+    kind: 'spell',
+    effectKind: 'modifier',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    spellImg: spell.img,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    modifier: { stat: effect.modifier.stat, value: effect.modifier.value, floorOne: !!effect.modifier.floorOne },
+    rounds: Math.max(0, actor.system.magicPower ?? 0),
+    castStart,
+    rangeUnknown,
+    targets,
+    confirmed: false,
+  };
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  const message = {
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content,
+    flags: { [FLAG_SCOPE]: { spell: flags } },
+  };
+  if (rolls.length) message.rolls = rolls;
+  return ChatMessage.create(message);
+}
+
+/**
+ * A modifier spell card's target lines — from resolveModifierSpellResolution,
+ * the same function the GM's confirm applies.
+ * @param {object} flags
+ * @param {object} context   the plain cast's context
+ * @returns {object}
+ */
+function buildModifierSpellCardContext(flags, context) {
+  const i18n = game.i18n;
+  const results = resolveModifierSpellResolution(flags);
+  const done = !!flags.confirmed;
+  const effectText = spellModifierText({ spellName: flags.spellName, value: flags.modifier.value });
+  context.targetSpell = true;
+  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellModifierConfirmHint';
+  context.noTarget = !flags.targets.length;
+  context.rangeUnknown = flags.rangeUnknown;
+  context.canConfirm = canConfirmSpell(flags);
+  context.confirmed = done;
+  context.targetLines = flags.targets.map((target, index) => {
+    const result = results[index];
+    let text;
+    if (result.outcome === 'immune') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellModifierImmune', {
+        target: target.name,
+        reason: i18n.format(SPELL_IMMUNITY_LABELS[target.immunity], { element: '' }),
+      });
+    } else if (result.outcome === 'resisted') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellModifierResisted', { target: target.name });
+    } else {
+      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellModifierApplied' : 'HEROES_GLORY.Roll.SpellModifierPending', {
+        target: target.name, effect: effectText, rounds: flags.rounds,
+      });
+    }
+    if (target.resistDie != null) {
+      text += ` (${i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
+        source: i18n.localize(SPELL_RESIST_LABELS[target.resistSource]),
+        die: target.resistDie,
+        need: target.resistThreshold,
+      })})`;
+    }
+    return text;
+  });
+  return context;
+}
+
+/**
+ * §6.4, stage 2: the GM's confirm on a modifier spell card — puts the
+ * effect on every target resolveModifierSpellResolution lets through: the
+ * spell's icon on the token, Сила Магии rounds counted from the caster's
+ * turn at the cast (its `start`), expiring at the start of the caster's
+ * turn (p. 32). The same spell already on a target is replaced — one icon,
+ * the new duration (rules.md §11). If that combat is over, nothing is put
+ * on and the card stays.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmModifierSpell(message, flags) {
+  if (!game.combats.get(flags.castStart?.combat)) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
+    return;
+  }
+  const results = resolveModifierSpellResolution(flags);
+  for (const [index, target] of flags.targets.entries()) {
+    if (results[index].outcome !== 'applied') continue;
+    const targetActor = actorFromCard(target.tokenUuid, target.actorId);
+    if (!targetActor) {
+      ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: target.name }));
+      continue;
+    }
+    const previous = targetActor.effects
+      .filter((e) => e.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG)?.spellName === flags.spellName)
+      .map((e) => e.id);
+    if (previous.length) await targetActor.deleteEmbeddedDocuments('ActiveEffect', previous);
+    await targetActor.createEmbeddedDocuments('ActiveEffect', [{
+      name: flags.spellName,
+      img: flags.spellImg,
+      origin: flags.actorUuid,
+      description: flags.description,
+      duration: { value: flags.rounds, units: 'rounds', expiry: 'turnStart' },
+      start: flags.castStart,
+      flags: {
+        [FLAG_SCOPE]: {
+          [SPELL_EFFECT_FLAG]: {
+            spellName: flags.spellName,
+            ...flags.modifier,
+            casterUuid: flags.actorUuid,
+            combatId: flags.castStart.combat,
+          },
+        },
+      },
+    }]);
   }
   const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
   const content = await foundry.applications.handlebars.renderTemplate(

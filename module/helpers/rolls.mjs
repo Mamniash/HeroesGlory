@@ -185,6 +185,37 @@ export function resolveDamage({ baseDamage, hit, defeat }) {
 }
 
 /**
+ * §6.4, stage 2: Благословение, Слабость and Проклятие on the attacker
+ * change its Урон — the weapon's or the creature's own figure, before the
+ * hit multiplier (rules.md §11, p. 30: «к урону может быть применен
+ * модификатор 0.5, 1 или 2»). Different spells add up; with any
+ * «до минимума 1» among them the result stays at least 1.
+ * @param {number} baseDamage
+ * @param {Array<{value: number, floorOne?: boolean}>} [modifiers]
+ * @returns {number}
+ */
+export function resolveSpellDamageDealt(baseDamage, modifiers = []) {
+  if (!modifiers.length) return baseDamage;
+  const total = baseDamage + modifiers.reduce((sum, mod) => sum + mod.value, 0);
+  const floor = modifiers.some((mod) => mod.floorOne) ? 1 : 0;
+  return Math.max(floor, total);
+}
+
+/**
+ * §6.4, stage 2: Щит (melee) and Воздушный Щит (ranged) on the target cut
+ * the damage it takes — after the multipliers and armor, «до минимума 1»
+ * only when there is damage at all (rules.md §11): a miss stays 0.
+ * @param {number|null} damage
+ * @param {Array<{value: number}>} [modifiers]   signed, negative
+ * @returns {number|null}
+ */
+export function resolveSpellDamageTaken(damage, modifiers = []) {
+  if (!damage || !modifiers.length) return damage;
+  const total = damage + modifiers.reduce((sum, mod) => sum + mod.value, 0);
+  return Math.max(1, total);
+}
+
+/**
  * §5.3: the damage a hit *would* deal if the defeat test succeeds —
  * `floor(base × multiplier)` regardless of whether the defeat test has
  * actually been resolved. Used to show a caveated damage figure when no
@@ -761,6 +792,7 @@ export function resolveLocationConsequenceType(location, protectingItem) {
  *   hit: {die:number, key:string, multiplier:number, epic:boolean},
  *   defeat: {known:boolean, auto:boolean, threshold:number|null, die:number|null, success:boolean|null},
  *   damage: number|null, damageKnown: boolean, potentialDamage: number,
+ *   baseDamage: number,   the Урон after spell effects, before the multiplier
  *   armorItemMultiplier: number, armorZoneMultiplier: number,
  *   protectingItem: {name:string, level:number}|null,
  *   destroyedArmor: Array<{name:string, level:number}>,
@@ -788,12 +820,15 @@ export function resolveAttackResolution(flags) {
   const protectingItem = resolveArmorZoneProtection(flags.location, equippedArmor);
   const armorZoneMultiplier = resolveArmorZoneMultiplier(protectingItem);
   const effectiveHit = combineHitAndState(hit, flags.stateMultiplier, armorItemMultiplier * armorZoneMultiplier);
-  const damage = resolveDamage({ baseDamage: flags.baseDamage, hit: effectiveHit, defeat });
-  const potentialDamage = resolvePotentialDamage({ baseDamage: flags.baseDamage, hit: effectiveHit });
+  // §6.4, stage 2: spell effects frozen at roll time (older cards carry none).
+  const baseDamage = resolveSpellDamageDealt(flags.baseDamage, flags.damageDealtModifiers ?? []);
+  const takenModifiers = flags.damageTakenModifiers ?? [];
+  const damage = resolveSpellDamageTaken(resolveDamage({ baseDamage, hit: effectiveHit, defeat }), takenModifiers);
+  const potentialDamage = resolveSpellDamageTaken(resolvePotentialDamage({ baseDamage, hit: effectiveHit }), takenModifiers);
   const destroyedArmor = resolveDestroyedArmor(hit.epic, equippedArmor, protectingItem);
   const consequence = resolveLocationConsequenceType(flags.location, protectingItem);
   return {
-    hit, defeat, damage, damageKnown: damage !== null, potentialDamage,
+    hit, defeat, damage, damageKnown: damage !== null, potentialDamage, baseDamage,
     armorItemMultiplier, armorZoneMultiplier, protectingItem, destroyedArmor, consequence,
   };
 }

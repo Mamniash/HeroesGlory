@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula,
   sorceryDice, creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
-  resolveSpellResolution, canConfirmSpell,
+  resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -211,9 +211,37 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
   const dice = (name, variant, magicPower) => spellDamageDice(byName[name][variant].effect.dice, magicPower);
 
   test('exactly the five stage-1 spells carry a damage effect', () => {
-    const withEffect = docs.filter((d) => hasSpellEffect(d.system.variants)).map((d) => d.name).sort();
+    const withEffect = docs.filter((d) => d.system.variants.none.effect.kind === 'damage').map((d) => d.name).sort();
     assert.deepEqual(withEffect, ['Взрыв', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Цепная Молния']);
   });
+
+  test('exactly the five stage-2 spells carry a modifier effect, on every tier', () => {
+    const withEffect = docs.filter((d) => Object.values(d.system.variants).every((v) => v.effect.kind === 'modifier'))
+      .map((d) => d.name).sort();
+    assert.deepEqual(withEffect, ['Благословение', 'Воздушный Щит', 'Проклятие', 'Слабость', 'Щит']);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 10);
+  });
+
+  // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
+  const modifierCases = [
+    ['Щит', 'meleeDamageTaken', [-6, -6, -10, -10], { floorOne: true, hostile: false, excludeUndead: false }],
+    ['Воздушный Щит', 'rangedDamageTaken', [-5, -5, -10, -10], { floorOne: true, hostile: false, excludeUndead: false }],
+    ['Благословение', 'damageDealt', [4, 4, 6, 6], { floorOne: false, hostile: false, excludeUndead: true }],
+    ['Слабость', 'damageDealt', [-2, -2, -4, -4], { floorOne: true, hostile: true, excludeUndead: false }],
+    ['Проклятие', 'damageDealt', [-2, -2, -4, -4], { floorOne: true, hostile: true, excludeUndead: true }],
+  ];
+  for (const [name, stat, values, flags] of modifierCases) {
+    test(`${name}: ${stat} ${values.join('/')} by tier`, () => {
+      const tiers = ['none', 'basic', 'advanced', 'expert'];
+      tiers.forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        assert.deepEqual(effect.modifier, { stat, value: values[i], floorOne: flags.floorOne });
+        assert.equal(effect.hostile, flags.hostile);
+        assert.equal(effect.excludeUndead, flags.excludeUndead);
+        assert.equal(effect.targeting.perMagicPowerTargets, tier === 'expert');
+      });
+    });
+  }
 
   test('«+СМ» spells at СМ 3', () => {
     assert.deepEqual(dice('Волшебная Стрела', 'none', 3), { count: 1, flat: 3 });
@@ -244,5 +272,43 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
 
   test('Проклятие, advanced: «на 4» (book typo «до 4», rules.md §11)', () => {
     assert.equal(byName['Проклятие'].advanced.description, 'Урон снижается на 4, до минимума 1');
+  });
+});
+
+describe('isUndeadCreature — p. 114 «Нежить»', () => {
+  test('the «Нежить» tag, any case', () => {
+    assert.equal(isUndeadCreature(['Нежить', 'Стрелок']), true);
+    assert.equal(isUndeadCreature(['нежить']), true);
+  });
+  test('no tag, or a tag that only mentions undead', () => {
+    assert.equal(isUndeadCreature([]), false);
+    assert.equal(isUndeadCreature(['Летает', 'Ненависть к нежити']), false);
+  });
+});
+
+describe('modifierTargetLimit — «количество …, равное СМ» (rules.md §11)', () => {
+  test('one target below Эксперт', () => {
+    assert.equal(modifierTargetLimit({ targeting: { perMagicPowerTargets: false } }, 4), 1);
+  });
+  test('Эксперт: Сила Магии targets, the first included, at least one', () => {
+    assert.equal(modifierTargetLimit({ targeting: { perMagicPowerTargets: true } }, 4), 4);
+    assert.equal(modifierTargetLimit({ targeting: { perMagicPowerTargets: true } }, 0), 1);
+  });
+});
+
+describe('resolveModifierSpellResolution — per target', () => {
+  test('immune, resisted, applied', () => {
+    const results = resolveModifierSpellResolution({
+      targets: [
+        { immunity: 'all' },
+        { resistThreshold: 5, resistDie: 5 },
+        { resistThreshold: 5, resistDie: 4 },
+        { resistThreshold: null, resistDie: null },
+      ],
+    });
+    assert.deepEqual(results.map((r) => r.outcome), ['immune', 'resisted', 'applied', 'applied']);
+  });
+  test('an incapacitated target just gets the effect (rules.md §11)', () => {
+    assert.deepEqual(resolveModifierSpellResolution({ targets: [{ incapacitated: true }] }), [{ outcome: 'applied' }]);
   });
 });

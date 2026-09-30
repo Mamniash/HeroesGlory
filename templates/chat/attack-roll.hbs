@@ -93,6 +93,13 @@
     {{#if hitModifierLine}}
       <p class="heroes-glory-chat-card__line">{{hitModifierLine}}</p>
     {{/if}}
+    {{!-- §6.4, stage 2: Благословение / Проклятие / Слабость / Щит — frozen at the roll. --}}
+    {{#each spellModifierLines}}
+      <p class="heroes-glory-chat-card__line">{{this}}</p>
+    {{/each}}
+    {{#if baseDamageLine}}
+      <p class="heroes-glory-chat-card__line">{{baseDamageLine}}</p>
+    {{/if}}
     {{#if adjacencyUnknown}}
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.AdjacencyUnknown'}}</p>
     {{/if}}

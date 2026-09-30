@@ -33,8 +33,8 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
     // rules.md §6.4: the variant's effect in structured form, read by
     // castSpell (helpers/spell-effects.mjs). An empty `kind` is a spell
     // still described by text only — it casts as before. Stage 1 fills
-    // `damage` for five spells; the other kinds and target modes are
-    // reserved for the later stages.
+    // `damage` for five spells, stage 2 `modifier` for five more; the
+    // other kinds and target modes are reserved for the later stages.
     const effect = () => new fields.SchemaField({
       kind: new fields.StringField({
         required: true, blank: true, initial: '',
@@ -58,6 +58,22 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
         addMagicPower: new fields.BooleanField({ initial: false }),
       }),
       element: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fire', 'ice', 'lightning'] }),
+      // Stage 2, `modifier`: what the effect changes while it lasts
+      // (Сила Магии rounds, rules.md §6.4) — the damage its bearer deals,
+      // or the physical damage it takes in melee / at range — by how much,
+      // and whether «до минимума 1» applies.
+      modifier: new fields.SchemaField({
+        stat: new fields.StringField({
+          required: true, blank: true, initial: '',
+          choices: ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken'],
+        }),
+        value: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
+        floorOne: new fields.BooleanField({ initial: false }),
+      }),
+      // A hostile spell is resisted (Сопротивление магии, Помехи, Гном —
+      // rules.md §11); `excludeUndead` — «не являющееся нежитью».
+      hostile: new fields.BooleanField({ initial: false }),
+      excludeUndead: new fields.BooleanField({ initial: false }),
     });
 
     const variant = () => new fields.SchemaField({
