@@ -833,7 +833,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @param {object} [options]
    * @param {boolean} [options.full]   Every part, zeros included — the GM's
    *   correction window shows the whole breakdown.
-   * @returns {{speedLines: string[], luckLines: string[], moraleLines: string[]}}
+   * @returns {{speedLines: string[], luckLines: string[], moraleLines: string[], attackSpellLine: string|null, defenseSpellLine: string|null}}
    */
   #skillStatLines(system, { full = false } = {}) {
     const config = CONFIG.HEROES_GLORY;
@@ -853,6 +853,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         : i18n.format('HEROES_GLORY.Tooltip.SkillNonePart', { skill: i18n.localize(config.secondarySkills[key]) });
     };
     const effectsLine = (value) => i18n.format('HEROES_GLORY.Tooltip.EffectsPart', { value: signed(value) });
+    const spellsLine = (value) => i18n.format('HEROES_GLORY.Tooltip.SpellsPart', { value: signed(value) });
     const manualLine = (value) => i18n.format('HEROES_GLORY.Tooltip.ManualPart', { value: signed(value) });
     const totalLine = (value) => i18n.format('HEROES_GLORY.Tooltip.TotalPart', { value });
 
@@ -860,6 +861,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const speedLines = [i18n.format('HEROES_GLORY.Tooltip.SpeedBasePart', { value: speed.base })];
     if (speed.pathfinding) speedLines.push(skillLine('pathfinding', speed.pathfinding));
     if (speed.effects) speedLines.push(effectsLine(speed.effects));
+    if (speed.spells) speedLines.push(spellsLine(speed.spells));
     speedLines.push(totalLine(speed.total));
     if (speed.tactics) {
       speedLines.push(i18n.format('HEROES_GLORY.Tooltip.FirstRoundPart', {
@@ -874,6 +876,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     if (luck.skill || full) luckLines.push(skillLine('luck', luck.skill));
     luckLines.push(manualLine(luck.manual));
     if (luck.effects || full) luckLines.push(effectsLine(luck.effects));
+    if (luck.spells || full) luckLines.push(spellsLine(luck.spells ?? 0));
     luckLines.push(totalLine(luck.total));
     if (luck.clamped) luckLines.push(i18n.format('HEROES_GLORY.Tooltip.LuckClamped', { raw: luck.raw }));
 
@@ -890,7 +893,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     if (morale.effects || full) moraleLines.push(effectsLine(morale.effects));
     moraleLines.push(totalLine(morale.total));
 
-    return { speedLines, luckLines, moraleLines };
+    // §6.4, group А1: Атака / Защита under lasting spells, a line under the
+    // effective value in their tooltips.
+    const spellParts = system.spellParts ?? {};
+    const attackSpellLine = spellParts.attack ? spellsLine(spellParts.attack) : null;
+    const defenseSpellLine = spellParts.defense ? spellsLine(spellParts.defense) : null;
+
+    return { speedLines, luckLines, moraleLines, attackSpellLine, defenseSpellLine };
   }
 
   /** @override */

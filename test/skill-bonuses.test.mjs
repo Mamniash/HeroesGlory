@@ -11,7 +11,7 @@ import {
   clampLuck,
   resolveLuckTotal,
 } from '../module/helpers/skill-bonuses.mjs';
-import { spendLuck, maxSpellLevel, canCastSpellLevel, wisdomTierForSpellLevel, canCastWithoutSpellbook } from '../module/helpers/rolls.mjs';
+import { spendLuck, spendLuckWithSpells, maxSpellLevel, canCastSpellLevel, wisdomTierForSpellLevel, canCastWithoutSpellbook } from '../module/helpers/rolls.mjs';
 
 describe('highestSkillTier', () => {
   test('not owned → null', () => {
@@ -120,5 +120,37 @@ describe('Книга Магии — p. 32, race-granted exception p. 12', () => 
   });
   test('without a book → race-granted spell allowed', () => {
     assert.equal(canCastWithoutSpellbook({ hasSpellbook: false, raceGranted: true }), true);
+  });
+});
+
+describe('spendLuckWithSpells — Удача / Неудача of a spell spent first (rules.md §11)', () => {
+  test('Удача +1 on base 0: the spell goes to 0, the manual stays', () => {
+    assert.deepEqual(spendLuckWithSpells({ skill: 0, manual: 0, effects: 0, spells: [{ effectId: 'e', value: 1 }] }),
+      { manual: 0, spells: [{ effectId: 'e', value: 0 }] });
+  });
+  test('Удача +2: one step off the spell', () => {
+    assert.deepEqual(spendLuckWithSpells({ skill: 1, manual: 0, effects: 0, spells: [{ effectId: 'e', value: 2 }] }),
+      { manual: 0, spells: [{ effectId: 'e', value: 1 }] });
+  });
+  test('over the clamp: the spell first, the rest off the manual — the total still moves one step', () => {
+    // skill 3 + spell 1 = 4, total 3; next 2: the spell gives 1, the manual 1.
+    assert.deepEqual(spendLuckWithSpells({ skill: 3, manual: 0, effects: 0, spells: [{ effectId: 'e', value: 1 }] }),
+      { manual: -1, spells: [{ effectId: 'e', value: 0 }] });
+  });
+  test('Неудача −1: the GM spends it, the spell goes to 0', () => {
+    assert.deepEqual(spendLuckWithSpells({ skill: 0, manual: 0, effects: 0, spells: [{ effectId: 'e', value: -1 }] }),
+      { manual: 0, spells: [{ effectId: 'e', value: 0 }] });
+  });
+  test('a spell of the other sign is not spent', () => {
+    // skill 3, Неудача −1: total 2; next 1 — off the manual, Неудача stays.
+    assert.deepEqual(spendLuckWithSpells({ skill: 3, manual: 0, effects: 0, spells: [{ effectId: 'e', value: -1 }] }),
+      { manual: -1, spells: [] });
+  });
+  test('no spells — the same as spendLuck', () => {
+    const parts = { skill: 3, manual: 1, effects: 1 };
+    assert.deepEqual(spendLuckWithSpells(parts), { manual: spendLuck(parts), spells: [] });
+  });
+  test('a zero total spends nothing', () => {
+    assert.deepEqual(spendLuckWithSpells({ skill: 1, manual: -1, effects: 0, spells: [] }), { manual: -1, spells: [] });
   });
 });

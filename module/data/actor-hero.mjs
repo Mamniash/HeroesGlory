@@ -6,6 +6,7 @@ import {
   highestSkillTier, tacticsSpeedBonus, pathfindingSpeedBonus,
   luckSkillBase, leadershipMoraleBase, raceMoraleBonus, resolveLuckTotal,
 } from "../helpers/skill-bonuses.mjs";
+import { actorSpellModifiers, applySpellStatModifiers } from "../helpers/spell-effects.mjs";
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -239,7 +240,28 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     this.#prepareUnrested();
     this.health.max = applyWoundPenalty(this.health.base, this.wounds);
     this.mana.max = applyWoundPenalty(this.knowledge * this.#getManaMultiplier(), this.wounds);
-    this.#prepareSkillDerivedStats();
+    // §6.4, group А1: lasting spells on Атака / Защита (after «Без отдыха»
+    // and artifacts), Скорость and Удача (in #prepareSkillDerivedStats).
+    // `spellParts` (not a schema field) — each stat's change, for tooltips.
+    const spellModifiers = actorSpellModifiers(this.parent?.effects ?? []);
+    this.spellParts = {
+      attack: this.#applySpells("attack", spellModifiers),
+      defense: this.#applySpells("defense", spellModifiers),
+    };
+    this.#prepareSkillDerivedStats(spellModifiers);
+  }
+
+  /**
+   * One stat under the lasting spells on this hero (applySpellStatModifiers:
+   * they add up, «до минимума N» keeps the value from going below N).
+   * @param {"attack"|"defense"|"speed"} key
+   * @param {object[]} spellModifiers   actorSpellModifiers' result
+   * @returns {number}   the change
+   */
+  #applySpells(key, spellModifiers) {
+    const { value, delta } = applySpellStatModifiers(this[key], spellModifiers.filter((m) => m.stat === key));
+    this[key] = value;
+    return delta;
   }
 
   /**
@@ -270,7 +292,7 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
    * are not schema fields — they exist only for the sheet's tooltips and
    * for spending Удача.
    */
-  #prepareSkillDerivedStats() {
+  #prepareSkillDerivedStats(spellModifiers = []) {
     const source = this._source;
     const owned = (this.parent?.items ?? [])
       .filter((i) => i.type === "skill")
@@ -286,12 +308,21 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       tactics: this.tactics,
     };
     this.speed += pathfinding;
+    this.speedParts.spells = this.#applySpells("speed", spellModifiers);
+    this.spellParts.speed = this.speedParts.spells;
     this.speedParts.total = this.speed;
     this.speedParts.firstRound = this.speed + this.tactics;
 
-    const luckParts = { skill: luckSkillBase(tier("luck")), manual: source.luck, effects: this.luck - source.luck };
-    const luckTotal = resolveLuckTotal(luckParts);
+    // Удача / Неудача (pp. 55, 60): a part of the sum before the ±3 clamp,
+    // which gives «до максимума в 3» / «до минимума в -3» by itself.
+    // `luckSpells` — each spell's own value, spent first (spendLuckWithSpells).
+    this.luckSpells = spellModifiers.filter((m) => m.stat === "luck")
+      .map((m) => ({ effectId: m.effectId, value: m.value }));
+    const spells = this.luckSpells.reduce((sum, m) => sum + m.value, 0);
+    const luckParts = { skill: luckSkillBase(tier("luck")), manual: source.luck, effects: this.luck - source.luck, spells };
+    const luckTotal = resolveLuckTotal({ ...luckParts, effects: luckParts.effects + spells });
     this.luckParts = { ...luckParts, ...luckTotal };
+    this.spellParts.luck = spells;
     this.luck = luckTotal.total;
 
     this.moraleParts = {

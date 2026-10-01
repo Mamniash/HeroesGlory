@@ -478,6 +478,35 @@ export function spendLuck({ skill, manual, effects }) {
 }
 
 /**
+ * §2.2 with Удача / Неудача from spells (pp. 55, 60; rules.md §11): the step
+ * toward 0 is taken out of those spells first — a spell whose value falls
+ * to 0 is to be removed — then out of the manual correction, so the total
+ * doesn't jump when the spell ends. Same total step as spendLuck.
+ * @param {object} parts
+ * @param {number} parts.skill
+ * @param {number} parts.manual
+ * @param {number} parts.effects   artifacts and other Active Effects
+ * @param {Array<{effectId: string, value: number}>} [parts.spells]   luck spells, one each
+ * @returns {{manual: number, spells: Array<{effectId: string, value: number}>}}   changed spells only
+ */
+export function spendLuckWithSpells({ skill, manual, effects, spells = [] }) {
+  const spellTotal = spells.reduce((sum, spell) => sum + spell.value, 0);
+  const raw = skill + manual + effects + spellTotal;
+  const { total } = resolveLuckTotal({ skill, manual, effects: effects + spellTotal });
+  if (total === 0) return { manual, spells: [] };
+  let delta = nextLuck(total) - raw;
+  const changed = [];
+  for (const spell of spells) {
+    if (!delta) break;
+    if (Math.sign(spell.value) !== -Math.sign(delta)) continue;
+    const step = Math.sign(delta) * Math.min(Math.abs(delta), Math.abs(spell.value));
+    changed.push({ effectId: spell.effectId, value: spell.value + step });
+    delta -= step;
+  }
+  return { manual: manual + delta, spells: changed };
+}
+
+/**
  * Мудрость, p. 38: "Позволяет использовать заклинания 3-го уровня" / 4 /
  * 5 — without it, levels 1–2 (rules.md §11).
  * @param {'base'|'advanced'|'expert'|null} wisdomTier
@@ -1236,6 +1265,39 @@ export function elfRerolledInitiative(total, oldDie, newDie) {
  */
 export function canElfReroll({ race, rerolled, current, round, isOwner, isGM }) {
   return race === 'elf' && !rerolled && current && round <= 1 && (isOwner || isGM);
+}
+
+/**
+ * §5.1 (p. 24, rules.md §11): the Скорость a tie compares — the one recorded
+ * when the initiative was rolled; a spell changing Скорость later doesn't
+ * reorder anyone («все участники ходят заново в том же порядке»). A
+ * combatant with nothing recorded (rolled before this was kept) falls back
+ * to its Скорость now.
+ * @param {number|null|undefined} recorded
+ * @param {number} current
+ * @returns {number}
+ */
+export function tieBreakSpeed(recorded, current) {
+  return Number.isFinite(recorded) ? recorded : current;
+}
+
+/**
+ * The Скорость a combatant update records for the tie, or `undefined` to
+ * leave what is recorded. Only an initiative set to a number counts: a roll
+ * (`rolled` — the Скорость taken at the roll) records it; a value typed into
+ * the tracker or the Эльф's d20 reroll keeps the recorded one, and records
+ * the current Скорость only when nothing is recorded yet.
+ * @param {object} args
+ * @param {object} args.changes                  the update's changes
+ * @param {number|undefined} args.rolled         the Скорость at this roll, if it is one
+ * @param {number|null|undefined} args.recorded  the one recorded before
+ * @param {number} args.current                  the Скорость now
+ * @returns {number|undefined}
+ */
+export function rolledSpeedToRecord({ changes, rolled, recorded, current }) {
+  if (!Object.hasOwn(changes ?? {}, 'initiative') || !Number.isFinite(changes.initiative)) return undefined;
+  if (Number.isFinite(rolled)) return rolled;
+  return Number.isFinite(recorded) ? undefined : current;
 }
 
 /**

@@ -59,21 +59,32 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       }),
       element: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fire', 'ice', 'lightning'] }),
       // Stage 2, `modifier`: what the effect changes while it lasts
-      // (Сила Магии rounds, rules.md §6.4) — the damage its bearer deals,
-      // or the physical damage it takes in melee / at range — by how much,
-      // and whether «до минимума 1» applies.
-      modifier: new fields.SchemaField({
+      // (Сила Магии rounds, rules.md §6.4), one entry per stat — Молитва
+      // changes four. Damage stats (`damageDealt`, `melee`/`rangedDamageTaken`)
+      // are read by the attack card, «до минимума 1» as `floorOne`; the
+      // bearer's own stats (`attack`, `defense`, `speed`, `luck`) by its
+      // prepareDerivedData, «до минимума N» as `floor`; `rangedAttack`
+      // (Точность) by the attack card, for a ranged attack only.
+      modifiers: new fields.ArrayField(new fields.SchemaField({
         stat: new fields.StringField({
           required: true, blank: true, initial: '',
-          choices: ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken'],
+          choices: ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken', 'attack', 'defense', 'speed', 'luck', 'rangedAttack'],
         }),
         value: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
         floorOne: new fields.BooleanField({ initial: false }),
-      }),
+        floor: new fields.NumberField({ required: true, nullable: true, integer: true, initial: null }),
+      })),
       // A hostile spell is resisted (Сопротивление магии, Помехи, Гном —
       // rules.md §11); `excludeUndead` — «не являющееся нежитью».
       hostile: new fields.BooleanField({ initial: false }),
       excludeUndead: new fields.BooleanField({ initial: false }),
+      // Молитва: «До конца боя» instead of Сила Магии rounds.
+      untilCombatEnd: new fields.BooleanField({ initial: false }),
+      // A core status the effect carries — Полет: «fly», an icon only.
+      status: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fly'] }),
+      // Полет (rules.md §11): out of combat the cast is a text card with
+      // the Mana spent, not a refusal.
+      textOutOfCombat: new fields.BooleanField({ initial: false }),
     });
 
     const variant = () => new fields.SchemaField({
@@ -90,5 +101,17 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
     });
 
     return schema;
+  }
+
+  /** A variant's single `modifier` from before stage 2's group А1 becomes `modifiers`. */
+  static migrateData(source) {
+    for (const variant of Object.values(source.variants ?? {})) {
+      const effect = variant?.effect;
+      if (effect && 'modifier' in effect) {
+        if (!effect.modifiers && effect.modifier?.stat) effect.modifiers = [effect.modifier];
+        delete effect.modifier;
+      }
+    }
+    return super.migrateData(source);
   }
 }

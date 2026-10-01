@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
   hasArmorSpecialization, specializationManaDiscount, availableSpecializations, chainLightningSpecialization,
+  hasteSpecializationBonus,
 } from '../module/helpers/specializations.mjs';
 
 describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
@@ -126,5 +127,16 @@ describe('chainLightningSpecialization — p. 23 (rules.md §11)', () => {
     assert.equal(chainLightningSpecialization(spec, 'Молния').active, false);
     assert.equal(chainLightningSpecialization({ type: 'skill', key: 'sorcery' }, 'Цепная Молния').active, false);
     assert.equal(chainLightningSpecialization(null, 'Цепная Молния').active, false);
+  });
+});
+
+describe('hasteSpecializationBonus — p. 23, «Ускоренные персонажи получают еще +3 к Скорости»', () => {
+  test('the specialization, casting Ускорение', () => {
+    assert.equal(hasteSpecializationBonus({ type: 'spell', key: 'Ускорение' }, 'Ускорение'), 3);
+  });
+  test('another spell, another specialization, none', () => {
+    assert.equal(hasteSpecializationBonus({ type: 'spell', key: 'Ускорение' }, 'Молитва'), 0);
+    assert.equal(hasteSpecializationBonus({ type: 'spell', key: 'Клон' }, 'Ускорение'), 0);
+    assert.equal(hasteSpecializationBonus(null, 'Ускорение'), 0);
   });
 });

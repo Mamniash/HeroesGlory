@@ -1,5 +1,6 @@
 import HeroesGloryDataModel from "./base-model.mjs";
 import { initiativeRollParts } from "../helpers/rolls.mjs";
+import { actorSpellModifiers, applySpellStatModifiers } from "../helpers/spell-effects.mjs";
 
 /**
  * Data model for a bestiary creature (rules.md §9).
@@ -64,6 +65,23 @@ export default class HeroesGloryCreature extends HeroesGloryDataModel {
     schema.description = new fields.HTMLField({ required: true, blank: true });
 
     return schema;
+  }
+
+  /**
+   * §6.4, group А1: lasting spells on Атака, Защита and Скорость, on top
+   * of the statblock (applySpellStatModifiers — «до минимума N» keeps the
+   * value from going below N). A creature has no Удача (rules.md §11).
+   * `spellParts` (not a schema field) — each stat's change.
+   */
+  prepareDerivedData() {
+    super.prepareDerivedData();
+    const spellModifiers = actorSpellModifiers(this.parent?.effects ?? []);
+    this.spellParts = {};
+    for (const key of ["attack", "defense", "speed"]) {
+      const { value, delta } = applySpellStatModifiers(this[key], spellModifiers.filter((m) => m.stat === key));
+      this[key] = value;
+      this.spellParts[key] = delta;
+    }
   }
 
   /**

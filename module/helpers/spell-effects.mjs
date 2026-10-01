@@ -296,3 +296,70 @@ export function lastingSpellRounds(magicPower, equippedArtifactNames = []) {
   const bonus = [...new Set(equippedArtifactNames)].reduce((sum, name) => sum + (SPELL_DURATION_ARTIFACTS[name] ?? 0), 0);
   return Math.max(0, magicPower ?? 0) + bonus;
 }
+
+/** Flag scope and key of the ActiveEffect a lasting spell puts on its target. */
+const SPELL_EFFECT_SCOPE = 'heroes-glory';
+const SPELL_EFFECT_KEY = 'spellEffect';
+
+/**
+ * A spell effect flag's modifiers — `modifiers` since group А1, the single
+ * `stat`/`value`/`floorOne` of stage 2 before it (effects still up in a
+ * running combat).
+ * @param {object|null|undefined} data   the effect's `spellEffect` flag
+ * @returns {Array<{stat: string, value: number, floorOne: boolean, floor: number|null}>}
+ */
+export function spellEffectModifiers(data) {
+  if (!data) return [];
+  const list = Array.isArray(data.modifiers) ? data.modifiers : (data.stat ? [data] : []);
+  return list.map((m) => ({ stat: m.stat, value: m.value, floorOne: !!m.floorOne, floor: m.floor ?? null }));
+}
+
+/**
+ * The spell modifiers an actor carries now (§6.4) — one entry per spell and
+ * stat; disabled or expired effects left out. Reads plain `flags`, so it
+ * works on ActiveEffect documents and on test objects alike.
+ * @param {Iterable<object>} effects   the actor's ActiveEffects
+ * @returns {Array<{effectId: string, spellName: string, stat: string, value: number, floorOne: boolean, floor: number|null}>}
+ */
+export function actorSpellModifiers(effects = []) {
+  const seen = new Set();
+  const result = [];
+  for (const effect of effects ?? []) {
+    const data = effect?.flags?.[SPELL_EFFECT_SCOPE]?.[SPELL_EFFECT_KEY];
+    if (!data || effect.disabled || effect.duration?.expired) continue;
+    for (const modifier of spellEffectModifiers(data)) {
+      const key = `${data.spellName}|${modifier.stat}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({ effectId: effect.id ?? effect._id ?? null, spellName: data.spellName, ...modifier });
+    }
+  }
+  return result;
+}
+
+/**
+ * A stat under lasting spells (§6.4, group А1): every spell's change adds
+ * up (rules.md §11: different spells act together); «до минимума N» doesn't
+ * push the value below N, nor lift a value already below it —
+ * max(value + Σ, min(value, N)), N the highest floor among them.
+ * @param {number} value   the stat before spells
+ * @param {Array<{value: number, floor?: number|null}>} [modifiers]   this stat's
+ * @returns {{value: number, delta: number}}
+ */
+export function applySpellStatModifiers(value, modifiers = []) {
+  if (!modifiers.length) return { value, delta: 0 };
+  const total = value + modifiers.reduce((sum, m) => sum + m.value, 0);
+  const floors = modifiers.map((m) => m.floor).filter((f) => f !== null && f !== undefined);
+  const result = floors.length ? Math.max(total, Math.min(value, Math.max(...floors))) : total;
+  return { value: result, delta: result - value };
+}
+
+/**
+ * Удача and Неудача (pp. 55, 60) — creatures have no Удача (rules.md §11):
+ * a spell changing it isn't cast on them.
+ * @param {{modifiers?: Array<{stat: string}>}} effect
+ * @returns {boolean}
+ */
+export function spellHeroesOnly(effect) {
+  return (effect?.modifiers ?? []).some((m) => m.stat === 'luck');
+}

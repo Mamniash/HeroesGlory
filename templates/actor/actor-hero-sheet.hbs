@@ -343,6 +343,7 @@
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.attack}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.attack}}</p>
     {{#if system.unrestedParts.attack}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.attack.base halved=system.unrestedParts.attack.halved}}</p>{{/if}}
+    {{#if attackSpellLine}}<p>{{attackSpellLine}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-defense">
     <img class="hg-tooltip__icon" src="{{icons.defenseLarge}}" width="82" height="93" alt="">
@@ -350,6 +351,7 @@
     <p>{{localize 'HEROES_GLORY.Tooltip.BaseValue' value=source.defense}}</p>
     <p>{{localize 'HEROES_GLORY.Actor.EffectiveValue' value=system.defense}}</p>
     {{#if system.unrestedParts.defense}}<p>{{localize 'HEROES_GLORY.Tooltip.UnrestedPart' base=system.unrestedParts.defense.base halved=system.unrestedParts.defense.halved}}</p>{{/if}}
+    {{#if defenseSpellLine}}<p>{{defenseSpellLine}}</p>{{/if}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="skill-magicPower">
     <img class="hg-tooltip__icon" src="{{icons.magicPowerLarge}}" width="82" height="93" alt="">

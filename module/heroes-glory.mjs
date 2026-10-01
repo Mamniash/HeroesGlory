@@ -14,7 +14,7 @@ import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
 import { decorateInitiativeCard } from './helpers/initiative.mjs';
-import { HeroesGloryCombat, drawCombatantCoin } from './documents/combat.mjs';
+import { HeroesGloryCombat, drawCombatantCoin, recordRolledSpeed } from './documents/combat.mjs';
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat,
@@ -181,6 +181,8 @@ Hooks.on('renderChatMessageHTML', activateChatListeners);
 Hooks.on('renderChatMessageHTML', decorateInitiativeCard);
 // §5.1: the tie coin, drawn once per combatant.
 Hooks.on('preCreateCombatant', drawCombatantCoin);
+// §5.1: the Скорость an initiative roll used, kept for a tie (p. 24).
+Hooks.on('preUpdateCombatant', recordRolledSpeed);
 
 // §5.8: Боевой дух resets to 0, and its per-battle attempt counter clears,
 // once the encounter ends.

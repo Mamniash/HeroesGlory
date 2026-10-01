@@ -14,6 +14,8 @@ import {
   elfRerolledInitiative,
   canElfReroll,
   compareTurnOrder,
+  tieBreakSpeed,
+  rolledSpeedToRecord,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -251,5 +253,42 @@ describe('compareTurnOrder — p. 24: initiative, then Скорость, then a 
   });
   test('an old combatant without a coin: the id settles it', () => {
     assert.deepEqual(order(c('b', 12, 6), c('a', 12, 6)), ['a', 'b']);
+  });
+});
+
+describe('tieBreakSpeed / rolledSpeedToRecord — the Скорость of the roll, kept (p. 24, rules.md §11)', () => {
+  test('the recorded Скорость wins over the current one', () => {
+    assert.equal(tieBreakSpeed(6, 9), 6);
+    assert.equal(tieBreakSpeed(0, 9), 0);
+  });
+  test('nothing recorded (rolled before it was kept): the current one', () => {
+    assert.equal(tieBreakSpeed(undefined, 9), 9);
+    assert.equal(tieBreakSpeed(null, 9), 9);
+  });
+  const rec = (changes, rolled, recorded, current = 9) => rolledSpeedToRecord({ changes, rolled, recorded, current });
+  test('a roll records the Скорость taken at the roll', () => {
+    assert.equal(rec({ initiative: 14 }, 6, undefined), 6);
+    assert.equal(rec({ initiative: 14 }, 6, 4), 6);
+    assert.equal(rec({ initiative: 0 }, 0, undefined), 0);
+  });
+  test('typed into the tracker or the Эльф reroll: the recorded one stays', () => {
+    assert.equal(rec({ initiative: 17 }, undefined, 6), undefined);
+  });
+  test('typed in with nothing recorded yet: the current one', () => {
+    assert.equal(rec({ initiative: 17 }, undefined, undefined), 9);
+  });
+  test('no initiative in the update, or reset to none — nothing recorded', () => {
+    assert.equal(rec({ 'flags.x': 1 }, 6, undefined), undefined);
+    assert.equal(rec({ initiative: null }, 6, undefined), undefined);
+    assert.equal(rec(undefined, 6, undefined), undefined);
+  });
+  test('a tie at 12: Ускорение or Замедление after the roll changes nothing', () => {
+    // a rolled with Скорость 6, b with 8; then a gets Ускорение (+3 → 9), b Замедление (→ 5).
+    const sorted = (aNow, bNow) => [
+      { id: 'a', initiative: 12, speed: tieBreakSpeed(6, aNow), coin: 0.9 },
+      { id: 'b', initiative: 12, speed: tieBreakSpeed(8, bNow), coin: 0.1 },
+    ].sort(compareTurnOrder).map((x) => x.id);
+    assert.deepEqual(sorted(6, 8), ['b', 'a']);
+    assert.deepEqual(sorted(9, 5), ['b', 'a']);
   });
 });

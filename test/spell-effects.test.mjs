@@ -6,6 +6,7 @@ import {
   sorceryDice, creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, MAX_LASTING_SPELLS, lastingSpellRounds,
+  spellEffectModifiers, actorSpellModifiers, applySpellStatModifiers, spellHeroesOnly,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -216,11 +217,14 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
     assert.deepEqual(withEffect, ['Взрыв', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Цепная Молния']);
   });
 
-  test('exactly the five stage-2 spells carry a modifier effect, on every tier', () => {
+  test('stage 2 and its group А1 — fifteen spells carry a modifier effect, on every tier', () => {
     const withEffect = docs.filter((d) => Object.values(d.system.variants).every((v) => v.effect.kind === 'modifier'))
       .map((d) => d.name).sort();
-    assert.deepEqual(withEffect, ['Благословение', 'Воздушный Щит', 'Проклятие', 'Слабость', 'Щит']);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 10);
+    assert.deepEqual(withEffect, [
+      'Благословение', 'Воздушный Щит', 'Жажда Крови', 'Замедление', 'Каменная Кожа', 'Молитва', 'Неудача',
+      'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость', 'Точность', 'Удача', 'Ускорение', 'Щит',
+    ]);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 20);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -236,13 +240,53 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       const tiers = ['none', 'basic', 'advanced', 'expert'];
       tiers.forEach((tier, i) => {
         const effect = byName[name][tier].effect;
-        assert.deepEqual(effect.modifier, { stat, value: values[i], floorOne: flags.floorOne });
+        assert.deepEqual(effect.modifiers, [{ stat, value: values[i], floorOne: flags.floorOne, floor: null }]);
         assert.equal(effect.hostile, flags.hostile);
         assert.equal(effect.excludeUndead, flags.excludeUndead);
         assert.equal(effect.targeting.perMagicPowerTargets, tier === 'expert');
       });
     });
   }
+
+  // Group А1, pp. 53, 55, 56, 58, 59, 60: [none, basic, advanced, expert]
+  // per stat — [value, «до минимума N»]; hostile; expert on СМ targets.
+  const statCases = [
+    ['Замедление', { speed: [[-3, 3], [-3, 3], [-6, 1], [-6, 1]] }, { hostile: true, expertTargets: true }],
+    ['Каменная Кожа', { defense: [[3], [3], [6], [6]] }, { hostile: false, expertTargets: true }],
+    ['Ускорение', { speed: [[3], [3], [6], [6]] }, { hostile: false, expertTargets: true }],
+    ['Точность', { rangedAttack: [[3], [3], [6], [6]] }, { hostile: false, expertTargets: true }],
+    ['Удача', { luck: [[1], [1], [2], [2]] }, { hostile: false, expertTargets: true }],
+    ['Разрушительный Луч', { defense: [[-3, 0], [-3, 0], [-5, 0], [-7, 0]] }, { hostile: true, expertTargets: false }],
+    ['Жажда Крови', { attack: [[3], [3], [6], [6]] }, { hostile: false, expertTargets: true }],
+    ['Неудача', { luck: [[-1], [-1], [-2], [-2]] }, { hostile: true, expertTargets: true }],
+    ['Молитва', {
+      attack: [[2], [2], [4], [4]], defense: [[2], [2], [4], [4]], speed: [[2], [2], [4], [4]], damageDealt: [[2], [2], [4], [4]],
+    }, { hostile: false, expertTargets: true, untilCombatEnd: true }],
+    ['Полет', { speed: [null, null, [3], [3]] }, { hostile: false, expertTargets: true, status: 'fly', textOutOfCombat: true }],
+  ];
+  for (const [name, stats, opts] of statCases) {
+    test(`${name}: by tier (group А1)`, () => {
+      ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        const expected = Object.entries(stats).filter(([, byTier]) => byTier[i])
+          .map(([stat, byTier]) => ({ stat, value: byTier[i][0], floorOne: false, floor: byTier[i][1] ?? null }));
+        assert.deepEqual(effect.modifiers, expected);
+        assert.equal(effect.hostile, opts.hostile);
+        assert.equal(effect.excludeUndead, false);
+        assert.equal(effect.targeting.perMagicPowerTargets, opts.expertTargets && tier === 'expert');
+        assert.equal(effect.untilCombatEnd, !!opts.untilCombatEnd);
+        assert.equal(effect.status, opts.status ?? '');
+        assert.equal(effect.textOutOfCombat, !!opts.textOutOfCombat);
+      });
+    });
+  }
+
+  test('rules.md §11 costs: Стена Огня 28/12, Огненный Шар 36/15, Удача 12/4', () => {
+    const cost = (name, tier) => byName[name][tier].manaCost;
+    assert.deepEqual([cost('Стена Огня', 'none'), cost('Стена Огня', 'basic')], [28, 12]);
+    assert.deepEqual([cost('Огненный Шар', 'none'), cost('Огненный Шар', 'basic')], [36, 15]);
+    assert.deepEqual([cost('Удача', 'none'), cost('Удача', 'basic')], [12, 4]);
+  });
 
   test('«+СМ» spells at СМ 3', () => {
     assert.deepEqual(dice('Волшебная Стрела', 'none', 3), { count: 1, flat: 3 });
@@ -355,5 +399,77 @@ describe('lastingSpellRounds — Сила Магии plus the artifacts (pp. 32,
   });
   test('the same artifact twice counts once', () => {
     assert.equal(lastingSpellRounds(2, ['Магический ошейник', 'Магический ошейник']), 3);
+  });
+});
+
+describe('spellEffectModifiers — the effect flag, both shapes', () => {
+  test('group А1 list', () => {
+    assert.deepEqual(spellEffectModifiers({ modifiers: [{ stat: 'speed', value: -3, floor: 3 }] }),
+      [{ stat: 'speed', value: -3, floorOne: false, floor: 3 }]);
+  });
+  test('stage 2 single stat (an effect up from before)', () => {
+    assert.deepEqual(spellEffectModifiers({ spellName: 'Щит', stat: 'meleeDamageTaken', value: -6, floorOne: true }),
+      [{ stat: 'meleeDamageTaken', value: -6, floorOne: true, floor: null }]);
+  });
+  test('nothing', () => {
+    assert.deepEqual(spellEffectModifiers(null), []);
+    assert.deepEqual(spellEffectModifiers({ spellName: 'X' }), []);
+  });
+});
+
+describe('actorSpellModifiers — what an actor carries now', () => {
+  const effect = (id, data, extra = {}) => ({ id, flags: { 'heroes-glory': { spellEffect: data } }, ...extra });
+  test('one entry per spell and stat, effect id kept', () => {
+    const list = actorSpellModifiers([
+      effect('a', { spellName: 'Молитва', modifiers: [{ stat: 'attack', value: 2 }, { stat: 'speed', value: 2 }] }),
+      effect('b', { spellName: 'Щит', stat: 'meleeDamageTaken', value: -6, floorOne: true }),
+      { id: 'c', flags: {} },
+    ]);
+    assert.deepEqual(list.map((m) => [m.effectId, m.spellName, m.stat, m.value]),
+      [['a', 'Молитва', 'attack', 2], ['a', 'Молитва', 'speed', 2], ['b', 'Щит', 'meleeDamageTaken', -6]]);
+  });
+  test('disabled and expired effects left out', () => {
+    const list = actorSpellModifiers([
+      effect('a', { spellName: 'Ускорение', modifiers: [{ stat: 'speed', value: 3 }] }, { disabled: true }),
+      effect('b', { spellName: 'Замедление', modifiers: [{ stat: 'speed', value: -3 }] }, { duration: { expired: true } }),
+    ]);
+    assert.deepEqual(list, []);
+  });
+});
+
+describe('applySpellStatModifiers — sum, «до минимума N» (rules.md §6.4)', () => {
+  test('no spells — unchanged', () => {
+    assert.deepEqual(applySpellStatModifiers(6, []), { value: 6, delta: 0 });
+  });
+  test('Замедление −3 to minimum 3', () => {
+    assert.deepEqual(applySpellStatModifiers(8, [{ value: -3, floor: 3 }]), { value: 5, delta: -3 });
+    assert.deepEqual(applySpellStatModifiers(5, [{ value: -3, floor: 3 }]), { value: 3, delta: -2 });
+  });
+  test('a value already below N is not lifted', () => {
+    assert.deepEqual(applySpellStatModifiers(2, [{ value: -3, floor: 3 }]), { value: 2, delta: 0 });
+  });
+  test('Разрушительный Луч to minimum 0', () => {
+    assert.deepEqual(applySpellStatModifiers(2, [{ value: -5, floor: 0 }]), { value: 0, delta: -2 });
+    assert.deepEqual(applySpellStatModifiers(0, [{ value: -5, floor: 0 }]), { value: 0, delta: 0 });
+  });
+  test('Ускорение and Замедление together add up (rules.md §11)', () => {
+    assert.deepEqual(applySpellStatModifiers(6, [{ value: 3, floor: null }, { value: -3, floor: 3 }]), { value: 6, delta: 0 });
+    assert.deepEqual(applySpellStatModifiers(4, [{ value: 3, floor: null }, { value: -6, floor: 1 }]), { value: 1, delta: -3 });
+  });
+  test('the highest floor wins', () => {
+    assert.deepEqual(applySpellStatModifiers(8, [{ value: -3, floor: 3 }, { value: -6, floor: 1 }]), { value: 3, delta: -5 });
+  });
+  test('no floor — anything goes', () => {
+    assert.deepEqual(applySpellStatModifiers(2, [{ value: 4 }, { value: 2 }]), { value: 8, delta: 6 });
+  });
+});
+
+describe('spellHeroesOnly — Удача / Неудача not on creatures (rules.md §11)', () => {
+  test('a luck spell', () => {
+    assert.equal(spellHeroesOnly({ modifiers: [{ stat: 'luck', value: 1 }] }), true);
+  });
+  test('others', () => {
+    assert.equal(spellHeroesOnly({ modifiers: [{ stat: 'speed', value: 3 }] }), false);
+    assert.equal(spellHeroesOnly({}), false);
   });
 });

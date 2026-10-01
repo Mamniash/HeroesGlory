@@ -1,8 +1,7 @@
 /**
- * Источник данных для компендиума заклинаний — переписано с картинок
- * страниц книги (OKP_Heroes_Glory_v2_1.pdf, книжные стр. 53-61, "Книга
- * Магии"; текстовый слой PDF не читается для кириллицы, см. тот же
- * комментарий в weapon-compendium-data.mjs). Пять школ, не четыре — кроме
+ * Источник данных для компендиума заклинаний — переписано со страниц
+ * книги (OKP_Heroes_Glory_v2_1.pdf, книжные стр. 53-61, "Книга Магии").
+ * Пять школ, не четыре — кроме
  * Земли/Воздуха/Воды/Огня на стр. 61 есть отдельная таблица
  * «Универсальные» (2 заклинания), изначально не упомянутая в постановке
  * задачи и добавленная по согласованию.
@@ -35,26 +34,18 @@
  *  - Кольцо Холода (Вода, L3): Экспертный навык не усиливает эффект,
  *    а просто повторяет стоимость Базового ("Стоимость: 20 Маны") —
  *    единственный такой "стоящий на месте" эксперт во всей книге.
+ *    Эффект эксперта = эффект продвинутого (rules.md §11).
  *  - Телепорт, Клон (Вода, L4/L5): все 4 ступени с явной стоимостью,
  *    эффект не меняется ни на одной — подтверждено как осознанный
  *    паттерн для утилитарных заклинаний ("нечего усиливать"), не баг.
  *  - Стена Огня (Огонь, L2): у "Без Навыка" в книге нет числа стоимости
- *    вообще — пропуск издания, не потеря при извлечении PDF (проверено
- *    по вёрстке: напечатано "Стоимость:　Маны" с пустым местом на месте
- *    числа). Значение 15 здесь — не книжное, а оценка по аналогии с
- *    другими заклинаниями 2 уровня этой школы (у них разрыв между "Без
- *    Навыка" и "Базовым" — 20-35%, у Стены Огня "Базовый" = 12, что при
- *    том же разрыве даёт 15-16). Подлежит замене, если найдётся
- *    официальное значение (например, в исправленном издании).
- *  - Огненный Шар (Огонь, L3): "Без Навыка" (15) дешевле "Базового"
- *    (36) — единственный такой перевёрнутый случай во всей книге,
- *    подтверждено по бумажному изданию, не опечатка переноса.
- *    Оставлено как напечатано, не переставлено местами: доказательств
- *    ошибки книги нет, только косвенный след — в ячейке "Базовый"
- *    слово набрано как "Cтоимость" с латинской "C" вместо русской,
- *    то есть эту ячейку правили отдельно от остальных на вёрстке.
- *    Если выйдет исправленное издание — в первую очередь проверить
- *    именно эту ячейку.
+ *    вообще — пропуск издания (напечатано "Стоимость:　Маны" с пустым
+ *    местом на месте числа). 28 — решение Сени (rules.md §11).
+ *  - Огненный Шар (Огонь, L3): в книге "Без Навыка" 15, "Базовый" 36 —
+ *    стоимости перепутаны местами (в ячейке "Базовый" слово «Стоимость»
+ *    ещё и набрано с латинской «C» — в данных слова нет, стоимость
+ *    хранится числом). Решение Сени: без навыка 36, базовый 15
+ *    (rules.md §11).
  */
 
 import { buildItemDocument } from '../lib/pack-builder.mjs';
@@ -121,22 +112,90 @@ function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = fal
  * @param {boolean} [options.perMagicPowerTargets]
  */
 function modifierEffect(stat, value, { floorOne = false, hostile = false, excludeUndead = false, perMagicPowerTargets = false } = {}) {
+  return lastingEffect([{ stat, value, floorOne, floor: null }], { hostile, excludeUndead, perMagicPowerTargets });
+}
+
+/**
+ * Group А1: a stat of the bearer a lasting spell changes — Атака, Защита,
+ * Скорость, Удача, «Атака в дальнем бою» (`rangedAttack`), Урон; `floor` —
+ * «до минимума N» (rules.md §6.4: not below N, a lower value not lifted).
+ * @param {'attack'|'defense'|'speed'|'luck'|'rangedAttack'|'damageDealt'} stat
+ * @param {number} value   signed
+ * @param {number|null} [floor]
+ */
+function statModifier(stat, value, floor = null) {
+  return { stat, value, floorOne: false, floor };
+}
+
+/**
+ * A lasting spell's effect with any number of modifiers (Молитва changes
+ * four stats) — item-spell.mjs's `effect`.
+ * @param {object[]} modifiers
+ * @param {object} [options]
+ * @param {boolean} [options.hostile]
+ * @param {boolean} [options.excludeUndead]
+ * @param {boolean} [options.perMagicPowerTargets]
+ * @param {boolean} [options.untilCombatEnd]    «До конца боя» (Молитва)
+ * @param {string} [options.status]             a core status (Полет: 'fly')
+ * @param {boolean} [options.textOutOfCombat]   out of combat a text card (Полет, rules.md §11)
+ */
+function lastingEffect(modifiers, {
+  hostile = false, excludeUndead = false, perMagicPowerTargets = false,
+  untilCombatEnd = false, status = '', textOutOfCombat = false,
+} = {}) {
   return {
     kind: 'modifier',
     targeting: { mode: 'single', perMagicPowerTargets, extraTargets: 0, extraFactor: 1 },
     dice: { count: 0, flat: 0, perMagicPower: false, addMagicPower: false },
     element: '',
-    modifier: { stat, value, floorOne },
+    modifiers,
     hostile,
     excludeUndead,
+    untilCombatEnd,
+    status,
+    textOutOfCombat,
+  };
+}
+
+/**
+ * Group А1: one stat by tier — [Без Навыка = Базовый, Продвинутый,
+ * Эксперт]. The expert takes Сила Магии targets when the book says so.
+ * @param {string} stat
+ * @param {[number, number, number]} values
+ * @param {object} [options]
+ * @param {[number|null, number|null, number|null]} [options.floors]
+ * @param {boolean} [options.hostile]
+ * @param {boolean} [options.expertTargets]   «количество …, равное СМ»
+ * @returns {object[]}   effects for base, advanced, expert
+ */
+function statEffects(stat, values, { floors = [null, null, null], hostile = false, expertTargets = true } = {}) {
+  return values.map((value, i) => lastingEffect([statModifier(stat, value, floors[i])], {
+    hostile, perMagicPowerTargets: expertTargets && i === 2,
+  }));
+}
+
+/**
+ * Puts group А1's three effects (base = basic, advanced, expert) onto a
+ * spell entry's `base` / `advanced` / `expert`.
+ * @param {object[]} effects
+ * @param {object} entry   the spell entry without its effects
+ * @returns {object}
+ */
+function withEffects([base, advanced, expert], entry) {
+  return {
+    ...entry,
+    base: { ...entry.base, effect: base },
+    advanced: { ...(entry.advanced ?? {}), effect: advanced },
+    expert: { ...(entry.expert ?? {}), effect: expert },
   };
 }
 
 // --- Магия Земли, стр. 53-54 — 10 заклинаний ---
 const EARTH = [
-  { name: 'Замедление', level: 1, icon: 54, base: { desc: 'Выбранное существо снижает свою скорость на 3, до минимума 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость уменьшается на 6, до минимума 1' }, expert: { desc: 'Работает на количество противников, равное СМ' } },
-  { name: 'Щит', level: 1, icon: 27, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 6, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('meleeDamageTaken', -6, { floorOne: true }) }, basicCost: 4, advanced: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 10, до минимума в 1', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Работает на количество союзников, равное СМ', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
-  { name: 'Каменная Кожа', level: 1, icon: 46, base: { desc: 'Увеличивает Защиту выбранного существа на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Увеличивает Защиту на 6' }, expert: { desc: 'Работает на количество союзников, равное СМ' } },
+  // Group А1 (p. 53): «до минимума 3» / «до минимума 1».
+  { name: 'Замедление', level: 1, icon: 54, ...withEffects(statEffects('speed', [-3, -6, -6], { floors: [3, 1, 1], hostile: true }), { base: { desc: 'Выбранное существо снижает свою скорость на 3, до минимума 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость уменьшается на 6, до минимума 1' }, expert: { desc: 'Работает на количество противников, равное СМ' } }) },
+  { name: 'Щит', level: 1, icon: 27, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 6, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('meleeDamageTaken', -6, { floorOne: true }) }, basicCost: 4, advanced: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 10 до минимума в 1', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Работает на количество союзников, равное СМ', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
+  { name: 'Каменная Кожа', level: 1, icon: 46, ...withEffects(statEffects('defense', [3, 6, 6]), { base: { desc: 'Увеличивает Защиту выбранного существа на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Увеличивает Защиту на 6' }, expert: { desc: 'Работает на количество союзников, равное СМ' } }) },
   { name: 'Волна Смерти', level: 2, icon: 24, base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } },
   { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
   { name: 'Антимагия', level: 3, icon: 34, base: { desc: 'Существо получает иммунитет к заклинаниям 1-3 уровня. Может быть снято Рассеиванием. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Иммунитет к заклинаниям 1-4 уровней' }, expert: { desc: 'Иммунитет к заклинаниям 1-5 уровня' } },
@@ -148,18 +207,28 @@ const EARTH = [
 
 // --- Магия Воздуха, стр. 55-56 — 10 заклинаний ---
 const AIR = [
-  { name: 'Ускорение', level: 1, icon: 53, base: { desc: 'Выберите существо. Его Скорость увеличивается на 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Точность', level: 1, icon: 44, base: { desc: 'Выберите существо. Его Атака в дальнем бою увеличивается на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Атака в дальнем бою увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Удача', level: 1, icon: 51, base: { desc: 'Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.', cost: 12 }, basicCost: 4, advanced: { desc: 'Параметр удачи цели увеличивается на 2 до максимума в 3' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  { name: 'Ускорение', level: 1, icon: 53, ...withEffects(statEffects('speed', [3, 6, 6]), { base: { desc: 'Выберите существо. Его Скорость увеличивается на 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
+  // Group А1 (p. 55): Атака for a ranged attack only.
+  { name: 'Точность', level: 1, icon: 44, ...withEffects(statEffects('rangedAttack', [3, 6, 6]), { base: { desc: 'Выберите существо. Его Атака в дальнем бою увеличивается на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Атака в дальнем бою увеличивается на 6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
+  // Group А1 (p. 55): «до максимума в 3» — the hero's ±3 clamp. 12 → 4
+  // Маны as printed, confirmed by Сеня (rules.md §11).
+  { name: 'Удача', level: 1, icon: 51, ...withEffects(statEffects('luck', [1, 2, 2]), { base: { desc: 'Параметр удачи цели увеличивается на 1 до максимума в 3. Длительность = СМ.', cost: 12 }, basicCost: 4, advanced: { desc: 'Параметр удачи цели увеличивается на 2 до максимума в 3' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   { name: 'Молния', level: 2, icon: 17, base: { desc: 'Выберите существо. Оно получает урон, равный 3d6 + ваш СМ.', cost: 24, effect: damageEffect(3, 0, { plusMagicPower: true, element: 'lightning' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'lightning' }) }, expert: { desc: 'Урон увеличивается до 5d6+СМ', effect: damageEffect(5, 0, { plusMagicPower: true, element: 'lightning' }) } },
-  { name: 'Разрушительный Луч', level: 2, icon: 47, base: { desc: 'Выбранное существо снижает свою Защиту на 3, до минимума 0. Длительность = СМ.', cost: 10 }, basicCost: 8, advanced: { desc: 'Снижает Защиту на 5, минимум 0' }, expert: { desc: 'Снижает Защиту на 7, минимум 0' } },
+  // Group А1 (p. 55): the expert is stronger, not on more targets.
+  { name: 'Разрушительный Луч', level: 2, icon: 47, ...withEffects(statEffects('defense', [-3, -5, -7], { floors: [0, 0, 0], hostile: true, expertTargets: false }), { base: { desc: 'Выбранное существо снижает свою Защиту на 3, до минимума 0. Длительность = СМ.', cost: 10 }, basicCost: 8, advanced: { desc: 'Снижает Защиту на 5, минимум 0' }, expert: { desc: 'Снижает Защиту на 7, минимум 0' } }) },
   { name: 'Воздушный Щит', level: 3, icon: 28, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.', cost: 12, effect: modifierEffect('rangedDamageTaken', -5, { floorOne: true }) }, basicCost: 10, advanced: { desc: 'Снижает получаемый урон в дальнем бою на 10, до минимума в 1', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
   { name: 'Уничтожить Нежить', level: 3, icon: 25, base: { desc: 'Вся нежить в поле зрения получает урон, равный 2d6+СМ урона.', cost: 20 }, basicCost: 14, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } },
   // p. 56: «Три других ближайших существа получают половину от этого
   // урона»; эксперт — «Воздействует на 4 дополнительных цели вместо 3».
   { name: 'Цепная Молния', level: 4, icon: 19, base: { desc: 'Выберите существо. Оно получает урон, равный 1d6 за каждый ваш СМ. Три других ближайших существа получают половину от этого урона, даже если это ваши союзники.', cost: 40, effect: damageEffect(1, 0, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, basicCost: 24, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, expert: { desc: 'Воздействует на 4 дополнительных цели вместо 3', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 4, extraFactor: 0.5 } }) } },
   { name: 'Ответный Удар', level: 4, icon: 58, base: { desc: 'Выберите цель. Если она атакована, она атакует в ответ, один раз в раунд. Длительность = СМ.', cost: 24 }, basicCost: 20, advanced: { desc: 'Дает две дополнительные контратаки вместо одной' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
-  { name: 'Полет', level: 5, icon: 6, base: { desc: 'Выбранное существо приобретает свойство Полет. Длительность = СМ.', cost: 30 }, basicCost: 20, advanced: { desc: 'Цель также получает +3 к Скорости' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // Group А1 (p. 56): «Полёт» — a status, no mechanics; out of combat a
+  // text card (rules.md §11).
+  { name: 'Полет', level: 5, icon: 6, ...withEffects([
+    lastingEffect([], { status: 'fly', textOutOfCombat: true }),
+    lastingEffect([statModifier('speed', 3)], { status: 'fly', textOutOfCombat: true }),
+    lastingEffect([statModifier('speed', 3)], { status: 'fly', textOutOfCombat: true, perMagicPowerTargets: true }),
+  ], { base: { desc: 'Выбранное существо приобретает свойство Полет. Длительность = СМ.', cost: 30 }, basicCost: 20, advanced: { desc: 'Цель также получает +3 к Скорости' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
 ];
 
 // --- Магия Воды, стр. 57-58 — 10 заклинаний, три исключения по стоимости ---
@@ -178,7 +247,12 @@ const WATER = [
   // меняется ни на одной ступени — утилитарное заклинание, "нечего
   // усиливать", дешевеет только стоимость.
   { name: 'Телепорт', level: 4, icon: 63, base: { desc: 'Выберите дружественное существо. Телепортирует его на видимую вами клетку.', cost: 20 }, basicCost: 14, advanced: { cost: 10 }, expert: { cost: 6 } },
-  { name: 'Молитва', level: 4, icon: 48, base: { desc: 'Выберите дружественное существо. До конца боя оно получает +2 к Атаке, Защите, Скорости и Урону.', cost: 16 }, basicCost: 12, advanced: { desc: 'Бонус к Атаке, Защите, Скорости и Урону и увеличиваются до +4' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // Group А1 (p. 58): «До конца боя»; Урон — before the multiplier, as
+  // Благословение's (rules.md §11).
+  { name: 'Молитва', level: 4, icon: 48, ...withEffects([2, 4, 4].map((value, i) => lastingEffect(
+    ['attack', 'defense', 'speed', 'damageDealt'].map((stat) => statModifier(stat, value)),
+    { untilCombatEnd: true, perMagicPowerTargets: i === 2 },
+  )), { base: { desc: 'Выберите дружественное существо. До конца боя оно получает +2 к Атаке, Защите, Скорости и Урону.', cost: 16 }, basicCost: 12, advanced: { desc: 'Бонус к Атаке, Защите, Скорости и Урону и увеличиваются до +4' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   // BOOK PATTERN — см. комментарий у Телепорта выше.
   { name: 'Клон', level: 5, icon: 65, base: { desc: 'Создает идеальную копию дружеского существа. Она неотличима от оригинала и может использовать все его атаки и заклинания. Копия действует с момента создания и контролируется вами. Клон, получив любой урон, немедленно исчезает. Длительность = СМ.', cost: 35 }, basicCost: 30, advanced: { cost: 20 }, expert: { cost: 10 } },
 ];
@@ -186,22 +260,19 @@ const WATER = [
 // --- Магия Огня, стр. 59-60 — 9 заклинаний (не 10, как у остальных трёх
 // стихий — подтверждено независимой сверкой по бумажной книге).
 const FIRE = [
-  { name: 'Жажда Крови', level: 1, icon: 43, base: { desc: 'Выбранное существо получает +3 к Атаке. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус к Атаке увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // Group А1 (p. 59): «+3 к Атаке» — any attack; the book doesn't narrow
+  // it to melee (rules.md §11).
+  { name: 'Жажда Крови', level: 1, icon: 43, ...withEffects(statEffects('attack', [3, 6, 6]), { base: { desc: 'Выбранное существо получает +3 к Атаке. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус к Атаке увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true, excludeUndead: true }) }, basicCost: 4, advanced: { desc: 'Урон снижается на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true, perMagicPowerTargets: true }) } },
   { name: 'Слепота', level: 2, icon: 62, base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } },
-  // BOOK DEFECT (пропуск издания, сверено по бумажной книге): у "Без
-  // Навыка" в книге нет числа стоимости вообще. 15 — не книжное
-  // значение, а оценка по аналогии с другими заклинаниями 2 уровня
-  // этой школы (см. подробный комментарий в шапке файла). Заменить,
-  // если найдётся официальное значение.
-  { name: 'Стена Огня', level: 2, icon: 13, base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } },
-  // BOOK DEFECT (сверено по бумажной книге, не опечатка переноса): "Без
-  // Навыка" (15) дешевле "Базового" (36) — единственный перевёрнутый
-  // случай во всей книге. Оставлено как напечатано — доказательств
-  // ошибки книги нет, только косвенный след (см. шапку файла: "Базовый"
-  // набран с латинской "C").
-  { name: 'Огненный Шар', level: 3, icon: 21, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.', cost: 15 }, basicCost: 36, advanced: { desc: 'Урон увеличивается до 6d6+СМ' }, expert: { desc: 'Урон увеличивается до 8d6+СМ' } },
-  { name: 'Неудача', level: 3, icon: 52, base: { desc: 'Параметр удачи цели снижается на 1 до минимума в -3. Длительность = СМ.', cost: 12 }, basicCost: 9, advanced: { desc: 'Параметр удачи снижается на 2 (до минимума в -3)' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // BOOK DEFECT: у "Без Навыка" в книге нет числа стоимости; 28 —
+  // решение Сени (rules.md §11).
+  { name: 'Стена Огня', level: 2, icon: 13, base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 28 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } },
+  // BOOK DEFECT: в книге стоимости перепутаны местами (без навыка 15,
+  // базовый 36); решение Сени — 36 и 15 (rules.md §11).
+  { name: 'Огненный Шар', level: 3, icon: 21, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.', cost: 36 }, basicCost: 15, advanced: { desc: 'Урон увеличивается до 6d6+СМ' }, expert: { desc: 'Урон увеличивается до 8d6+СМ' } },
+  // Group А1 (p. 60): «до минимума в -3» — the hero's ±3 clamp.
+  { name: 'Неудача', level: 3, icon: 52, ...withEffects(statEffects('luck', [-1, -2, -2], { hostile: true }), { base: { desc: 'Параметр удачи цели снижается на 1 до минимума в -3. Длительность = СМ.', cost: 12 }, basicCost: 9, advanced: { desc: 'Параметр удачи снижается на 2 (до минимума в -3)' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   { name: 'Огненный Щит', level: 4, icon: 29, base: { desc: 'Выберите цель. Любое существо, атакующее цель, получает урон огнем, равный вашему СМ. Длительность = СМ.', cost: 16 }, basicCost: 12, advanced: { desc: 'Урон увеличивается до 3+СМ' }, expert: { desc: 'Урон увеличивается до 6+СМ' } },
   { name: 'Инферно', level: 4, icon: 22, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.', cost: 56 }, basicCost: 48, advanced: { desc: 'Затрагивает клетки в радиусе 2 клеток от центра' }, expert: { desc: 'Урон увеличивается до 1d6+1 за СМ' } },
   { name: 'Армагеддон', level: 5, icon: 26, base: { desc: 'Все существа (даже вы и союзники!) в поле зрения получают урон огнем, равный 5d6+СМ.', cost: 60 }, basicCost: 50, advanced: { desc: 'Урон увеличивается до 7d6+СМ' }, expert: { desc: 'Урон увеличивается до 10d6+СМ' } },

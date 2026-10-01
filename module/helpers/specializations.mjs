@@ -164,3 +164,15 @@ export function chainLightningSpecialization(specialization, spellName) {
     ? { active: true, bonusDice: 1, extraFactor: 1, chosenTargets: 2 }
     : { active: false, bonusDice: 0, extraFactor: null, chosenTargets: 0 };
 }
+
+/**
+ * §4.3 p. 23, specialization «Ускорение» on that spell: «Ускоренные
+ * персонажи получают еще +3 к Скорости» — added to the spell's own Скорость
+ * at the cast.
+ * @param {{type?: string, key?: string}|null} specialization
+ * @param {string} spellName
+ * @returns {number}   0 or 3
+ */
+export function hasteSpecializationBonus(specialization, spellName) {
+  return specialization?.type === 'spell' && specialization?.key === 'Ускорение' && spellName === 'Ускорение' ? 3 : 0;
+}

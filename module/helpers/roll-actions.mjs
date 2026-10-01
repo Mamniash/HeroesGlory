@@ -24,7 +24,7 @@ import {
   canAffordSpell,
   resolveAbilityCheck,
   nextLuck,
-  spendLuck,
+  spendLuckWithSpells,
   canCastSpellLevel,
   canCastWithoutSpellbook,
   wisdomTierForSpellLevel,
@@ -48,7 +48,9 @@ import {
   secondarySkillSlotCount,
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
-import { hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization } from './specializations.mjs';
+import {
+  hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization, hasteSpecializationBonus,
+} from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
@@ -57,7 +59,7 @@ import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
   creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
-  resolveLastingSpellLimit, lastingSpellRounds,
+  resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -289,8 +291,10 @@ function buildAttackContext(actor, flags) {
   } = resolveAttackResolution(flags);
   // §6.4, stage 2: the spell effects on this card, one line each, and the
   // Урон they changed before the multiplier.
-  const spellModifierLines = [...(flags.damageDealtModifiers ?? []), ...(flags.damageTakenModifiers ?? [])]
-    .map((modifier) => spellModifierText(modifier));
+  const spellModifierLines = [
+    ...[...(flags.attackModifiers ?? []), ...(flags.defenseModifiers ?? [])].map((modifier) => spellStatText(modifier)),
+    ...[...(flags.damageDealtModifiers ?? []), ...(flags.damageTakenModifiers ?? [])].map((modifier) => spellModifierText(modifier)),
+  ];
   const baseDamageLine = baseDamage !== flags.baseDamage
     ? game.i18n.format('HEROES_GLORY.Roll.SpellBaseDamageLine', { base: flags.baseDamage, total: baseDamage })
     : null;
@@ -476,9 +480,16 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   // §6.4, stage 2: spell effects, frozen at roll time — Благословение /
   // Слабость / Проклятие on the attacker, Щит (melee) or Воздушный Щит
   // (ranged) on the target. A series' next attack reads them anew.
-  const damageDealtModifiers = spellModifierEffects(actor).filter((m) => m.stat === 'damageDealt');
+  const attackerSpells = spellModifierEffects(actor);
+  const damageDealtModifiers = attackerSpells.filter((m) => m.stat === 'damageDealt');
   const takenStat = isRanged ? 'rangedDamageTaken' : 'meleeDamageTaken';
-  const damageTakenModifiers = spellModifierEffects(targetActor).filter((m) => m.stat === takenStat);
+  const targetSpells = spellModifierEffects(targetActor);
+  const damageTakenModifiers = targetSpells.filter((m) => m.stat === takenStat);
+  // Group А1: Атака and Защита are already in `system` (prepareDerivedData);
+  // Точность adds to Атака for a ranged attack only (p. 55). Shown on the card.
+  const rangedAttackModifiers = isRanged ? attackerSpells.filter((m) => m.stat === 'rangedAttack') : [];
+  const attackModifiers = [...attackerSpells.filter((m) => m.stat === 'attack'), ...rangedAttackModifiers];
+  const defenseModifiers = targetSpells.filter((m) => m.stat === 'defense');
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
@@ -512,7 +523,9 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
     weaponName: weapon?.name ?? null,
     attackRange,
     targetName: targetActor?.name ?? null,
-    attackerAttack: actor.system.attack,
+    attackerAttack: actor.system.attack + rangedAttackModifiers.reduce((sum, m) => sum + m.value, 0),
+    attackModifiers,
+    defenseModifiers,
     baseDamage,
     damageDealtModifiers,
     damageTakenModifiers,
@@ -572,17 +585,34 @@ async function createActorVisibilityCard(actor, data, rolls) {
 }
 
 /**
- * §2.2: the stored `system.luck` after spending one Удача. A hero stores
- * only its manual correction (actor-hero.mjs), so the step is computed
- * from the derived parts — writing `nextLuck` of the derived total back
- * would leave the total unchanged whenever a skill or artifact adds to
- * it. Anything without those parts stores the plain value.
+ * §2.2: spend one Удача. A hero stores only its manual correction
+ * (actor-hero.mjs), so the step is computed from the derived parts —
+ * writing `nextLuck` of the derived total back would leave the total
+ * unchanged whenever a skill or artifact adds to it. Удача / Неудача from a
+ * spell is spent first, an effect at 0 removed (spendLuckWithSpells,
+ * rules.md §11). Anything without those parts stores the plain value.
  * @param {Actor} actor
- * @returns {number}
+ * @returns {Promise<void>}
  */
-function luckAfterSpend(actor) {
+async function spendActorLuck(actor) {
   const parts = actor.system.luckParts;
-  return parts ? spendLuck(parts) : nextLuck(actor.system.luck);
+  if (!parts) {
+    await actor.update({ 'system.luck': nextLuck(actor.system.luck) });
+    return;
+  }
+  const { manual, spells } = spendLuckWithSpells({ ...parts, spells: actor.system.luckSpells ?? [] });
+  for (const { effectId, value } of spells) {
+    const effect = actor.effects.get(effectId);
+    if (!effect) continue;
+    const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
+    if (!value) {
+      await effect.delete();
+      continue;
+    }
+    const modifiers = spellEffectModifiers(data).map((m) => (m.stat === 'luck' ? { ...m, value } : m));
+    await effect.setFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG, { ...data, modifiers });
+  }
+  if (manual !== parts.manual) await actor.update({ 'system.luck': manual });
 }
 
 /**
@@ -636,7 +666,7 @@ export async function rerollAttackDie(message, slot) {
     return;
   }
 
-  await actor.update({ 'system.luck': luckAfterSpend(actor) });
+  await spendActorLuck(actor);
 
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/attack-roll.hbs',
@@ -926,7 +956,8 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     if (effect?.kind === 'damage') {
       return castDamageSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
-    if (effect?.kind === 'modifier') {
+    // Полет out of combat (rules.md §11): the text card below, Mana spent.
+    if (effect?.kind === 'modifier' && !(effect.textOutOfCombat && !casterCombatStart(actor))) {
       return castModifierSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
   }
@@ -1354,22 +1385,66 @@ function spellModifierText({ spellName, value }) {
   return game.i18n.format('HEROES_GLORY.Roll.SpellModifierLine', { spell: spellName, value: signedValue(value) });
 }
 
+/** Group А1's stats and Молитва's Урон, by name in the chat. */
+const SPELL_STAT_LABELS = {
+  attack: 'HEROES_GLORY.Hero.Attack',
+  rangedAttack: 'HEROES_GLORY.Roll.SpellStatRangedAttack',
+  defense: 'HEROES_GLORY.Hero.Defense',
+  speed: 'HEROES_GLORY.Hero.Speed',
+  luck: 'HEROES_GLORY.Hero.Luck',
+  damageDealt: 'HEROES_GLORY.Roll.SpellStatDamage',
+};
+
 /**
- * The stage-2 spell effects an actor carries now (§6.4) — one per spell,
- * expired or disabled ones left out.
+ * «Атака +3», «Скорость −3 (не ниже 3)» — one stat a spell changes.
+ * @param {{stat: string, value: number, floor?: number|null}} modifier
+ * @returns {string}
+ */
+function spellStatPart({ stat, value, floor = null }) {
+  const text = `${game.i18n.localize(SPELL_STAT_LABELS[stat] ?? stat)} ${signedValue(value)}`;
+  return floor === null || floor === undefined
+    ? text
+    : game.i18n.format('HEROES_GLORY.Roll.SpellStatFloor', { text, floor });
+}
+
+/**
+ * «Жажда Крови: Атака +3».
+ * @param {{spellName: string, stat: string, value: number, floor?: number|null}} modifier
+ * @returns {string}
+ */
+function spellStatText(modifier) {
+  return game.i18n.format('HEROES_GLORY.Roll.SpellStatLine', { spell: modifier.spellName, stat: spellStatPart(modifier) });
+}
+
+/**
+ * What a lasting spell does, for its card: the stage-2 damage spells as
+ * before («Благословение +4»), the others by stat («Молитва: Атака +2,
+ * Защита +2, …»), a status by name («Полет: Полёт»).
+ * @param {object} flags   the spell card's flags
+ * @returns {string}
+ */
+function lastingSpellEffectText(flags) {
+  const modifiers = flags.modifiers ?? (flags.modifier ? [flags.modifier] : []);
+  const damageOnly = modifiers.length === 1
+    && ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken'].includes(modifiers[0].stat);
+  if (damageOnly && !flags.status) return spellModifierText({ spellName: flags.spellName, value: modifiers[0].value });
+  const parts = modifiers.map((m) => spellStatPart(m));
+  if (flags.status) parts.unshift(game.i18n.localize(SPELL_STATUS_LABELS[flags.status]));
+  return game.i18n.format('HEROES_GLORY.Roll.SpellStatLine', { spell: flags.spellName, stat: parts.join(', ') });
+}
+
+/** Core statuses a lasting spell may carry (Полет, p. 56). */
+const SPELL_STATUS_LABELS = { fly: 'HEROES_GLORY.Roll.SpellStatusFly' };
+
+/**
+ * The spell effects an actor carries now (§6.4) — one entry per spell and
+ * stat, expired or disabled ones left out (actorSpellModifiers).
  * @param {Actor|null} actor
- * @returns {Array<{spellName: string, stat: string, value: number, floorOne: boolean}>}
+ * @returns {Array<{spellName: string, stat: string, value: number, floorOne: boolean, floor: number|null}>}
  */
 export function spellModifierEffects(actor) {
-  const byName = new Map();
-  for (const effect of actor?.effects ?? []) {
-    const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
-    if (!data || effect.disabled || effect.duration?.expired) continue;
-    if (!byName.has(data.spellName)) {
-      byName.set(data.spellName, { spellName: data.spellName, stat: data.stat, value: data.value, floorOne: !!data.floorOne });
-    }
-  }
-  return [...byName.values()];
+  return actorSpellModifiers(actor?.effects ?? [])
+    .map(({ spellName, stat, value, floorOne, floor }) => ({ spellName, stat, value, floorOne, floor }));
 }
 
 /**
@@ -1440,6 +1515,11 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
       ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellUndead', { spell: spell.name, target: doc.actor.name }));
       return null;
     }
+    // Удача / Неудача: creatures have no Удача (rules.md §11).
+    if (spellHeroesOnly(effect) && doc.actor?.type === 'creature') {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNoLuck', { spell: spell.name, target: doc.actor.name }));
+      return null;
+    }
   }
 
   // p. 32: a fourth lasting spell ends one of the three — the player picks
@@ -1471,8 +1551,10 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     description: variantData.description,
     manaCost,
     manaRemaining,
-    modifier: { stat: effect.modifier.stat, value: effect.modifier.value, floorOne: !!effect.modifier.floorOne },
-    rounds: lastingSpellRounds(actor.system.magicPower,
+    modifiers: castModifiers(actor, spell, effect),
+    status: effect.status || null,
+    // Молитва: «До конца боя» — no rounds.
+    rounds: effect.untilCombatEnd ? null : lastingSpellRounds(actor.system.magicPower,
       actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
     castStart,
     castId: foundry.utils.randomID(),
@@ -1487,6 +1569,24 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     buildSpellCardContext(flags),
   );
   return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, rolls);
+}
+
+/**
+ * A lasting spell's modifiers as cast: the variant's, with the «Ускорение»
+ * specialization's +3 Скорость (p. 23) added to that spell's own.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} effect   the variant's effect
+ * @returns {Array<{stat: string, value: number, floorOne: boolean, floor: number|null}>}
+ */
+function castModifiers(actor, spell, effect) {
+  const haste = hasteSpecializationBonus(actor.system.specialization, spell.name);
+  return (effect.modifiers ?? []).map((m) => ({
+    stat: m.stat,
+    value: m.stat === 'speed' ? m.value + haste : m.value,
+    floorOne: !!m.floorOne,
+    floor: m.floor ?? null,
+  }));
 }
 
 /**
@@ -1508,7 +1608,9 @@ function lastingSpellCasts(caster) {
       if (!data || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
       const castId = data.castId ?? `${data.spellName}|${data.combatId}|${effect._source.start?.round}`;
       if (!casts.has(castId)) {
-        casts.set(castId, { castId, spellName: data.spellName, targetIds: [], targetNames: [], remaining: effect.duration.remaining, effects: [] });
+        // Молитва lasts to the end of the battle: no rounds left to show.
+        const remaining = data.untilCombatEnd ? null : effect.duration.remaining;
+        casts.set(castId, { castId, spellName: data.spellName, targetIds: [], targetNames: [], remaining, effects: [] });
       }
       const cast = casts.get(castId);
       cast.targetIds.push(target.uuid);
@@ -1538,7 +1640,7 @@ async function chooseLastingSpellToEnd(actor, spell, targetDocs) {
   });
   if (!needsChoice) return null;
   const i18n = game.i18n;
-  const labelOf = (cast) => i18n.format('HEROES_GLORY.Roll.SpellLimitRow', {
+  const labelOf = (cast) => i18n.format(cast.remaining === null ? 'HEROES_GLORY.Roll.SpellLimitRowCombat' : 'HEROES_GLORY.Roll.SpellLimitRow', {
     spell: cast.spellName, targets: cast.targetNames.join(', '), rounds: cast.remaining,
   });
   const content = document.createElement('div');
@@ -1575,7 +1677,8 @@ function buildModifierSpellCardContext(flags, context) {
   const i18n = game.i18n;
   const results = resolveModifierSpellResolution(flags);
   const done = !!flags.confirmed;
-  const effectText = spellModifierText({ spellName: flags.spellName, value: flags.modifier.value });
+  const effectText = lastingSpellEffectText(flags);
+  const untilCombatEnd = flags.rounds === null || flags.rounds === undefined;
   context.targetSpell = true;
   context.confirmHintKey = 'HEROES_GLORY.Roll.SpellModifierConfirmHint';
   context.endCastLine = flags.endCast
@@ -1596,9 +1699,10 @@ function buildModifierSpellCardContext(flags, context) {
     } else if (result.outcome === 'resisted') {
       text = i18n.format('HEROES_GLORY.Roll.SpellModifierResisted', { target: target.name });
     } else {
-      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellModifierApplied' : 'HEROES_GLORY.Roll.SpellModifierPending', {
-        target: target.name, effect: effectText, rounds: flags.rounds,
-      });
+      const key = untilCombatEnd
+        ? (done ? 'HEROES_GLORY.Roll.SpellModifierAppliedCombat' : 'HEROES_GLORY.Roll.SpellModifierPendingCombat')
+        : (done ? 'HEROES_GLORY.Roll.SpellModifierApplied' : 'HEROES_GLORY.Roll.SpellModifierPending');
+      text = i18n.format(key, { target: target.name, effect: effectText, rounds: flags.rounds });
     }
     if (target.resistDie != null) {
       text += ` (${i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
@@ -1646,18 +1750,24 @@ async function confirmModifierSpell(message, flags) {
       .filter((e) => e.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG)?.spellName === flags.spellName)
       .map((e) => e.id);
     if (previous.length) await targetActor.deleteEmbeddedDocuments('ActiveEffect', previous);
+    // Молитва (rounds null) has no duration: the end of the battle takes it
+    // off (clearSpellEffectsAfterCombat). Cards from before group А1 carry
+    // a single `modifier`.
+    const untilCombatEnd = flags.rounds === null || flags.rounds === undefined;
     await targetActor.createEmbeddedDocuments('ActiveEffect', [{
       name: flags.spellName,
       img: flags.spellImg,
       origin: flags.actorUuid,
       description: flags.description,
-      duration: { value: flags.rounds, units: 'rounds', expiry: 'turnStart' },
+      ...(untilCombatEnd ? {} : { duration: { value: flags.rounds, units: 'rounds', expiry: 'turnStart' } }),
       start: flags.castStart,
+      statuses: flags.status ? [flags.status] : [],
       flags: {
         [FLAG_SCOPE]: {
           [SPELL_EFFECT_FLAG]: {
             spellName: flags.spellName,
-            ...flags.modifier,
+            modifiers: flags.modifiers ?? (flags.modifier ? [flags.modifier] : []),
+            untilCombatEnd,
             casterUuid: flags.actorUuid,
             combatId: flags.castStart.combat,
             castId: flags.castId,
@@ -1731,7 +1841,7 @@ export async function rerollCheckDie(message) {
   const die = roll.dice[0].total;
   const result = resolveAbilityCheck(die, actor.system[flags.skillKey]);
 
-  await actor.update({ 'system.luck': luckAfterSpend(actor) });
+  await spendActorLuck(actor);
 
   const nextFlags = { ...flags, previousDie: flags.die, die };
 
