@@ -65,8 +65,10 @@ export class HeroesGloryActor extends Actor {
 
     // Only the client that made this change drives the follow-up status
     // toggle, so it isn't attempted redundantly on every connected client.
+    // `keepStatuses` — the caller sets the statuses itself (Воскрешение
+    // ending: dead again, helpers/combat.mjs).
     if (userId === game.user.id && changed.system?.health?.value !== undefined
-      && isIncapacitated(this.system.health.value)) {
+      && isIncapacitated(this.system.health.value) && !options?.['heroes-glory']?.keepStatuses) {
       this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
     }
 

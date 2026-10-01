@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
   hasArmorSpecialization, specializationManaDiscount, availableSpecializations, chainLightningSpecialization,
-  hasteSpecializationBonus,
+  hasteSpecializationBonus, resurrectionSpecialization,
 } from '../module/helpers/specializations.mjs';
 
 describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
@@ -138,5 +138,15 @@ describe('hasteSpecializationBonus — p. 23, «Ускоренные персо�
     assert.equal(hasteSpecializationBonus({ type: 'spell', key: 'Ускорение' }, 'Молитва'), 0);
     assert.equal(hasteSpecializationBonus({ type: 'spell', key: 'Клон' }, 'Ускорение'), 0);
     assert.equal(hasteSpecializationBonus(null, 'Ускорение'), 0);
+  });
+});
+
+describe('resurrectionSpecialization — p. 23, «Воскрешенный персонаж не получает ранение»', () => {
+  test('the specialization, casting Воскрешение', () => {
+    assert.equal(resurrectionSpecialization({ type: 'spell', key: 'Воскрешение' }, 'Воскрешение'), true);
+  });
+  test('otherwise not', () => {
+    assert.equal(resurrectionSpecialization({ type: 'spell', key: 'Воскрешение' }, 'Лечение'), false);
+    assert.equal(resurrectionSpecialization(null, 'Воскрешение'), false);
   });
 });

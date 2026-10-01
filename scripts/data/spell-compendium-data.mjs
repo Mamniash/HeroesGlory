@@ -175,6 +175,33 @@ function statEffects(stat, values, { floors = [null, null, null], hostile = fals
 }
 
 /**
+ * Group В: an instant support spell — Лечение (`heal`: «лечит на NdS+СМ»),
+ * Развеивание Магии (`dispel`), Воскрешение (`resurrect`) — item-spell.mjs's
+ * `effect`.
+ * @param {'heal'|'dispel'|'resurrect'} kind
+ * @param {object} [options]
+ * @param {number} [options.healDice]          Лечение: d6 count, + СМ
+ * @param {boolean} [options.perMagicPowerTargets]
+ * @param {boolean} [options.friendlyOnly]     Развеивание: «дружественного существа»
+ * @param {number} [options.healthFactor]      Воскрешение: 50% or full
+ * @param {boolean} [options.untilCombatEnd]   Воскрешение: «В конце битвы … снова погибнет»
+ */
+function supportEffect(kind, {
+  healDice = 0, perMagicPowerTargets = false, friendlyOnly = false, healthFactor = 1, untilCombatEnd = false,
+} = {}) {
+  return {
+    kind,
+    targeting: { mode: 'single', perMagicPowerTargets, extraTargets: 0, extraFactor: 1 },
+    dice: { count: healDice, flat: 0, perMagicPower: false, addMagicPower: healDice > 0 },
+    element: '',
+    modifiers: [],
+    friendlyOnly,
+    healthFactor,
+    untilCombatEnd,
+  };
+}
+
+/**
  * Puts group А1's three effects (base = basic, advanced, expert) onto a
  * spell entry's `base` / `advanced` / `expert`.
  * @param {object[]} effects
@@ -200,7 +227,13 @@ const EARTH = [
   { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
   { name: 'Антимагия', level: 3, icon: 34, base: { desc: 'Существо получает иммунитет к заклинаниям 1-3 уровня. Может быть снято Рассеиванием. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Иммунитет к заклинаниям 1-4 уровней' }, expert: { desc: 'Иммунитет к заклинаниям 1-5 уровня' } },
   { name: 'Силовое Поле', level: 3, icon: 12, base: { desc: 'Выберите 2 клетки, находящиеся рядом друг с другом. Они становятся непроходимыми даже для летающих существ. Длительность = СМ.', cost: 18 }, basicCost: 12, advanced: { desc: 'Три соседние клетки' }, expert: { desc: 'Четыре соседние клетки' } },
-  { name: 'Воскрешение', level: 4, icon: 38, base: { desc: 'Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.', cost: 20 }, basicCost: 16, advanced: { desc: 'Существо воскресает навсегда' }, expert: { desc: 'Существо Воскресает с полными ОЗ' } },
+  // Group В (p. 54): 50% of the maximum, until the end of the battle;
+  // Продвинутый — for good; Эксперт — full Health (rules.md §11).
+  { name: 'Воскрешение', level: 4, icon: 38, ...withEffects([
+    supportEffect('resurrect', { healthFactor: 0.5, untilCombatEnd: true }),
+    supportEffect('resurrect', { healthFactor: 0.5 }),
+    supportEffect('resurrect', { healthFactor: 1 }),
+  ], { base: { desc: 'Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.', cost: 20 }, basicCost: 16, advanced: { desc: 'Существо воскресает навсегда' }, expert: { desc: 'Существо Воскресает с полными ОЗ' } }) },
   { name: 'Метеоритный Дождь', level: 4, icon: 23, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 2d6 огненного урона за каждый ваш СМ.', cost: 40 }, basicCost: 35, advanced: { desc: 'Урон увеличивается до 2d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 2d6+2 за СМ' } },
   { name: 'Взрыв', level: 5, icon: 18, base: { desc: 'Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.', cost: 50, effect: damageEffect(2, 3, { perMagicPower: true }) }, basicCost: 40, advanced: { desc: 'Урон увеличивается до 2d6+4 за СМ', effect: damageEffect(2, 4, { perMagicPower: true }) }, expert: { desc: 'Урон увеличивается до 2d6+5 за СМ', effect: damageEffect(2, 5, { perMagicPower: true }) } },
 ];
@@ -234,8 +267,20 @@ const AIR = [
 // --- Магия Воды, стр. 57-58 — 10 заклинаний, три исключения по стоимости ---
 const WATER = [
   { name: 'Благословение', level: 1, icon: 41, base: { desc: 'Выберите существо, не являющееся нежитью. Его урон в ближнем и дальнем бою увеличивается на 4. Длительность = СМ.', cost: 5, effect: modifierEffect('damageDealt', 4, { excludeUndead: true }) }, basicCost: 4, advanced: { desc: 'Бонус урона увеличивается до +6', effect: modifierEffect('damageDealt', 6, { excludeUndead: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', 6, { excludeUndead: true, perMagicPowerTargets: true }) } },
-  { name: 'Лечение', level: 1, icon: 37, base: { desc: 'Снимает с существа все негативные заклинания, и лечит его на 1d6+СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Лечит 2d6+СМ' }, expert: { desc: 'Лечит 3d6+СМ и может воздействовать на количество существ, равное СМ' } },
-  { name: 'Развеивание Магии', level: 1, icon: 35, base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } },
+  // Group В (p. 57): heals NdS+СМ, takes the negative spells off
+  // (rules.md §11).
+  { name: 'Лечение', level: 1, icon: 37, ...withEffects([
+    supportEffect('heal', { healDice: 1 }),
+    supportEffect('heal', { healDice: 2 }),
+    supportEffect('heal', { healDice: 3, perMagicPowerTargets: true }),
+  ], { base: { desc: 'Снимает с существа все негативные заклинания, и лечит его на 1d6+СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Лечит 2d6+СМ' }, expert: { desc: 'Лечит 3d6+СМ и может воздействовать на количество существ, равное СМ' } }) },
+  // Group В (p. 57): «дружественного существа», Продвинутый — any;
+  // the Эксперт's «убрать видимый эффект» waits for the field spells.
+  { name: 'Развеивание Магии', level: 1, icon: 35, ...withEffects([
+    supportEffect('dispel', { friendlyOnly: true }),
+    supportEffect('dispel'),
+    supportEffect('dispel', { perMagicPowerTargets: true }),
+  ], { base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } }) },
   { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20, effect: damageEffect(2, 0, { plusMagicPower: true, element: 'ice' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true, element: 'ice' }) }, expert: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'ice' }) } },
   { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true }) }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, perMagicPowerTargets: true }) } },
   { name: 'Забывчивость', level: 3, icon: 61, base: { desc: 'Выбранное существо при стрельбе совершает на одну атаку меньше, чем обычно. Если оно может стрелять лишь единожды, оно не может стрелять вообще. Длительность = СМ.', cost: 20 }, basicCost: 18, advanced: { desc: 'Существо теряет все стрелковые атаки' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },

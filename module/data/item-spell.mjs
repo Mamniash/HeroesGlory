@@ -85,6 +85,12 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       // Полет (rules.md §11): out of combat the cast is a text card with
       // the Mana spent, not a refusal.
       textOutOfCombat: new fields.BooleanField({ initial: false }),
+      // Group В, `dispel`: «с выбранного дружественного существа» — only a
+      // target on the caster's side (Без Навыка, Базовый).
+      friendlyOnly: new fields.BooleanField({ initial: false }),
+      // Group В, `resurrect`: the share of maximum Health it gives back (50%
+      // or full); `untilCombatEnd` — «В конце битвы персонаж снова погибнет».
+      healthFactor: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0, max: 1 }),
     });
 
     const variant = () => new fields.SchemaField({

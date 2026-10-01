@@ -7,6 +7,8 @@ import {
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, MAX_LASTING_SPELLS, lastingSpellRounds,
   spellEffectModifiers, actorSpellModifiers, applySpellStatModifiers, spellHeroesOnly,
+  NEGATIVE_SPELLS, HEAL_STATUSES, DISPEL_STATUSES, cleansingRemovals, healAmount, isFriendlyTarget,
+  resurrectionBlockingTag, resolveSupportSpellResolution,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -224,7 +226,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       'Благословение', 'Воздушный Щит', 'Жажда Крови', 'Замедление', 'Каменная Кожа', 'Молитва', 'Неудача',
       'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 20);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 23);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -280,6 +282,34 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       });
     });
   }
+
+  // Group В, pp. 54, 57: [kind, heal d6, СМ targets, friendlyOnly, health share, until combat end] by tier.
+  const supportCases = [
+    ['Лечение', [['heal', 1, false, false, 1, false], ['heal', 1, false, false, 1, false], ['heal', 2, false, false, 1, false], ['heal', 3, true, false, 1, false]]],
+    ['Развеивание Магии', [['dispel', 0, false, true, 1, false], ['dispel', 0, false, true, 1, false], ['dispel', 0, false, false, 1, false], ['dispel', 0, true, false, 1, false]]],
+    ['Воскрешение', [['resurrect', 0, false, false, 0.5, true], ['resurrect', 0, false, false, 0.5, true], ['resurrect', 0, false, false, 0.5, false], ['resurrect', 0, false, false, 1, false]]],
+  ];
+  for (const [name, byTier] of supportCases) {
+    test(`${name}: by tier (group В)`, () => {
+      ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        const [kind, dice, perTargets, friendlyOnly, healthFactor, untilCombatEnd] = byTier[i];
+        assert.equal(effect.kind, kind);
+        assert.equal(effect.dice.count, dice);
+        assert.equal(effect.dice.addMagicPower, dice > 0);
+        assert.equal(effect.targeting.perMagicPowerTargets, perTargets);
+        assert.equal(effect.friendlyOnly, friendlyOnly);
+        assert.equal(effect.healthFactor, healthFactor);
+        assert.equal(effect.untilCombatEnd, untilCombatEnd);
+      });
+    });
+  }
+
+  test('NEGATIVE_SPELLS: every hostile spell automated so far, and Забывчивость, Слепота to come', () => {
+    const hostile = docs.filter((d) => d.system.variants.none.effect.hostile).map((d) => d.name);
+    assert.deepEqual(hostile.filter((n) => !NEGATIVE_SPELLS.includes(n)), []);
+    assert.deepEqual(NEGATIVE_SPELLS.filter((n) => !hostile.includes(n)).sort(), ['Забывчивость', 'Слепота']);
+  });
 
   test('rules.md §11 costs: Стена Огня 28/12, Огненный Шар 36/15, Удача 12/4', () => {
     const cost = (name, tier) => byName[name][tier].manaCost;
@@ -471,5 +501,82 @@ describe('spellHeroesOnly — Удача / Неудача not on creatures (rule
   test('others', () => {
     assert.equal(spellHeroesOnly({ modifiers: [{ stat: 'speed', value: 3 }] }), false);
     assert.equal(spellHeroesOnly({}), false);
+  });
+});
+
+describe('cleansingRemovals — what Лечение / Развеивание take off (rules.md §11)', () => {
+  const spellEffects = [{ id: '1', spellName: 'Замедление' }, { id: '2', spellName: 'Благословение' }, { id: '3', spellName: 'Проклятие' }];
+  const statuses = ['blind', 'disease', 'paralysis', 'prone'];
+  test('Лечение: negative spells, Паралич, Болезнь, «Проклятие»', () => {
+    assert.deepEqual(cleansingRemovals({ spellEffects, statuses, kind: 'heal' }),
+      { effectIds: ['1', '3'], spellNames: ['Замедление', 'Проклятие'], statuses: ['paralysis', 'disease'] });
+  });
+  test('Развеивание: every spell, Ослепление, Паралич, «Проклятие»', () => {
+    assert.deepEqual(cleansingRemovals({ spellEffects, statuses, kind: 'dispel' }),
+      { effectIds: ['1', '2', '3'], spellNames: ['Замедление', 'Благословение', 'Проклятие'], statuses: ['blind', 'paralysis'] });
+  });
+  test('status lists by the book (pp. 113–115)', () => {
+    assert.deepEqual(HEAL_STATUSES, ['paralysis', 'disease', 'curse']);
+    assert.deepEqual(DISPEL_STATUSES, ['blind', 'paralysis', 'curse']);
+  });
+});
+
+describe('healAmount — not above the maximum', () => {
+  test('full roll', () => assert.equal(healAmount({ total: 7, value: 10, max: 30 }), 7));
+  test('capped', () => assert.equal(healAmount({ total: 7, value: 27, max: 30 }), 3));
+  test('at the maximum or over it (artifacts) — nothing', () => {
+    assert.equal(healAmount({ total: 7, value: 30, max: 30 }), 0);
+    assert.equal(healAmount({ total: 7, value: 33, max: 30 }), 0);
+  });
+});
+
+describe('isFriendlyTarget — the side of the caster, by token disposition', () => {
+  test('same disposition', () => assert.equal(isFriendlyTarget(1, 1, 1), true));
+  test('other side, neutral', () => {
+    assert.equal(isFriendlyTarget(-1, 1, 1), false);
+    assert.equal(isFriendlyTarget(0, 1, 1), false);
+  });
+  test('no caster token: the friendly side', () => {
+    assert.equal(isFriendlyTarget(1, null, 1), true);
+    assert.equal(isFriendlyTarget(-1, undefined, 1), false);
+  });
+});
+
+describe('resurrectionBlockingTag — Нежить, Голем, Элементаль (pp. 114, 116)', () => {
+  test('the tag that stops it', () => {
+    assert.equal(resurrectionBlockingTag(['Летает', 'Нежить']), 'Нежить');
+    assert.equal(resurrectionBlockingTag(['Голем', 'Иммунитет к огню']), 'Голем');
+    assert.equal(resurrectionBlockingTag(['Элементаль', 'Стрелок']), 'Элементаль');
+  });
+  test('nothing in the way', () => {
+    assert.equal(resurrectionBlockingTag(['Летает', 'Иммунитет к Метеоритному дождю']), null);
+    assert.equal(resurrectionBlockingTag([]), null);
+  });
+});
+
+describe('resolveSupportSpellResolution — what the card shows and the confirm applies', () => {
+  test('Лечение: frozen Health, capped', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'heal', total: 8, targets: [{ healthValue: 25, healthMax: 30 }, { healthValue: 5, healthMax: 30 }] });
+    assert.deepEqual(r, [{ outcome: 'applied', health: 5 }, { outcome: 'applied', health: 8 }]);
+  });
+  test('immune to all spells — nothing, the useful ones too', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'heal', total: 8, targets: [{ immunity: 'all', healthValue: 1, healthMax: 30 }] });
+    assert.deepEqual(r, [{ outcome: 'immune' }]);
+  });
+  test('Развеивание on an enemy: resisted on the die', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'dispel', targets: [{ resistThreshold: 5, resistDie: 5 }, { resistThreshold: 5, resistDie: 2 }, {}] });
+    assert.deepEqual(r.map((x) => x.outcome), ['resisted', 'applied', 'applied']);
+  });
+  test('Воскрешение: 50% rounded down until the end of the battle, no Ранение', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'resurrect', healthFactor: 0.5, untilCombatEnd: true, targets: [{ healthMax: 35, isHero: true }] });
+    assert.deepEqual(r, [{ outcome: 'applied', health: 17, wound: false }]);
+  });
+  test('Воскрешение for good: a hero gets a Ранение (p. 32), a creature none', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'resurrect', healthFactor: 1, untilCombatEnd: false, targets: [{ healthMax: 30, isHero: true }, { healthMax: 40, isHero: false }] });
+    assert.deepEqual(r, [{ outcome: 'applied', health: 30, wound: true }, { outcome: 'applied', health: 40, wound: false }]);
+  });
+  test('the «Воскрешение» specialization: no Ранение (p. 23)', () => {
+    const r = resolveSupportSpellResolution({ effectKind: 'resurrect', healthFactor: 0.5, untilCombatEnd: false, noWound: true, targets: [{ healthMax: 30, isHero: true }] });
+    assert.deepEqual(r, [{ outcome: 'applied', health: 15, wound: false }]);
   });
 });

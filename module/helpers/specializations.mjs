@@ -176,3 +176,14 @@ export function chainLightningSpecialization(specialization, spellName) {
 export function hasteSpecializationBonus(specialization, spellName) {
   return specialization?.type === 'spell' && specialization?.key === 'Ускорение' && spellName === 'Ускорение' ? 3 : 0;
 }
+
+/**
+ * §4.3 p. 23, specialization «Воскрешение» on that spell: «Воскрешенный
+ * персонаж не получает ранение».
+ * @param {{type?: string, key?: string}|null} specialization
+ * @param {string} spellName
+ * @returns {boolean}
+ */
+export function resurrectionSpecialization(specialization, spellName) {
+  return specialization?.type === 'spell' && specialization?.key === 'Воскрешение' && spellName === 'Воскрешение';
+}

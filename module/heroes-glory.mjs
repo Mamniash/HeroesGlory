@@ -17,7 +17,7 @@ import { decorateInitiativeCard } from './helpers/initiative.mjs';
 import { HeroesGloryCombat, drawCombatantCoin, recordRolledSpeed } from './documents/combat.mjs';
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
-  stampEffectStartFromActorCombat,
+  stampEffectStartFromActorCombat, endTemporaryResurrections,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
@@ -196,6 +196,10 @@ Hooks.on('updateActiveEffect', expireSpellEffect);
 Hooks.on('deleteCombat', clearSpellEffectsAfterCombat);
 // An effect's duration counts in its actor's own combat, not the one on screen.
 Hooks.on('preCreateActiveEffect', stampEffectStartFromActorCombat);
+
+// §6.4, group В: Воскрешение without Продвинутый ends with the battle —
+// before the experience window reads who is down.
+Hooks.on('deleteCombat', endTemporaryResurrections);
 
 // §4.1: the GM's experience window for the battle that just ended.
 Hooks.on('deleteCombat', offerCombatExperience);

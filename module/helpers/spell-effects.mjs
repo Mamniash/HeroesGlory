@@ -363,3 +363,108 @@ export function applySpellStatModifiers(value, modifiers = []) {
 export function spellHeroesOnly(effect) {
   return (effect?.modifiers ?? []).some((m) => m.stat === 'luck');
 }
+
+/**
+ * Group В, Лечение (p. 57): «Снимает с существа все негативные заклинания»
+ * — these (rules.md §11), whoever cast them; the same as the hostile ones
+ * (test/spell-effects.test.mjs keeps the two in step).
+ * @type {string[]}
+ */
+export const NEGATIVE_SPELLS = ['Разрушительный Луч', 'Замедление', 'Слабость', 'Проклятие', 'Неудача', 'Забывчивость', 'Слепота'];
+
+/**
+ * Core statuses the GM sets for creature abilities that a spell lifts
+ * (pp. 113–115, rules.md §11): Лечение — Паралич, Болезнь, the «Проклятие»
+ * ability; Развеивание Магии («Снятие заклинаний», «Рассеивание») —
+ * Ослепление, Паралич, «Проклятие». Окаменение has no status.
+ */
+export const HEAL_STATUSES = ['paralysis', 'disease', 'curse'];
+export const DISPEL_STATUSES = ['blind', 'paralysis', 'curse'];
+
+/**
+ * What a cleansing spell takes off a target: its spell effects (Лечение —
+ * the negative ones only, Развеивание — all) and the listed core statuses
+ * it carries.
+ * @param {object} args
+ * @param {Array<{id: string, spellName: string}>} args.spellEffects   the target's spell effects
+ * @param {Iterable<string>} args.statuses                            the target's statuses
+ * @param {'heal'|'dispel'} args.kind
+ * @returns {{effectIds: string[], spellNames: string[], statuses: string[]}}
+ */
+export function cleansingRemovals({ spellEffects = [], statuses = [], kind }) {
+  const effects = kind === 'heal' ? spellEffects.filter((e) => NEGATIVE_SPELLS.includes(e.spellName)) : spellEffects;
+  const list = kind === 'heal' ? HEAL_STATUSES : DISPEL_STATUSES;
+  const has = new Set(statuses);
+  return {
+    effectIds: effects.map((e) => e.id),
+    spellNames: [...new Set(effects.map((e) => e.spellName))],
+    statuses: list.filter((s) => has.has(s)),
+  };
+}
+
+/**
+ * Лечение: «лечит его на 1d6+СМ» — not above the maximum (rules.md §11).
+ * @param {object} args
+ * @param {number} args.total   the cast's one roll (rules.md §11: one for all targets)
+ * @param {number} args.value   Health now
+ * @param {number} args.max
+ * @returns {number}   Health gained
+ */
+export function healAmount({ total, value, max }) {
+  return Math.max(0, Math.min(total, max - value));
+}
+
+/**
+ * Развеивание Магии's «дружественного существа»: a target on the caster's
+ * side — the same token disposition; without a caster token on the scene,
+ * the friendly side (rules.md §11).
+ * @param {number} targetDisposition
+ * @param {number|null|undefined} casterDisposition
+ * @param {number} friendly   CONST.TOKEN_DISPOSITIONS.FRIENDLY
+ * @returns {boolean}
+ */
+export function isFriendlyTarget(targetDisposition, casterDisposition, friendly) {
+  return targetDisposition === (casterDisposition ?? friendly);
+}
+
+/**
+ * Воскрешение doesn't work on «Нежить», «Голем», «Элементаль» (pp. 114,
+ * 116) — the creature's tag that stops it, or `null`.
+ * @param {string[]} tags   creature `system.specialSkills`
+ * @returns {string|null}
+ */
+export function resurrectionBlockingTag(tags = []) {
+  return tags.find((raw) => /^(нежить|голем|элементаль)(\s|,|\.|$)/.test(normalize(raw))) ?? null;
+}
+
+/**
+ * What a cleansing / healing / resurrecting card applies, target by
+ * target — the one source the card and the GM's confirm read. Immune
+ * («ко всем заклинаниям») or resisted (Развеивание on a target not on the
+ * caster's side): nothing.
+ * Лечение — Health (healAmount, frozen at the cast) and the removals;
+ * Развеивание — the removals; Воскрешение — Health ⌊max × share⌋, and a
+ * Ранение when it lasts beyond the battle (p. 32) unless the caster has
+ * that specialization (p. 23).
+ * @param {object} flags   the card's flags
+ * @returns {Array<{outcome: 'immune'|'resisted'|'applied', health?: number, wound?: boolean}>}
+ */
+export function resolveSupportSpellResolution(flags) {
+  return (flags.targets ?? []).map((target) => {
+    if (target.immunity) return { outcome: 'immune' };
+    if (target.resistThreshold != null && target.resistDie != null && target.resistDie >= target.resistThreshold) {
+      return { outcome: 'resisted' };
+    }
+    if (flags.effectKind === 'heal') {
+      return { outcome: 'applied', health: healAmount({ total: flags.total, value: target.healthValue, max: target.healthMax }) };
+    }
+    if (flags.effectKind === 'resurrect') {
+      return {
+        outcome: 'applied',
+        health: Math.floor(target.healthMax * (flags.healthFactor ?? 1)),
+        wound: target.isHero && !flags.untilCombatEnd && !flags.noWound,
+      };
+    }
+    return { outcome: 'applied' };
+  });
+}

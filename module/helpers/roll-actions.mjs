@@ -50,16 +50,18 @@ import {
 import { buildEffectChanges } from './modifiers.mjs';
 import {
   hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization, hasteSpecializationBonus,
+  resurrectionSpecialization,
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
-import { actorCombat } from './combat.mjs';
+import { actorCombat, RESURRECTED_FLAG } from './combat.mjs';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
   creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
+  cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -960,6 +962,9 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     if (effect?.kind === 'modifier' && !(effect.textOutOfCombat && !casterCombatStart(actor))) {
       return castModifierSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
+    if (['heal', 'dispel', 'resurrect'].includes(effect?.kind)) {
+      return castSupportSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
   }
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -1262,6 +1267,7 @@ function buildSpellCardContext(flags) {
     manaRemaining: flags.manaRemaining,
   };
   if (flags.effectKind === 'modifier') return buildModifierSpellCardContext(flags, context);
+  if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return buildSupportSpellCardContext(flags, context);
   if (flags.total === undefined) return context;
 
   const results = resolveSpellResolution(flags);
@@ -1341,6 +1347,7 @@ export async function confirmSpellOutcome(message) {
   const flags = message.getFlag(FLAG_SCOPE, 'spell');
   if (!canConfirmSpell(flags)) return;
   if (flags.effectKind === 'modifier') return confirmModifierSpell(message, flags);
+  if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return confirmSupportSpell(message, flags);
   const results = resolveSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     const result = results[index];
@@ -1354,6 +1361,309 @@ export async function confirmSpellOutcome(message) {
       await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     } else if (result.damage) {
       await targetActor.update({ 'system.health.value': targetActor.system.health.value - result.damage });
+    }
+  }
+  const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/**
+ * §6.4, group В: an actor's spell effects (Лечение / Развеивание Магии
+ * take them off), one entry each.
+ * @param {Actor} actor
+ * @returns {Array<{id: string, spellName: string}>}
+ */
+function actorSpellEffectList(actor) {
+  return actor.effects
+    .filter((effect) => effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG))
+    .map((effect) => ({ id: effect.id, spellName: effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG).spellName }));
+}
+
+/**
+ * Group В: a support spell's chosen targets, checked before any Mana is
+ * spent — at least one (rules.md §11), no more than the variant takes (one,
+ * at Эксперт Сила Магии), within 24 cells (p. 32).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} effect
+ * @returns {{selected: TokenDocument[], rangeUnknown: boolean}|null}
+ */
+function supportSpellTargets(actor, spell, effect) {
+  const limit = modifierTargetLimit(effect, actor.system.magicPower);
+  const selected = [...game.user.targets].map((token) => token.document).filter((doc) => doc.actor);
+  if (!selected.length) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
+    return null;
+  }
+  if (selected.length > limit) {
+    ui.notifications.warn(limit === 1
+      ? game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name })
+      : game.i18n.format('HEROES_GLORY.Roll.SpellTooManyTargets', { spell: spell.name, count: limit }));
+    return null;
+  }
+  let rangeUnknown = false;
+  for (const doc of selected) {
+    const cells = tokenDistanceCells(attackerTokenFor(actor, doc), doc);
+    if (cells === null) {
+      rangeUnknown = true;
+    } else if (cells > SPELL_RANGE_CELLS) {
+      ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
+        spell: spell.name, target: doc.actor.name, cells, range: SPELL_RANGE_CELLS,
+      }));
+      return null;
+    }
+  }
+  return { selected, rangeUnknown };
+}
+
+/**
+ * §6.4, group В: Лечение, Развеивание Магии, Воскрешение (pp. 54, 57). Refused
+ * before any Mana is spent (rules.md §11): Лечение on a target that is
+ * incapacitated or dead — only Воскрешение helps; Развеивание without
+ * Продвинутый on a target not on the caster's side; Воскрешение outside
+ * combat, on a target that isn't down in the caster's battle, or on Нежить,
+ * Голем, Элементаль (pp. 114, 116). Лечение and Развеивание work out of combat
+ * too. One heal roll for every target; Развеивание on a target not on the
+ * caster's side is hostile — its resistance is rolled now. Nothing reaches
+ * the targets until the GM confirms (confirmSupportSpell).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castSupportSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
+  const kind = effect.kind;
+  const i18n = game.i18n;
+  const castStart = kind === 'resurrect' ? casterCombatStart(actor) : null;
+  if (kind === 'resurrect' && !castStart) {
+    ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
+    return null;
+  }
+  const picked = supportSpellTargets(actor, spell, effect);
+  if (!picked) return null;
+  const { selected, rangeUnknown } = picked;
+  const friendlyOf = (doc) => isFriendlyTarget(doc.disposition, attackerTokenFor(actor, doc)?.disposition,
+    CONST.TOKEN_DISPOSITIONS.FRIENDLY);
+
+  for (const doc of selected) {
+    const target = doc.actor;
+    if (kind === 'heal' && isDownForSpell(target)) {
+      ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellHealDown', { spell: spell.name, target: target.name }));
+      return null;
+    }
+    if (kind === 'dispel' && effect.friendlyOnly && !friendlyOf(doc)) {
+      ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellDispelNotFriendly', { spell: spell.name, target: target.name }));
+      return null;
+    }
+    if (kind === 'resurrect') {
+      const inBattle = game.combats.get(castStart.combat)?.combatants.some((c) => c.tokenId === doc.id) ?? false;
+      if (!inBattle || !isDownForSpell(target)) {
+        ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellResurrectNotDown', { spell: spell.name, target: target.name }));
+        return null;
+      }
+      const tag = target.type === 'creature' ? resurrectionBlockingTag(target.system.specialSkills ?? []) : null;
+      if (tag) {
+        ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellResurrectBlocked', { spell: spell.name, target: target.name, tag }));
+        return null;
+      }
+    }
+  }
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+
+  // Лечение: one roll for the cast, every target the same (rules.md §11).
+  const rolls = [];
+  let formula = null;
+  let total = null;
+  if (kind === 'heal') {
+    formula = spellFormula(spellDamageDice(effect.dice, actor.system.magicPower));
+    const roll = new Roll(formula);
+    await roll.evaluate();
+    rolls.push(roll);
+    total = roll.total;
+  }
+
+  const targets = [];
+  for (const doc of selected) {
+    const target = doc.actor;
+    const hostile = kind === 'dispel' && !friendlyOf(doc);
+    const { entry, roll } = await spellTargetEntry(doc, spell, effect, 1, { resist: hostile, skipIncapacitated: false });
+    if (roll) rolls.push(roll);
+    if (kind === 'heal' || kind === 'dispel') {
+      const removals = cleansingRemovals({ spellEffects: actorSpellEffectList(target), statuses: target.statuses, kind });
+      Object.assign(entry, {
+        removeEffectIds: removals.effectIds, removeSpellNames: removals.spellNames, removeStatuses: removals.statuses,
+      });
+    }
+    if (kind === 'heal' || kind === 'resurrect') {
+      Object.assign(entry, { healthValue: target.system.health.value, healthMax: target.system.health.max });
+    }
+    if (kind === 'resurrect') {
+      Object.assign(entry, { isHero: target.type === 'hero', dead: target.statuses.has(CONFIG.specialStatusEffects.DEFEATED) });
+    }
+    targets.push(entry);
+  }
+
+  const flags = {
+    kind: 'spell',
+    effectKind: kind,
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    formula,
+    total,
+    healthFactor: effect.healthFactor ?? 1,
+    untilCombatEnd: kind === 'resurrect' && !!effect.untilCombatEnd,
+    noWound: resurrectionSpecialization(actor.system.specialization, spell.name),
+    combatId: castStart?.combat ?? null,
+    rangeUnknown,
+    targets,
+    confirmed: false,
+  };
+
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, rolls);
+}
+
+/** Chat labels for the core statuses Лечение / Развеивание lift (pp. 113–115). */
+const CLEANSED_STATUS_LABELS = {
+  blind: 'HEROES_GLORY.Roll.CleansedStatus.blind',
+  paralysis: 'HEROES_GLORY.Roll.CleansedStatus.paralysis',
+  disease: 'HEROES_GLORY.Roll.CleansedStatus.disease',
+  curse: 'HEROES_GLORY.Roll.CleansedStatus.curse',
+};
+
+/**
+ * A support spell card's target lines — from resolveSupportSpellResolution,
+ * the same function the GM's confirm applies.
+ * @param {object} flags
+ * @param {object} context   the plain cast's context
+ * @returns {object}
+ */
+function buildSupportSpellCardContext(flags, context) {
+  const i18n = game.i18n;
+  const results = resolveSupportSpellResolution(flags);
+  const done = !!flags.confirmed;
+  context.targetSpell = true;
+  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellSupportConfirmHint';
+  context.noTarget = !flags.targets.length;
+  context.rangeUnknown = flags.rangeUnknown;
+  context.canConfirm = canConfirmSpell(flags);
+  context.confirmed = done;
+  const removalText = (target) => {
+    const names = [
+      ...(target.removeSpellNames ?? []),
+      ...(target.removeStatuses ?? []).map((status) => i18n.localize(CLEANSED_STATUS_LABELS[status] ?? status)),
+    ];
+    if (!names.length) return null;
+    return i18n.format(done ? 'HEROES_GLORY.Roll.SpellRemovedApplied' : 'HEROES_GLORY.Roll.SpellRemovedPending', { list: names.join(', ') });
+  };
+  context.targetLines = flags.targets.map((target, index) => {
+    const result = results[index];
+    let text;
+    if (result.outcome === 'immune') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellModifierImmune', {
+        target: target.name,
+        reason: i18n.format(SPELL_IMMUNITY_LABELS[target.immunity], { element: '' }),
+      });
+    } else if (result.outcome === 'resisted') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellModifierResisted', { target: target.name });
+    } else if (flags.effectKind === 'heal') {
+      const parts = [i18n.format(done ? 'HEROES_GLORY.Roll.SpellHealApplied' : 'HEROES_GLORY.Roll.SpellHealPending', { target: target.name, heal: result.health })];
+      const removal = removalText(target);
+      if (removal) parts.push(removal);
+      text = parts.join('; ');
+    } else if (flags.effectKind === 'dispel') {
+      text = `«${target.name}»: ${removalText(target) ?? i18n.localize('HEROES_GLORY.Roll.SpellDispelNothing')}`;
+    } else {
+      const notes = [];
+      if (flags.untilCombatEnd) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellResurrectUntilEnd'));
+      if (result.wound) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellResurrectWound'));
+      else if (target.isHero && !flags.untilCombatEnd && flags.noWound) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellResurrectNoWound'));
+      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellResurrectApplied' : 'HEROES_GLORY.Roll.SpellResurrectPending', {
+        target: target.name, health: result.health,
+      });
+      if (notes.length) text += `; ${notes.join('; ')}`;
+    }
+    if (target.resistDie != null) {
+      text += ` (${i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
+        source: i18n.localize(SPELL_RESIST_LABELS[target.resistSource]),
+        die: target.resistDie,
+        need: target.resistThreshold,
+      })})`;
+    }
+    return text;
+  });
+  if (flags.effectKind === 'heal') {
+    context.damageSpell = true;
+    context.breakdown = [i18n.format('HEROES_GLORY.Roll.SpellRollLine', { spell: flags.spellName, formula: flags.formula, total: flags.total })];
+    context.totalLine = i18n.format('HEROES_GLORY.Roll.SpellHealTotalLine', { total: flags.total });
+  }
+  return context;
+}
+
+/**
+ * §6.4, group В: the GM's confirm on a support spell card — applies exactly
+ * what resolveSupportSpellResolution says. Лечение: Health up to the maximum,
+ * then the negative spells and the listed statuses come off; Развеивание: the
+ * spells and statuses; Воскрешение: «повержен», «недееспособен» and «без
+ * сознания» off («упал» stays, rules.md §11), Health set, a Ранение for a
+ * lasting one (p. 32), and without Продвинутый a mark that the end of this
+ * battle takes him back down (endTemporaryResurrections). A Воскрешение
+ * without Продвинутый whose battle is over isn't applied.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmSupportSpell(message, flags) {
+  if (flags.untilCombatEnd && !game.combats.get(flags.combatId)) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
+    return;
+  }
+  const results = resolveSupportSpellResolution(flags);
+  for (const [index, target] of flags.targets.entries()) {
+    if (results[index].outcome !== 'applied') continue;
+    const targetActor = actorFromCard(target.tokenUuid, target.actorId);
+    if (!targetActor) {
+      ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: target.name }));
+      continue;
+    }
+    if (flags.effectKind === 'heal' && results[index].health) {
+      const health = targetActor.system.health;
+      await targetActor.update({ 'system.health.value': Math.min(health.max, health.value + results[index].health) });
+    }
+    if (flags.effectKind === 'heal' || flags.effectKind === 'dispel') {
+      const ids = (target.removeEffectIds ?? []).filter((id) => targetActor.effects.has(id));
+      if (ids.length) await targetActor.deleteEmbeddedDocuments('ActiveEffect', ids);
+      for (const status of target.removeStatuses ?? []) {
+        if (targetActor.statuses.has(status)) await targetActor.toggleStatusEffect(status, { active: false });
+      }
+    }
+    if (flags.effectKind === 'resurrect') {
+      const { incapacitated, unconscious } = CONFIG.HEROES_GLORY.statusEffects;
+      for (const status of [CONFIG.specialStatusEffects.DEFEATED, incapacitated, unconscious]) {
+        if (targetActor.statuses.has(status)) await targetActor.toggleStatusEffect(status, { active: false });
+      }
+      const update = { 'system.health.value': results[index].health };
+      if (results[index].wound) update['system.wounds'] = targetActor.system.wounds + 1;
+      await targetActor.update(update);
+      if (flags.untilCombatEnd) {
+        await targetActor.setFlag(FLAG_SCOPE, RESURRECTED_FLAG, { combatId: flags.combatId, dead: !!target.dead });
+      }
     }
   }
   const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };

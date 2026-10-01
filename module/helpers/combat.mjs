@@ -58,6 +58,37 @@ export function expireDefending(effect, changes) {
   effect.delete();
 }
 
+/**
+ * Actor flag: raised by Воскрешение without Продвинутый (roll-actions.mjs's
+ * confirmSupportSpell) — `{combatId, dead}`, the battle whose end takes it
+ * back down.
+ */
+export const RESURRECTED_FLAG = 'resurrected';
+
+/**
+ * §6.4, group В (p. 54, rules.md §11): «В конце битвы персонаж снова
+ * погибнет» — a dead one raised by Воскрешение without Продвинутый is
+ * «повержен» again, an incapacitated one «недееспособен» again (Health 0),
+ * and the post-battle check takes it from there. Active GM only.
+ * @param {Combat} combat
+ */
+export async function endTemporaryResurrections(combat) {
+  if (game.users.activeGM !== game.user) return;
+  const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
+  for (const actor of actors) {
+    const mark = actor.getFlag('heroes-glory', RESURRECTED_FLAG);
+    if (!mark || mark.combatId !== combat.id) continue;
+    await actor.unsetFlag('heroes-glory', RESURRECTED_FLAG);
+    if (mark.dead) {
+      // Dead again: no «недееспособен» on the way (documents/actor.mjs).
+      await actor.update({ 'system.health.value': 0 }, { 'heroes-glory': { keepStatuses: true } });
+      await actor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+    } else {
+      await actor.update({ 'system.health.value': 0 });
+    }
+  }
+}
+
 /** Flag on an ActiveEffect a stage-2 spell put on its target (roll-actions.mjs). */
 const SPELL_EFFECT_FLAG = 'spellEffect';
 
