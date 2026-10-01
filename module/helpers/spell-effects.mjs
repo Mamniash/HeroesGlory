@@ -97,9 +97,15 @@ const normalize = (text) => String(text ?? '').toLowerCase().replace(/ё/g, 'е'
  * @returns {{immuneAll: boolean, elements: string[], spellNames: string[], resistThreshold: number|null}}
  */
 export function creatureSpellProfile(tags = []) {
-  const profile = { immuneAll: false, elements: [], spellNames: [], resistThreshold: null };
+  const profile = { immuneAll: false, elements: [], spellNames: [], resistThreshold: null, mindImmune: false };
   for (const raw of tags) {
     const tag = normalize(raw);
+    // pp. 114, 116: Нежить, Голем, Элементаль and «Иммунитет к магии Разума»
+    // shrug off mind effects; Троглодиты — «Иммунитет к Ослеплению».
+    if (/^(нежить|голем|элементаль)(\s|,|\.|$)/.test(tag) || tag.startsWith('иммунитет к магии разума')
+      || tag.startsWith('иммунитет к ослеплению')) {
+      profile.mindImmune = true;
+    }
     if (tag.startsWith('невосприимчивость к магии') || tag.startsWith('иммунитет к заклинаниям')) {
       profile.immuneAll = true;
       continue;
@@ -139,12 +145,13 @@ export function heroSpellResistanceThreshold({ interferenceTier = null, gnome = 
 /**
  * Why a target is immune to this spell, or null.
  * @param {{immuneAll: boolean, elements: string[], spellNames: string[]}} profile
- * @param {{element: string, spellName: string}} spell
- * @returns {'all'|'element'|'spell'|null}
+ * @param {{element: string, spellName: string, mind?: boolean}} spell   `mind` — a mind effect (Слепота)
+ * @returns {'all'|'mind'|'element'|'spell'|null}
  */
-export function spellImmunity(profile, { element = '', spellName = '' }) {
+export function spellImmunity(profile, { element = '', spellName = '', mind = false }) {
   if (!profile) return null;
   if (profile.immuneAll) return 'all';
+  if (mind && profile.mindImmune) return 'mind';
   if (element && profile.elements.includes(element)) return 'element';
   if (profile.spellNames.includes(normalize(spellName))) return 'spell';
   return null;
@@ -248,7 +255,8 @@ export function modifierTargetLimit(effect, magicPower) {
  * incapacitated target just gets it (rules.md §11: a modifier isn't an
  * attack).
  * @param {{targets: object[]}} flags
- * @returns {Array<{outcome: 'immune'|'resisted'|'applied'}>}
+ * Слепота's d6 short of its threshold: nothing.
+ * @returns {Array<{outcome: 'immune'|'resisted'|'failed'|'applied'}>}
  */
 export function resolveModifierSpellResolution(flags) {
   return (flags.targets ?? []).map((target) => {
@@ -256,6 +264,8 @@ export function resolveModifierSpellResolution(flags) {
     if (target.resistThreshold != null && target.resistDie != null && target.resistDie >= target.resistThreshold) {
       return { outcome: 'resisted' };
     }
+    // Слепота: «Бросьте 1d6. Если выпало 4 и больше…» (p. 59).
+    if (flags.triggerThreshold && (target.triggerDie ?? 0) < flags.triggerThreshold) return { outcome: 'failed' };
     return { outcome: 'applied' };
   });
 }
@@ -467,4 +477,53 @@ export function resolveSupportSpellResolution(flags) {
     }
     return { outcome: 'applied' };
   });
+}
+
+/**
+ * Антимагия (p. 54): «иммунитет к заклинаниям 1-3 уровня» (1–4, 1–5). It
+ * stops every spell of those levels, useful ones and the bearer's own side's
+ * too, except Развеивание Магии — «Может быть снято Рассеиванием» — and a
+ * recast of Антимагия itself, which refreshes it (rules.md §11).
+ * @param {object} args
+ * @param {Array<{stat: string, value: number}>} args.modifiers   the target's spell modifiers
+ * @param {number} args.spellLevel
+ * @param {string} args.spellName
+ * @returns {boolean}
+ */
+export function antimagicBlocks({ modifiers = [], spellLevel, spellName }) {
+  if (ANTIMAGIC_EXEMPT.includes(spellName)) return false;
+  const level = modifiers.filter((m) => m.stat === 'spellImmunityLevel').reduce((max, m) => Math.max(max, m.value), 0);
+  return level >= spellLevel;
+}
+
+/** Spells Антимагия lets through (rules.md §11). */
+const ANTIMAGIC_EXEMPT = ['Развеивание Магии', 'Антимагия'];
+
+/**
+ * Забывчивость (p. 58): «на одну атаку меньше» when shooting; Продвинутый —
+ * «теряет все стрелковые атаки». A ranged series after it; 0 — can't shoot.
+ * @param {number} total   the ranged series without it
+ * @param {Array<{stat: string, value: number}>} modifiers   the attacker's spell modifiers
+ * @returns {number}
+ */
+export function rangedSeriesAfterSpells(total, modifiers = []) {
+  if (modifiers.some((m) => m.stat === 'noRangedAttacks')) return 0;
+  const change = modifiers.filter((m) => m.stat === 'rangedAttacks').reduce((sum, m) => sum + m.value, 0);
+  return Math.max(0, total + change);
+}
+
+/**
+ * Огненный Щит (p. 60): «Любое существо, атакующее цель, получает урон
+ * огнем» — every attack, a miss too (rules.md §11). Fire immunity takes it
+ * to 0; a worn armor of level 4–5 halves it, as spell damage; no state
+ * multipliers, no resistance.
+ * @param {object} args
+ * @param {number} args.value            the caster's СМ at the cast (+3 / +6)
+ * @param {boolean} args.immune          the attacker's «Иммунитет к огню»
+ * @param {number} args.armorMultiplier  resolveArmorItemMultiplier of the attacker's armor
+ * @returns {number}
+ */
+export function resolveFireShieldDamage({ value, immune = false, armorMultiplier = 1 }) {
+  if (immune) return 0;
+  return Math.floor(value * armorMultiplier);
 }

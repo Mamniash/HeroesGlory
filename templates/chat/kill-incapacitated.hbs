@@ -3,4 +3,8 @@
     {{localize 'HEROES_GLORY.Roll.KillTitle' attacker=attackerName target=targetName}}
   </h3>
   <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.KillResult' target=targetName}}</p>
+  {{!-- §6.4: Огненный Щит on the target burns this attack too. --}}
+  {{#if fireShieldLine}}
+    <p class="heroes-glory-chat-card__line">{{fireShieldLine}}</p>
+  {{/if}}
 </div>

@@ -34,11 +34,15 @@ import {
   moraleCheckVariant,
   MORALE_CHECK_THRESHOLD,
   resolveTargetStateMultiplier,
+  resolveArmorItemMultiplier,
   resolveAttackResolution,
   canConfirmAttack,
   resolveAttackHeadlineOutcome,
   resolveAttackMessageMode,
   ownersAndGmRecipients,
+  counterAttackTagLimit,
+  countersThisRound,
+  counterAttackOffer,
   resolvePostBattleCheck,
   POST_BATTLE_RECOVERY_HEALTH,
   POST_BATTLE_RECOVERY_MANA,
@@ -62,6 +66,7 @@ import {
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -212,15 +217,68 @@ async function killIncapacitatedTarget(actor, targetActor) {
   });
   if (!confirmed) return null;
 
+  // Огненный Щит burns this attack too (rules.md §11) — read before the
+  // kill, applied right away, a line under the kill.
+  const fireShield = fireShieldOnAttack(actor, targetActor);
+
   await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
   await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
+  if (fireShield?.damage) await actor.update({ 'system.health.value': actor.system.health.value - fireShield.damage });
 
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/kill-incapacitated.hbs',
-    { attackerName: actor.name, targetName: targetActor.name },
+    {
+      attackerName: actor.name,
+      targetName: targetActor.name,
+      fireShieldLine: fireShield ? fireShieldText(fireShield, actor.name, true) : null,
+    },
   );
 
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+}
+
+/**
+ * Огненный Щит on the target of an attack (p. 60, rules.md §11): the
+ * attacker's fire damage — the caster's СМ at the cast (+3 / +6), 0 for a
+ * creature immune to fire, halved by a worn armor of level 4–5. `null` —
+ * the target has none.
+ * @param {Actor} attacker
+ * @param {Actor|null} target
+ * @returns {{spellName: string, value: number, damage: number, immune: boolean, armorHalved: boolean}|null}
+ */
+function fireShieldOnAttack(attacker, target) {
+  const shields = spellModifierEffects(target).filter((m) => m.stat === 'fireShield');
+  if (!shields.length) return null;
+  const shield = shields.reduce((best, m) => (m.value > best.value ? m : best));
+  const immune = attacker.type === 'creature'
+    && creatureSpellProfile(attacker.system.specialSkills ?? []).elements.includes('fire');
+  const armor = attacker.items
+    .filter((i) => i.type === 'artifact' && i.system.artifactType === 'enchantedArmor' && i.system.equipped && i.system.level != null)
+    .map((i) => ({ name: i.name, level: i.system.level }));
+  const armorMultiplier = resolveArmorItemMultiplier(armor);
+  return {
+    spellName: shield.spellName,
+    value: shield.value,
+    damage: resolveFireShieldDamage({ value: shield.value, immune, armorMultiplier }),
+    immune,
+    armorHalved: !immune && armorMultiplier < 1,
+  };
+}
+
+/**
+ * «Огненный Щит: «Гоблин» получит 5 огнём».
+ * @param {{damage: number, immune: boolean, armorHalved: boolean}} fireShield
+ * @param {string} attackerName
+ * @param {boolean} applied
+ * @returns {string}
+ */
+function fireShieldText(fireShield, attackerName, applied) {
+  const i18n = game.i18n;
+  if (fireShield.immune) return i18n.format('HEROES_GLORY.Roll.FireShieldImmune', { attacker: attackerName });
+  const text = i18n.format(applied ? 'HEROES_GLORY.Roll.FireShieldApplied' : 'HEROES_GLORY.Roll.FireShieldPending', {
+    attacker: attackerName, damage: fireShield.damage,
+  });
+  return fireShield.armorHalved ? `${text} (${i18n.localize('HEROES_GLORY.Roll.SpellArmorHalf')})` : text;
 }
 
 /** Chat-card labels for the hit modifiers of resolveHitModifiers (rolls.mjs). */
@@ -294,7 +352,8 @@ function buildAttackContext(actor, flags) {
   // §6.4, stage 2: the spell effects on this card, one line each, and the
   // Урон they changed before the multiplier.
   const spellModifierLines = [
-    ...[...(flags.attackModifiers ?? []), ...(flags.defenseModifiers ?? [])].map((modifier) => spellStatText(modifier)),
+    ...[...(flags.attackModifiers ?? []), ...(flags.defenseModifiers ?? []), ...(flags.seriesModifiers ?? [])]
+      .map((modifier) => spellStatText(modifier)),
     ...[...(flags.damageDealtModifiers ?? []), ...(flags.damageTakenModifiers ?? [])].map((modifier) => spellModifierText(modifier)),
   ];
   const baseDamageLine = baseDamage !== flags.baseDamage
@@ -376,8 +435,91 @@ function buildAttackContext(actor, flags) {
         index: flags.seriesIndex,
         total: flags.seriesTotal,
         targetOut: confirmed && isTargetOut(actorFromCard(flags.targetTokenUuid, flags.targetActorId)),
+        attackerOut: confirmed && isTargetOut(actor),
       }),
+    fireShieldLine: flags.fireShield ? fireShieldText(flags.fireShield, actor?.name ?? '', confirmed) : null,
+    counter: !!flags.counter,
   };
+}
+
+/** Actor flag: counterattacks used — `{combatId, round, used, answered}`. */
+const COUNTERS_FLAG = 'counters';
+
+/**
+ * Ответный Удар / «Ответная атака» on an attack card, read live (rules.md
+ * §11): who would answer, with what, and whether it may now.
+ * @param {ChatMessage} message
+ * @returns {{show: boolean, left: number, defender: Actor|null, defenderToken: TokenDocument|null, attacker: Actor|null, combat: Combat|null}}
+ */
+export function counterAttackState(message) {
+  const none = { show: false, left: 0, defender: null, defenderToken: null, attacker: null, combat: null };
+  const flags = message.getFlag(FLAG_SCOPE, 'reroll');
+  if (!flags || flags.kind !== 'attack' || flags.isRanged === undefined) return none;
+  const defenderToken = flags.targetTokenUuid ? fromUuidSync(flags.targetTokenUuid) : null;
+  const defender = defenderToken?.actor ?? null;
+  const attacker = actorFromCard(flags.actorUuid, flags.actorId);
+  if (!defender || !attacker) return none;
+  const found = actorCombat(defender);
+  const combat = found?.combat ?? null;
+  const counters = combat ? countersThisRound(defender.getFlag(FLAG_SCOPE, COUNTERS_FLAG), combat.id, combat.round) : null;
+  const spellLimit = spellModifierEffects(defender).filter((m) => m.stat === 'counterAttacks')
+    .reduce((max, m) => Math.max(max, m.value), 0);
+  const tagLimit = defender.type === 'creature' ? counterAttackTagLimit(defender.system.specialSkills ?? []) : 0;
+  const offer = counterAttackOffer({
+    confirmed: !!flags.confirmed,
+    ranged: !!flags.isRanged,
+    counter: !!flags.counter,
+    defenderOut: isTargetOut(defender),
+    attackerOut: isTargetOut(attacker),
+    inCombat: !!combat,
+    tagLimit,
+    spellLimit,
+    used: counters?.used ?? 0,
+    answered: counters?.answered.includes(message.id) ?? false,
+  });
+  // A hero answers with a worn melee weapon (rules.md §11).
+  const show = offer.show && (defender.type !== 'hero' || !!heroMeleeWeapon(defender));
+  return { show, left: offer.left, defender, defenderToken, attacker, combat };
+}
+
+/**
+ * A hero's worn melee weapon — an equipped weapon or enchanted weapon whose
+ * type isn't «Стрелковое».
+ * @param {Actor} actor
+ * @returns {Item|null}
+ */
+function heroMeleeWeapon(actor) {
+  return actor.items.find((i) => i.system?.equipped && i.system.weaponType !== 'ranged'
+    && (i.type === 'weapon' || (i.type === 'artifact' && i.system.artifactType === 'enchantedWeapon'))) ?? null;
+}
+
+/**
+ * Ответный Удар / «Ответная атака»: the defender of a confirmed melee attack
+ * answers with one attack on the attacker (rules.md §11) — its owners or
+ * the GM. The counter is counted on the defender (this round, this card)
+ * before it is rolled; the counter's own card offers no counter.
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage|null>}
+ */
+export async function rollCounterAttack(message) {
+  const state = counterAttackState(message);
+  if (!state.show) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.CounterAttackGone'));
+    ui.chat?.updateMessage?.(message);
+    return null;
+  }
+  const { defender, defenderToken, attacker, combat } = state;
+  if (!(defender.isOwner || game.user.isGM)) return null;
+  const attackerToken = attackerTokenFor(attacker, defenderToken);
+  if (!attackerToken) return null;
+  const counters = countersThisRound(defender.getFlag(FLAG_SCOPE, COUNTERS_FLAG), combat.id, combat.round);
+  await defender.setFlag(FLAG_SCOPE, COUNTERS_FLAG, {
+    ...counters, used: counters.used + 1, answered: [...counters.answered, message.id],
+  });
+  // This card's button goes on this client now; elsewhere a click is refused.
+  ui.chat?.updateMessage?.(message);
+  const weapon = defender.type === 'hero' ? heroMeleeWeapon(defender) : null;
+  return rollAttack(defender, weapon, { ranged: false, targetTokenDoc: attackerToken, counter: true });
 }
 
 /**
@@ -391,7 +533,7 @@ function buildAttackContext(actor, flags) {
  *                               attack — no flavor row; ignored for anyone else.
  * @returns {Promise<ChatMessage>}
  */
-export async function rollAttack(actor, weapon = null, { ranged = false, series = null, targetTokenDoc = null } = {}) {
+export async function rollAttack(actor, weapon = null, { ranged = false, series = null, targetTokenDoc = null, counter = false } = {}) {
   // A series' next attack passes its target in; the first one reads the
   // user's current target.
   const targetTokenDocument = targetTokenDoc ?? game.user.targets.first()?.document ?? null;
@@ -438,7 +580,13 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   const contested = !!targetActor && (legendary || !!targetActor.system?.legendary);
 
   // §11: the series this attack belongs to — sized once, at its first attack.
-  const seriesTotal = series?.total ?? attackSeriesCount(weapon
+  // Забывчивость (p. 58): fewer shots, or none — a ranged attack with none
+  // left is refused (rules.md §11).
+  const attackerSpells = spellModifierEffects(actor);
+  const seriesSpellModifiers = isRanged
+    ? attackerSpells.filter((m) => m.stat === 'rangedAttacks' || m.stat === 'noRangedAttacks')
+    : [];
+  const seriesBase = series?.total ?? attackSeriesCount(weapon
     ? {
       ranged: isRanged,
       assaultTier: highestSkillTier(ownedSkills, 'assault'),
@@ -450,6 +598,12 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
       vengeanceHurt: (actor.system.specialSkills ?? []).some((tag) => /^месть(\s|$)/i.test(String(tag).trim()))
         && actor.system.health.value < actor.system.health.max,
     });
+  // A counterattack is one attack (p. 115: «отвечает 1 атакой»).
+  const seriesTotal = counter ? 1 : (series?.total ?? rangedSeriesAfterSpells(seriesBase, seriesSpellModifiers));
+  if (!seriesTotal) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.NoRangedAttacks', { actor: actor.name }));
+    return null;
+  }
   const seriesIndex = series?.index ?? 1;
 
   // §5.6/§4.3: captured before this attack's consequence is even decided
@@ -482,7 +636,6 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   // §6.4, stage 2: spell effects, frozen at roll time — Благословение /
   // Слабость / Проклятие on the attacker, Щит (melee) or Воздушный Щит
   // (ranged) on the target. A series' next attack reads them anew.
-  const attackerSpells = spellModifierEffects(actor);
   const damageDealtModifiers = attackerSpells.filter((m) => m.stat === 'damageDealt');
   const takenStat = isRanged ? 'rangedDamageTaken' : 'meleeDamageTaken';
   const targetSpells = spellModifierEffects(targetActor);
@@ -492,6 +645,8 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   const rangedAttackModifiers = isRanged ? attackerSpells.filter((m) => m.stat === 'rangedAttack') : [];
   const attackModifiers = [...attackerSpells.filter((m) => m.stat === 'attack'), ...rangedAttackModifiers];
   const defenseModifiers = targetSpells.filter((m) => m.stat === 'defense');
+  // Огненный Щит on the target: every attack burns the attacker (rules.md §11).
+  const fireShield = targetActor ? fireShieldOnAttack(actor, targetActor) : null;
 
   // §5.3: "Оба куба одним Roll" — one Roll for the hit-table d6 and the
   // defeat-test d20 together. With no target, only the d6 is rolled.
@@ -528,6 +683,10 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
     attackerAttack: actor.system.attack + rangedAttackModifiers.reduce((sum, m) => sum + m.value, 0),
     attackModifiers,
     defenseModifiers,
+    seriesModifiers: series || counter ? [] : seriesSpellModifiers,
+    isRanged,
+    counter,
+    fireShield,
     baseDamage,
     damageDealtModifiers,
     damageTakenModifiers,
@@ -744,6 +903,10 @@ export async function confirmAttackOutcome(message) {
   }
 
   const actor = actorFromCard(flags.actorUuid, flags.actorId);
+  // Огненный Щит: the attacker burns, a miss too (rules.md §11).
+  if (actor && flags.fireShield?.damage) {
+    await actor.update({ 'system.health.value': actor.system.health.value - flags.fireShield.damage });
+  }
   // confirmedAt lets a later card tell it was rolled while this one was
   // still pending (hadUnconfirmedAttackBefore, rolls.mjs).
   const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
@@ -774,6 +937,7 @@ export async function rollNextAttack(message) {
     index: flags.seriesIndex,
     total: flags.seriesTotal,
     targetOut: isTargetOut(targetTokenDoc?.actor ?? null),
+    attackerOut: isTargetOut(actor),
   });
   if (!next.show || !targetTokenDoc) return null;
   const weapon = flags.weaponId ? actor.items.get(flags.weaponId) ?? null : null;
@@ -1056,7 +1220,7 @@ async function spellTargetEntry(tokenDoc, spell, effect, factor, { resist = true
   let resistSource = null;
   if (target.type === 'creature') {
     const profile = creatureSpellProfile(system.specialSkills ?? []);
-    immunity = spellImmunity(profile, { element: effect.element, spellName: spell.name });
+    immunity = spellImmunity(profile, { element: effect.element, spellName: spell.name, mind: !!effect.mindEffect });
     resistThreshold = profile.resistThreshold;
     if (resistThreshold !== null) resistSource = 'creature';
   } else {
@@ -1066,6 +1230,10 @@ async function spellTargetEntry(tokenDoc, spell, effect, factor, { resist = true
     const gnome = system.race === 'gnome';
     resistThreshold = heroSpellResistanceThreshold({ interferenceTier, gnome });
     if (resistThreshold !== null) resistSource = interferenceTier ? 'interference' : 'gnome';
+  }
+  // Антимагия (p. 54) on a hero or a creature; «ко всем заклинаниям» first.
+  if (immunity !== 'all' && antimagicBlocks({ modifiers: spellModifierEffects(target), spellLevel: spell.system.level, spellName: spell.name })) {
+    immunity = 'antimagic';
   }
   const incapacitated = target.statuses.has(CONFIG.HEROES_GLORY.statusEffects.incapacitated);
 
@@ -1096,6 +1264,22 @@ async function spellTargetEntry(tokenDoc, spell, effect, factor, { resist = true
     },
     roll,
   };
+}
+
+/**
+ * Антимагия (p. 54, rules.md §11): a spell cast on one target that
+ * Антимагия makes immune is refused before any Mana is spent; with several
+ * targets the immune ones get their line on the card.
+ * @param {Item} spell
+ * @param {TokenDocument[]} selected
+ * @returns {boolean}   refused
+ */
+function antimagicRefuses(spell, selected) {
+  if (selected.length !== 1) return false;
+  const target = selected[0].actor;
+  if (!target || !antimagicBlocks({ modifiers: spellModifierEffects(target), spellLevel: spell.system.level, spellName: spell.name })) return false;
+  ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellAntimagicRefused', { spell: spell.name, target: target.name }));
+  return true;
 }
 
 /**
@@ -1143,6 +1327,8 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
       return null;
     }
   }
+
+  if (antimagicRefuses(spell, selected)) return null;
 
   // Цепная Молния: the chain's extra targets aren't limited by range; the
   // targets picked by the specialization are left out of it.
@@ -1237,6 +1423,8 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
 /** Chat-card labels for a damage spell's immunity reasons. */
 const SPELL_IMMUNITY_LABELS = {
   all: 'HEROES_GLORY.Roll.SpellImmunityAll',
+  antimagic: 'HEROES_GLORY.Roll.SpellImmunityAntimagic',
+  mind: 'HEROES_GLORY.Roll.SpellImmunityMind',
   element: 'HEROES_GLORY.Roll.SpellImmunityElement',
   spell: 'HEROES_GLORY.Roll.SpellImmunitySpell',
 };
@@ -1472,6 +1660,8 @@ async function castSupportSpell(actor, spell, { variant, variantData, resolvedSc
       }
     }
   }
+
+  if (antimagicRefuses(spell, selected)) return null;
 
   const manaRemaining = actor.system.mana.value - manaCost;
   await actor.update({ 'system.mana.value': manaRemaining });
@@ -1711,6 +1901,7 @@ const SPELL_STAT_LABELS = {
  * @returns {string}
  */
 function spellStatPart({ stat, value, floor = null }) {
+  if (SPELL_STAT_FORMATS[stat]) return game.i18n.format(SPELL_STAT_FORMATS[stat], { value: Math.abs(value) });
   const text = `${game.i18n.localize(SPELL_STAT_LABELS[stat] ?? stat)} ${signedValue(value)}`;
   return floor === null || floor === undefined
     ? text
@@ -1743,8 +1934,17 @@ function lastingSpellEffectText(flags) {
   return game.i18n.format('HEROES_GLORY.Roll.SpellStatLine', { spell: flags.spellName, stat: parts.join(', ') });
 }
 
+/** Group А2's effects, said in words («иммунитет к заклинаниям 1–3 уровня»). */
+const SPELL_STAT_FORMATS = {
+  spellImmunityLevel: 'HEROES_GLORY.Roll.SpellStatAntimagic',
+  rangedAttacks: 'HEROES_GLORY.Roll.SpellStatFewerShots',
+  noRangedAttacks: 'HEROES_GLORY.Roll.SpellStatNoShots',
+  fireShield: 'HEROES_GLORY.Roll.SpellStatFireShield',
+  counterAttacks: 'HEROES_GLORY.Roll.SpellStatCounter',
+};
+
 /** Core statuses a lasting spell may carry (Полет, p. 56). */
-const SPELL_STATUS_LABELS = { fly: 'HEROES_GLORY.Roll.SpellStatusFly' };
+const SPELL_STATUS_LABELS = { fly: 'HEROES_GLORY.Roll.SpellStatusFly', blind: 'HEROES_GLORY.Roll.CleansedStatus.blind' };
 
 /**
  * The spell effects an actor carries now (§6.4) — one entry per spell and
@@ -1832,9 +2032,12 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     }
   }
 
+  if (antimagicRefuses(spell, selected)) return null;
+
   // p. 32: a fourth lasting spell ends one of the three — the player picks
   // which; cancelling cancels the cast, no Mana spent.
-  const endCast = await chooseLastingSpellToEnd(actor, spell, selected);
+  // Слепота isn't a lasting spell (rules.md §11) — no limit for it.
+  const endCast = effect.skipsTurn ? null : await chooseLastingSpellToEnd(actor, spell, selected);
   if (endCast === false) return null;
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -1844,13 +2047,23 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
   const targets = [];
   for (const doc of selected.filter((d) => d.actor)) {
     const { entry, roll } = await spellTargetEntry(doc, spell, effect, 1, { resist: effect.hostile, skipIncapacitated: false });
-    targets.push(entry);
     if (roll) rolls.push(roll);
+    // Слепота: «Бросьте 1d6» — for a target it can still reach.
+    const resisted = entry.resistDie != null && entry.resistDie >= entry.resistThreshold;
+    if (effect.triggerThreshold && !entry.immunity && !resisted) {
+      const trigger = new Roll('1d6');
+      await trigger.evaluate();
+      rolls.push(trigger);
+      entry.triggerDie = trigger.total;
+    }
+    targets.push(entry);
   }
 
   const flags = {
     kind: 'spell',
     effectKind: 'modifier',
+    triggerThreshold: effect.triggerThreshold ?? null,
+    skipsTurn: !!effect.skipsTurn,
     actorId: actor.id,
     actorUuid: actor.uuid,
     casterName: actor.name,
@@ -1863,8 +2076,8 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     manaRemaining,
     modifiers: castModifiers(actor, spell, effect),
     status: effect.status || null,
-    // Молитва: «До конца боя» — no rounds.
-    rounds: effect.untilCombatEnd ? null : lastingSpellRounds(actor.system.magicPower,
+    // Молитва: «До конца боя», Слепота: the target's next turn — no rounds.
+    rounds: effect.untilCombatEnd || effect.skipsTurn ? null : lastingSpellRounds(actor.system.magicPower,
       actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
     castStart,
     castId: foundry.utils.randomID(),
@@ -1891,9 +2104,11 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
  */
 function castModifiers(actor, spell, effect) {
   const haste = hasteSpecializationBonus(actor.system.specialization, spell.name);
+  // Огненный Щит: «равный вашему СМ» (+3 / +6) — the caster's at the cast.
+  const bonus = (stat) => (stat === 'speed' ? haste : 0) + (stat === 'fireShield' ? actor.system.magicPower : 0);
   return (effect.modifiers ?? []).map((m) => ({
     stat: m.stat,
-    value: m.stat === 'speed' ? m.value + haste : m.value,
+    value: m.value + bonus(m.stat),
     floorOne: !!m.floorOne,
     floor: m.floor ?? null,
   }));
@@ -1915,7 +2130,7 @@ function lastingSpellCasts(caster) {
   for (const target of actors) {
     for (const effect of target.effects) {
       const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
-      if (!data || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
+      if (!data || data.skipsTurn || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
       const castId = data.castId ?? `${data.spellName}|${data.combatId}|${effect._source.start?.round}`;
       if (!casts.has(castId)) {
         // Молитва lasts to the end of the battle: no rounds left to show.
@@ -2008,6 +2223,10 @@ function buildModifierSpellCardContext(flags, context) {
       });
     } else if (result.outcome === 'resisted') {
       text = i18n.format('HEROES_GLORY.Roll.SpellModifierResisted', { target: target.name });
+    } else if (result.outcome === 'failed') {
+      text = i18n.format('HEROES_GLORY.Roll.SpellBlindFailed', { target: target.name });
+    } else if (flags.skipsTurn) {
+      text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellBlindApplied' : 'HEROES_GLORY.Roll.SpellBlindPending', { target: target.name });
     } else {
       const key = untilCombatEnd
         ? (done ? 'HEROES_GLORY.Roll.SpellModifierAppliedCombat' : 'HEROES_GLORY.Roll.SpellModifierPendingCombat')
@@ -2020,6 +2239,9 @@ function buildModifierSpellCardContext(flags, context) {
         die: target.resistDie,
         need: target.resistThreshold,
       })})`;
+    }
+    if (target.triggerDie != null) {
+      text += ` (${i18n.format('HEROES_GLORY.Roll.SpellTriggerRoll', { die: target.triggerDie, need: flags.triggerThreshold })})`;
     }
     return text;
   });
@@ -2078,6 +2300,8 @@ async function confirmModifierSpell(message, flags) {
             spellName: flags.spellName,
             modifiers: flags.modifiers ?? (flags.modifier ? [flags.modifier] : []),
             untilCombatEnd,
+            // Слепота: not lasting, its turn and any damage end it.
+            skipsTurn: !!flags.skipsTurn,
             casterUuid: flags.actorUuid,
             combatId: flags.castStart.combat,
             castId: flags.castId,

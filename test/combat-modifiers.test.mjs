@@ -16,6 +16,9 @@ import {
   compareTurnOrder,
   tieBreakSpeed,
   rolledSpeedToRecord,
+  counterAttackTagLimit,
+  countersThisRound,
+  counterAttackOffer,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -108,14 +111,17 @@ describe('resolveNextAttack — «Следующая атака»', () => {
     assert.equal(resolveNextAttack({ confirmed: false, index: 1, total: 3 }).show, false);
   });
   test('after confirm, while attacks remain', () => {
-    assert.deepEqual(resolveNextAttack({ confirmed: true, index: 1, total: 3 }), { show: true, stoppedByTarget: false, next: 2 });
+    assert.deepEqual(resolveNextAttack({ confirmed: true, index: 1, total: 3 }), { show: true, stoppedByTarget: false, stoppedByAttacker: false, next: 2 });
   });
   test('none after the last one, or without a series', () => {
     assert.equal(resolveNextAttack({ confirmed: true, index: 3, total: 3 }).show, false);
     assert.equal(resolveNextAttack({ confirmed: true, index: null, total: null }).show, false);
   });
   test('target out → no button, the card says why', () => {
-    assert.deepEqual(resolveNextAttack({ confirmed: true, index: 1, total: 2, targetOut: true }), { show: false, stoppedByTarget: true, next: null });
+    assert.deepEqual(resolveNextAttack({ confirmed: true, index: 1, total: 2, targetOut: true }), { show: false, stoppedByTarget: true, stoppedByAttacker: false, next: null });
+  });
+  test('attacker out (Огненный Щит) → no button, the card says why', () => {
+    assert.deepEqual(resolveNextAttack({ confirmed: true, index: 1, total: 2, attackerOut: true }), { show: false, stoppedByTarget: false, stoppedByAttacker: true, next: null });
   });
 });
 
@@ -290,5 +296,60 @@ describe('tieBreakSpeed / rolledSpeedToRecord — the Скорость of the ro
     ].sort(compareTurnOrder).map((x) => x.id);
     assert.deepEqual(sorted(6, 8), ['b', 'a']);
     assert.deepEqual(sorted(9, 5), ['b', 'a']);
+  });
+});
+
+describe('counterAttackTagLimit — «Ответная Атака (N)», p. 115', () => {
+  test('the number in brackets', () => {
+    assert.equal(counterAttackTagLimit(['Летает', 'Ответная Атака (1)']), 1);
+    assert.equal(counterAttackTagLimit(['Ответная атака (2)']), 2);
+  });
+  test('«Неограничено»', () => {
+    assert.equal(counterAttackTagLimit(['Ответная Атака (Неограничено)']), Infinity);
+  });
+  test('no tag — none; «Безответный Удар» is not it', () => {
+    assert.equal(counterAttackTagLimit(['Летает']), 0);
+    assert.equal(counterAttackTagLimit(['Безответный Удар 2+']), 0);
+  });
+});
+
+describe('countersThisRound — per battle and round', () => {
+  test('same battle and round: as counted', () => {
+    assert.deepEqual(countersThisRound({ combatId: 'c', round: 2, used: 1, answered: ['m'] }, 'c', 2),
+      { combatId: 'c', round: 2, used: 1, answered: ['m'] });
+  });
+  test('a new round or battle: none used', () => {
+    assert.deepEqual(countersThisRound({ combatId: 'c', round: 2, used: 1, answered: ['m'] }, 'c', 3),
+      { combatId: 'c', round: 3, used: 0, answered: [] });
+    assert.deepEqual(countersThisRound(null, 'd', 1), { combatId: 'd', round: 1, used: 0, answered: [] });
+  });
+});
+
+describe('counterAttackOffer — Ответный Удар and «Ответная атака» (rules.md §11)', () => {
+  const base = {
+    confirmed: true, ranged: false, counter: false, defenderOut: false, attackerOut: false, inCombat: true,
+    tagLimit: 0, spellLimit: 1, used: 0, answered: false,
+  };
+  test('a confirmed melee attack on a defender with a counter left', () => {
+    assert.deepEqual(counterAttackOffer(base), { show: true, left: 1 });
+  });
+  test('not before the GM confirms, not on a ranged attack, not on a counter', () => {
+    assert.equal(counterAttackOffer({ ...base, confirmed: false }).show, false);
+    assert.equal(counterAttackOffer({ ...base, ranged: true }).show, false);
+    assert.equal(counterAttackOffer({ ...base, counter: true }).show, false);
+  });
+  test('not when either side is out, out of combat, or the card was answered', () => {
+    assert.equal(counterAttackOffer({ ...base, defenderOut: true }).show, false);
+    assert.equal(counterAttackOffer({ ...base, attackerOut: true }).show, false);
+    assert.equal(counterAttackOffer({ ...base, inCombat: false }).show, false);
+    assert.equal(counterAttackOffer({ ...base, answered: true }).show, false);
+  });
+  test('per round: the larger of tag and spell, not the sum', () => {
+    assert.deepEqual(counterAttackOffer({ ...base, tagLimit: 1, spellLimit: 2, used: 1 }), { show: true, left: 1 });
+    assert.equal(counterAttackOffer({ ...base, tagLimit: 1, spellLimit: 1, used: 1 }).show, false);
+    assert.equal(counterAttackOffer({ ...base, tagLimit: 0, spellLimit: 0 }).show, false);
+  });
+  test('«Неограничено» never runs out', () => {
+    assert.deepEqual(counterAttackOffer({ ...base, tagLimit: Infinity, spellLimit: 0, used: 9 }), { show: true, left: Infinity });
   });
 });

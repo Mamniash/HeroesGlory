@@ -59,6 +59,36 @@ export function expireDefending(effect, changes) {
 }
 
 /**
+ * Слепота (p. 59, rules.md §11), `combatTurnChange`: when the blinded one's
+ * turn comes, a line in the chat says it skips the turn — the GM passes the
+ * turn on, as after a failed Боевой дух test; when that turn is over, the
+ * spell is gone. Active GM only.
+ * @param {Combat} combat
+ * @param {{combatantId?: string}} previous
+ * @param {{combatantId?: string}} current
+ */
+export async function advanceBlindness(combat, previous, current) {
+  if (game.users.activeGM !== game.user) return;
+  const blindEffects = (actor) => (actor?.effects ?? [])
+    .filter((effect) => effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG)?.skipsTurn);
+  const ended = combat.combatants.get(previous?.combatantId ?? '');
+  for (const effect of blindEffects(ended?.actor)) {
+    if (effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG).turnSkipped) await effect.delete();
+  }
+  if (previous?.combatantId === current?.combatantId) return;
+  const now = combat.combatants.get(current?.combatantId ?? '');
+  const pending = blindEffects(now?.actor).filter((effect) => !effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG).turnSkipped);
+  if (!pending.length) return;
+  for (const effect of pending) {
+    await effect.setFlag('heroes-glory', SPELL_EFFECT_FLAG, { ...effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG), turnSkipped: true });
+  }
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: now.actor, token: now.token }),
+    content: `<p>${foundry.utils.escapeHTML(game.i18n.format('HEROES_GLORY.Roll.BlindSkipTurn', { name: now.name }))}</p>`,
+  });
+}
+
+/**
  * Actor flag: raised by Воскрешение without Продвинутый (roll-actions.mjs's
  * confirmSupportSpell) — `{combatId, dead}`, the battle whose end takes it
  * back down.

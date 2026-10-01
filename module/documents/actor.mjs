@@ -60,8 +60,27 @@ export class HeroesGloryActor extends Actor {
    * value happens to change.
    * @override
    */
+  /**
+   * Notes a drop in Health for _onUpdate — Слепота ends on any damage.
+   * @override
+   */
+  async _preUpdate(changed, options, user) {
+    const next = changed.system?.health?.value;
+    if (next !== undefined && next < (this.system.health?.value ?? next)) {
+      options['heroes-glory'] = { ...options['heroes-glory'], healthDropped: true };
+    }
+    return super._preUpdate(changed, options, user);
+  }
+
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
+
+    // Слепота (p. 59): «Заклинание отменяется, если цель получит урон» —
+    // only a drop in Health (rules.md §11). The client that dealt it acts.
+    if (userId === game.user.id && options?.['heroes-glory']?.healthDropped) {
+      const ids = this.effects.filter((effect) => effect.getFlag('heroes-glory', 'spellEffect')?.skipsTurn).map((effect) => effect.id);
+      if (ids.length) this.deleteEmbeddedDocuments('ActiveEffect', ids);
+    }
 
     // Only the client that made this change drives the follow-up status
     // toggle, so it isn't attempted redundantly on every connected client.

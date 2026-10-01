@@ -12,6 +12,9 @@
   {{#unless targetName}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
   {{/unless}}
+  {{#if counter}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.CounterAttackCard'}}</p>
+  {{/if}}
 
   {{!-- Shown/hidden per viewer by chat.mjs, GM only — computed from the
     chat log the GM's client actually has (hadUnconfirmedAttackBefore,
@@ -54,6 +57,11 @@
         {{localize location.effectKey}}
       {{/if}}
     </p>
+  {{/if}}
+
+  {{!-- §6.4, Огненный Щит on the target: the attacker burns, a miss too. --}}
+  {{#if fireShieldLine}}
+    <p class="heroes-glory-chat-card__line">{{fireShieldLine}}</p>
   {{/if}}
 
   {{#if destroyedArmorNames}}
@@ -188,5 +196,14 @@
     </button>
   {{else if nextAttack.stoppedByTarget}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.SeriesStopped'}}</p>
+  {{else if nextAttack.stoppedByAttacker}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.SeriesStoppedAttacker'}}</p>
   {{/if}}
+  {{!-- Ответный Удар / «Ответная атака» (rules.md §11): shown per viewer by
+    chat.mjs — the defender's owners and the GM, while a counter is left. --}}
+  {{#if confirmed}}{{#unless counter}}
+    <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-counter-attack">
+      {{localize 'HEROES_GLORY.Roll.CounterAttack'}}
+    </button>
+  {{/unless}}{{/if}}
 </div>

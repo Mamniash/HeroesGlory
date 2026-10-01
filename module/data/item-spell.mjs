@@ -68,7 +68,10 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       modifiers: new fields.ArrayField(new fields.SchemaField({
         stat: new fields.StringField({
           required: true, blank: true, initial: '',
-          choices: ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken', 'attack', 'defense', 'speed', 'luck', 'rangedAttack'],
+          choices: [
+            'damageDealt', 'meleeDamageTaken', 'rangedDamageTaken', 'attack', 'defense', 'speed', 'luck', 'rangedAttack',
+            'spellImmunityLevel', 'rangedAttacks', 'noRangedAttacks', 'fireShield', 'counterAttacks',
+          ],
         }),
         value: new fields.NumberField({ required: true, nullable: false, integer: true, initial: 0 }),
         floorOne: new fields.BooleanField({ initial: false }),
@@ -81,10 +84,17 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       // Молитва: «До конца боя» instead of Сила Магии rounds.
       untilCombatEnd: new fields.BooleanField({ initial: false }),
       // A core status the effect carries — Полет: «fly», an icon only.
-      status: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fly'] }),
+      status: new fields.StringField({ required: true, blank: true, initial: '', choices: ['fly', 'blind'] }),
       // Полет (rules.md §11): out of combat the cast is a text card with
       // the Mana spent, not a refusal.
       textOutOfCombat: new fields.BooleanField({ initial: false }),
+      // Group А2, Слепота: the d6 the cast needs (4+ / 3+ / 2+); a mind
+      // effect (Нежить, Голем, Элементаль, «Иммунитет к Магии Разума», «…к
+      // Ослеплению» are immune); the target skips its next turn — not a
+      // lasting spell, gone with that turn or any damage (rules.md §11).
+      triggerThreshold: new fields.NumberField({ required: true, nullable: true, integer: true, initial: null, min: 1, max: 6 }),
+      mindEffect: new fields.BooleanField({ initial: false }),
+      skipsTurn: new fields.BooleanField({ initial: false }),
       // Group В, `dispel`: «с выбранного дружественного существа» — only a
       // target on the caster's side (Без Навыка, Базовый).
       friendlyOnly: new fields.BooleanField({ initial: false }),

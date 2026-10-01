@@ -9,6 +9,7 @@ import {
   spellEffectModifiers, actorSpellModifiers, applySpellStatModifiers, spellHeroesOnly,
   NEGATIVE_SPELLS, HEAL_STATUSES, DISPEL_STATUSES, cleansingRemovals, healAmount, isFriendlyTarget,
   resurrectionBlockingTag, resolveSupportSpellResolution,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -100,8 +101,14 @@ describe('creatureSpellProfile — the bestiary tags', () => {
   });
 
   test('unrelated immunities change nothing', () => {
-    const profile = creatureSpellProfile(['Иммунитет к Магии Разума', 'Иммунитет к кавалерийскому Бонусу', 'Нежить']);
-    assert.deepEqual(profile, { immuneAll: false, elements: [], spellNames: [], resistThreshold: null });
+    const profile = creatureSpellProfile(['Иммунитет к кавалерийскому Бонусу', 'Летает']);
+    assert.deepEqual(profile, { immuneAll: false, elements: [], spellNames: [], resistThreshold: null, mindImmune: false });
+  });
+  test('mind effects (Слепота): Нежить, Голем, Элементаль, «Иммунитет к Магии Разума», «…к Ослеплению» (rules.md §11)', () => {
+    for (const tag of ['Нежить', 'Голем', 'Элементаль', 'Иммунитет к Магии Разума', 'Иммунитет к Ослеплению и Окаменению']) {
+      assert.equal(creatureSpellProfile([tag]).mindImmune, true, tag);
+    }
+    assert.equal(creatureSpellProfile(['Стрелок', 'Летает']).mindImmune, false);
   });
 });
 
@@ -219,14 +226,15 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
     assert.deepEqual(withEffect, ['Взрыв', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Цепная Молния']);
   });
 
-  test('stage 2 and its group А1 — fifteen spells carry a modifier effect, on every tier', () => {
+  test('stage 2, groups А1 and А2 — twenty spells carry a modifier effect, on every tier', () => {
     const withEffect = docs.filter((d) => Object.values(d.system.variants).every((v) => v.effect.kind === 'modifier'))
       .map((d) => d.name).sort();
     assert.deepEqual(withEffect, [
-      'Благословение', 'Воздушный Щит', 'Жажда Крови', 'Замедление', 'Каменная Кожа', 'Молитва', 'Неудача',
-      'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость', 'Точность', 'Удача', 'Ускорение', 'Щит',
+      'Антимагия', 'Благословение', 'Воздушный Щит', 'Жажда Крови', 'Забывчивость', 'Замедление', 'Каменная Кожа',
+      'Молитва', 'Неудача', 'Огненный Щит', 'Ответный Удар', 'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость',
+      'Слепота', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 23);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 28);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -305,10 +313,40 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
     });
   }
 
-  test('NEGATIVE_SPELLS: every hostile spell automated so far, and Забывчивость, Слепота to come', () => {
+  test('NEGATIVE_SPELLS are exactly the hostile spells', () => {
     const hostile = docs.filter((d) => d.system.variants.none.effect.hostile).map((d) => d.name);
-    assert.deepEqual(hostile.filter((n) => !NEGATIVE_SPELLS.includes(n)), []);
-    assert.deepEqual(NEGATIVE_SPELLS.filter((n) => !hostile.includes(n)).sort(), ['Забывчивость', 'Слепота']);
+    assert.deepEqual([...hostile].sort(), [...NEGATIVE_SPELLS].sort());
+  });
+
+  // Group А2, pp. 54, 58, 59, 60.
+  const a2Cases = [
+    ['Антимагия', [['spellImmunityLevel', 3], ['spellImmunityLevel', 3], ['spellImmunityLevel', 4], ['spellImmunityLevel', 5]], false, false],
+    ['Забывчивость', [['rangedAttacks', -1], ['rangedAttacks', -1], ['noRangedAttacks', 1], ['noRangedAttacks', 1]], true, true],
+    ['Огненный Щит', [['fireShield', 0], ['fireShield', 0], ['fireShield', 3], ['fireShield', 6]], false, false],
+    ['Ответный Удар', [['counterAttacks', 1], ['counterAttacks', 1], ['counterAttacks', 2], ['counterAttacks', 2]], false, true],
+  ];
+  for (const [name, byTier, hostile, expertTargets] of a2Cases) {
+    test(`${name}: by tier (group А2)`, () => {
+      ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        assert.deepEqual(effect.modifiers, [{ stat: byTier[i][0], value: byTier[i][1], floorOne: false, floor: null }]);
+        assert.equal(effect.hostile, hostile);
+        assert.equal(effect.targeting.perMagicPowerTargets, expertTargets && tier === 'expert');
+        assert.equal(effect.skipsTurn, false);
+      });
+    });
+  }
+  test('Слепота: d6 4+ / 3+ / 2+, a mind effect, skips the next turn, one target (group А2)', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      const effect = byName['Слепота'][tier].effect;
+      assert.equal(effect.triggerThreshold, [4, 4, 3, 2][i]);
+      assert.deepEqual(effect.modifiers, []);
+      assert.equal(effect.status, 'blind');
+      assert.equal(effect.hostile, true);
+      assert.equal(effect.mindEffect, true);
+      assert.equal(effect.skipsTurn, true);
+      assert.equal(effect.targeting.perMagicPowerTargets, false);
+    });
   });
 
   test('rules.md §11 costs: Стена Огня 28/12, Огненный Шар 36/15, Удача 12/4', () => {
@@ -578,5 +616,54 @@ describe('resolveSupportSpellResolution — what the card shows and the confirm 
   test('the «Воскрешение» specialization: no Ранение (p. 23)', () => {
     const r = resolveSupportSpellResolution({ effectKind: 'resurrect', healthFactor: 0.5, untilCombatEnd: false, noWound: true, targets: [{ healthMax: 30, isHero: true }] });
     assert.deepEqual(r, [{ outcome: 'applied', health: 15, wound: false }]);
+  });
+});
+
+describe('antimagicBlocks — Антимагия, p. 54 (rules.md §11)', () => {
+  const mods = (level) => [{ stat: 'spellImmunityLevel', value: level }];
+  test('spells of its levels, any', () => {
+    assert.equal(antimagicBlocks({ modifiers: mods(3), spellLevel: 1, spellName: 'Благословение' }), true);
+    assert.equal(antimagicBlocks({ modifiers: mods(3), spellLevel: 3, spellName: 'Огненный Шар' }), true);
+    assert.equal(antimagicBlocks({ modifiers: mods(3), spellLevel: 4, spellName: 'Цепная Молния' }), false);
+    assert.equal(antimagicBlocks({ modifiers: mods(5), spellLevel: 5, spellName: 'Взрыв' }), true);
+  });
+  test('Развеивание Магии gets through, a recast of Антимагия too', () => {
+    assert.equal(antimagicBlocks({ modifiers: mods(5), spellLevel: 1, spellName: 'Развеивание Магии' }), false);
+    assert.equal(antimagicBlocks({ modifiers: mods(5), spellLevel: 3, spellName: 'Антимагия' }), false);
+  });
+  test('no Антимагия — nothing blocked', () => {
+    assert.equal(antimagicBlocks({ modifiers: [], spellLevel: 1, spellName: 'Лечение' }), false);
+  });
+});
+
+describe('rangedSeriesAfterSpells — Забывчивость, p. 58', () => {
+  test('one shot fewer', () => {
+    assert.equal(rangedSeriesAfterSpells(2, [{ stat: 'rangedAttacks', value: -1 }]), 1);
+  });
+  test('a single shot — none left', () => {
+    assert.equal(rangedSeriesAfterSpells(1, [{ stat: 'rangedAttacks', value: -1 }]), 0);
+  });
+  test('Продвинутый — no shooting at all', () => {
+    assert.equal(rangedSeriesAfterSpells(3, [{ stat: 'noRangedAttacks', value: 1 }]), 0);
+  });
+  test('no spell — as is', () => {
+    assert.equal(rangedSeriesAfterSpells(2, []), 2);
+  });
+});
+
+describe('resolveFireShieldDamage — Огненный Щит, p. 60 (rules.md §11)', () => {
+  test('the value', () => assert.equal(resolveFireShieldDamage({ value: 6 }), 6));
+  test('fire immunity — 0', () => assert.equal(resolveFireShieldDamage({ value: 6, immune: true }), 0));
+  test('armor of level 4–5 — halved, rounded down', () => assert.equal(resolveFireShieldDamage({ value: 7, armorMultiplier: 0.5 }), 3));
+});
+
+describe('resolveModifierSpellResolution — Слепота\'s d6', () => {
+  test('short of the threshold — failed; at it — applied', () => {
+    const r = resolveModifierSpellResolution({ triggerThreshold: 4, targets: [{ triggerDie: 3 }, { triggerDie: 4 }] });
+    assert.deepEqual(r.map((x) => x.outcome), ['failed', 'applied']);
+  });
+  test('resisted before the die', () => {
+    const r = resolveModifierSpellResolution({ triggerThreshold: 4, targets: [{ resistThreshold: 5, resistDie: 6 }] });
+    assert.deepEqual(r.map((x) => x.outcome), ['resisted']);
   });
 });

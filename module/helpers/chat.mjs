@@ -1,5 +1,7 @@
 import { canRerollWithLuck, hadUnconfirmedAttackBefore } from './rolls.mjs';
-import { rerollLuckDie, confirmAttackOutcome, rollNextAttack, confirmSpellOutcome } from './roll-actions.mjs';
+import {
+  rerollLuckDie, confirmAttackOutcome, rollNextAttack, confirmSpellOutcome, counterAttackState, rollCounterAttack,
+} from './roll-actions.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
 
@@ -87,6 +89,24 @@ export function activateChatListeners(message, html) {
       nextButton.addEventListener('click', () => {
         nextButton.disabled = true;
         rollNextAttack(message);
+      });
+    }
+  }
+
+  // Ответный Удар / «Ответная атака» (rules.md §11): the defender's owners
+  // and the GM, while it has a counter left this round; read live.
+  const counterButton = html.querySelector('[data-action="hg-counter-attack"]');
+  if (counterButton) {
+    const state = counterAttackState(message);
+    const allowed = state.show && (game.user.isGM || !!state.defender?.isOwner);
+    counterButton.hidden = !allowed;
+    if (allowed) {
+      if (Number.isFinite(state.left)) {
+        counterButton.textContent = game.i18n.format('HEROES_GLORY.Roll.CounterAttackLeft', { left: state.left });
+      }
+      counterButton.addEventListener('click', () => {
+        counterButton.disabled = true;
+        rollCounterAttack(message);
       });
     }
   }

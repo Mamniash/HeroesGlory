@@ -138,10 +138,14 @@ function statModifier(stat, value, floor = null) {
  * @param {boolean} [options.untilCombatEnd]    «До конца боя» (Молитва)
  * @param {string} [options.status]             a core status (Полет: 'fly')
  * @param {boolean} [options.textOutOfCombat]   out of combat a text card (Полет, rules.md §11)
+ * @param {number|null} [options.triggerThreshold]   Слепота: the d6 it needs
+ * @param {boolean} [options.mindEffect]        Слепота: a mind effect (rules.md §11)
+ * @param {boolean} [options.skipsTurn]         Слепота: skips the next turn, not lasting
  */
 function lastingEffect(modifiers, {
   hostile = false, excludeUndead = false, perMagicPowerTargets = false,
   untilCombatEnd = false, status = '', textOutOfCombat = false,
+  triggerThreshold = null, mindEffect = false, skipsTurn = false,
 } = {}) {
   return {
     kind: 'modifier',
@@ -154,6 +158,9 @@ function lastingEffect(modifiers, {
     untilCombatEnd,
     status,
     textOutOfCombat,
+    triggerThreshold,
+    mindEffect,
+    skipsTurn,
   };
 }
 
@@ -225,7 +232,9 @@ const EARTH = [
   { name: 'Каменная Кожа', level: 1, icon: 46, ...withEffects(statEffects('defense', [3, 6, 6]), { base: { desc: 'Увеличивает Защиту выбранного существа на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Увеличивает Защиту на 6' }, expert: { desc: 'Работает на количество союзников, равное СМ' } }) },
   { name: 'Волна Смерти', level: 2, icon: 24, base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } },
   { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
-  { name: 'Антимагия', level: 3, icon: 34, base: { desc: 'Существо получает иммунитет к заклинаниям 1-3 уровня. Может быть снято Рассеиванием. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Иммунитет к заклинаниям 1-4 уровней' }, expert: { desc: 'Иммунитет к заклинаниям 1-5 уровня' } },
+  // Group А2 (p. 54): every spell of levels 1–3 (1–4, 1–5) but
+  // Развеивание Магии (rules.md §11).
+  { name: 'Антимагия', level: 3, icon: 34, ...withEffects(statEffects('spellImmunityLevel', [3, 4, 5], { expertTargets: false }), { base: { desc: 'Существо получает иммунитет к заклинаниям 1-3 уровня. Может быть снято Рассеиванием. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Иммунитет к заклинаниям 1-4 уровней' }, expert: { desc: 'Иммунитет к заклинаниям 1-5 уровня' } }) },
   { name: 'Силовое Поле', level: 3, icon: 12, base: { desc: 'Выберите 2 клетки, находящиеся рядом друг с другом. Они становятся непроходимыми даже для летающих существ. Длительность = СМ.', cost: 18 }, basicCost: 12, advanced: { desc: 'Три соседние клетки' }, expert: { desc: 'Четыре соседние клетки' } },
   // Group В (p. 54): 50% of the maximum, until the end of the battle;
   // Продвинутый — for good; Эксперт — full Health (rules.md §11).
@@ -254,7 +263,9 @@ const AIR = [
   // p. 56: «Три других ближайших существа получают половину от этого
   // урона»; эксперт — «Воздействует на 4 дополнительных цели вместо 3».
   { name: 'Цепная Молния', level: 4, icon: 19, base: { desc: 'Выберите существо. Оно получает урон, равный 1d6 за каждый ваш СМ. Три других ближайших существа получают половину от этого урона, даже если это ваши союзники.', cost: 40, effect: damageEffect(1, 0, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, basicCost: 24, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, expert: { desc: 'Воздействует на 4 дополнительных цели вместо 3', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 4, extraFactor: 0.5 } }) } },
-  { name: 'Ответный Удар', level: 4, icon: 58, base: { desc: 'Выберите цель. Если она атакована, она атакует в ответ, один раз в раунд. Длительность = СМ.', cost: 24 }, basicCost: 20, advanced: { desc: 'Дает две дополнительные контратаки вместо одной' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // Group А2 (p. 56): one counterattack a round, Продвинутый — two
+  // (rules.md §11); melee attacks only, a counter draws none.
+  { name: 'Ответный Удар', level: 4, icon: 58, ...withEffects(statEffects('counterAttacks', [1, 2, 2]), { base: { desc: 'Выберите цель. Если она атакована, она атакует в ответ, один раз в раунд. Длительность = СМ.', cost: 24 }, basicCost: 20, advanced: { desc: 'Дает две дополнительные контратаки вместо одной' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   // Group А1 (p. 56): «Полёт» — a status, no mechanics; out of combat a
   // text card (rules.md §11).
   { name: 'Полет', level: 5, icon: 6, ...withEffects([
@@ -283,7 +294,12 @@ const WATER = [
   ], { base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } }) },
   { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20, effect: damageEffect(2, 0, { plusMagicPower: true, element: 'ice' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true, element: 'ice' }) }, expert: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'ice' }) } },
   { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true }) }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, perMagicPowerTargets: true }) } },
-  { name: 'Забывчивость', level: 3, icon: 61, base: { desc: 'Выбранное существо при стрельбе совершает на одну атаку меньше, чем обычно. Если оно может стрелять лишь единожды, оно не может стрелять вообще. Длительность = СМ.', cost: 20 }, basicCost: 18, advanced: { desc: 'Существо теряет все стрелковые атаки' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } },
+  // Group А2 (p. 58): one shot fewer; Продвинутый — no shooting.
+  { name: 'Забывчивость', level: 3, icon: 61, ...withEffects([
+    lastingEffect([statModifier('rangedAttacks', -1)], { hostile: true }),
+    lastingEffect([statModifier('noRangedAttacks', 1)], { hostile: true }),
+    lastingEffect([statModifier('noRangedAttacks', 1)], { hostile: true, perMagicPowerTargets: true }),
+  ], { base: { desc: 'Выбранное существо при стрельбе совершает на одну атаку меньше, чем обычно. Если оно может стрелять лишь единожды, оно не может стрелять вообще. Длительность = СМ.', cost: 20 }, basicCost: 18, advanced: { desc: 'Существо теряет все стрелковые атаки' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   // BOOK DEFECT: Экспертный не усиливает эффект, а просто повторяет
   // стоимость Базового — единственный такой случай во всей книге.
   // Транскрибировано дословно, не "исправлено".
@@ -309,7 +325,11 @@ const FIRE = [
   // it to melee (rules.md §11).
   { name: 'Жажда Крови', level: 1, icon: 43, ...withEffects(statEffects('attack', [3, 6, 6]), { base: { desc: 'Выбранное существо получает +3 к Атаке. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Бонус к Атаке увеличивается до +6' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   { name: 'Проклятие', level: 1, icon: 42, base: { desc: 'Выбранное существо, не являющееся нежитью, получает −2 к урону, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true, excludeUndead: true }) }, basicCost: 4, advanced: { desc: 'Урон снижается на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, excludeUndead: true, perMagicPowerTargets: true }) } },
-  { name: 'Слепота', level: 2, icon: 62, base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } },
+  // Group А2 (p. 59): d6 4+ / 3+ / 2+, the next turn skipped; a mind
+  // effect, not lasting (rules.md §11).
+  { name: 'Слепота', level: 2, icon: 62, ...withEffects([4, 3, 2].map((triggerThreshold) => lastingEffect([], {
+    hostile: true, status: 'blind', triggerThreshold, mindEffect: true, skipsTurn: true,
+  })), { base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } }) },
   // BOOK DEFECT: у "Без Навыка" в книге нет числа стоимости; 28 —
   // решение Сени (rules.md §11).
   { name: 'Стена Огня', level: 2, icon: 13, base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 28 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } },
@@ -318,7 +338,9 @@ const FIRE = [
   { name: 'Огненный Шар', level: 3, icon: 21, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.', cost: 36 }, basicCost: 15, advanced: { desc: 'Урон увеличивается до 6d6+СМ' }, expert: { desc: 'Урон увеличивается до 8d6+СМ' } },
   // Group А1 (p. 60): «до минимума в -3» — the hero's ±3 clamp.
   { name: 'Неудача', level: 3, icon: 52, ...withEffects(statEffects('luck', [-1, -2, -2], { hostile: true }), { base: { desc: 'Параметр удачи цели снижается на 1 до минимума в -3. Длительность = СМ.', cost: 12 }, basicCost: 9, advanced: { desc: 'Параметр удачи снижается на 2 (до минимума в -3)' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
-  { name: 'Огненный Щит', level: 4, icon: 29, base: { desc: 'Выберите цель. Любое существо, атакующее цель, получает урон огнем, равный вашему СМ. Длительность = СМ.', cost: 16 }, basicCost: 12, advanced: { desc: 'Урон увеличивается до 3+СМ' }, expert: { desc: 'Урон увеличивается до 6+СМ' } },
+  // Group А2 (p. 60): the caster's СМ at the cast is added (+3 / +6),
+  // every attack on the bearer burns (rules.md §11).
+  { name: 'Огненный Щит', level: 4, icon: 29, ...withEffects(statEffects('fireShield', [0, 3, 6], { expertTargets: false }), { base: { desc: 'Выберите цель. Любое существо, атакующее цель, получает урон огнем, равный вашему СМ. Длительность = СМ.', cost: 16 }, basicCost: 12, advanced: { desc: 'Урон увеличивается до 3+СМ' }, expert: { desc: 'Урон увеличивается до 6+СМ' } }) },
   { name: 'Инферно', level: 4, icon: 22, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.', cost: 56 }, basicCost: 48, advanced: { desc: 'Затрагивает клетки в радиусе 2 клеток от центра' }, expert: { desc: 'Урон увеличивается до 1d6+1 за СМ' } },
   { name: 'Армагеддон', level: 5, icon: 26, base: { desc: 'Все существа (даже вы и союзники!) в поле зрения получают урон огнем, равный 5d6+СМ.', cost: 60 }, basicCost: 50, advanced: { desc: 'Урон увеличивается до 7d6+СМ' }, expert: { desc: 'Урон увеличивается до 10d6+СМ' } },
 ];

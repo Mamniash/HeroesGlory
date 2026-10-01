@@ -133,13 +133,16 @@ export function attackSeriesCount({
  * @param {number|null|undefined} params.index   1-based, of this attack.
  * @param {number|null|undefined} params.total
  * @param {boolean} [params.targetOut]
- * @returns {{show: boolean, stoppedByTarget: boolean, next: number|null}}
+ * @param {boolean} [params.attackerOut]
+ * @returns {{show: boolean, stoppedByTarget: boolean, stoppedByAttacker: boolean, next: number|null}}
  */
-export function resolveNextAttack({ confirmed, index, total, targetOut = false }) {
+export function resolveNextAttack({ confirmed, index, total, targetOut = false, attackerOut = false }) {
   const remaining = !!index && !!total && index < total;
-  if (!confirmed || !remaining) return { show: false, stoppedByTarget: false, next: null };
-  if (targetOut) return { show: false, stoppedByTarget: true, next: null };
-  return { show: true, stoppedByTarget: false, next: index + 1 };
+  if (!confirmed || !remaining) return { show: false, stoppedByTarget: false, stoppedByAttacker: false, next: null };
+  if (targetOut) return { show: false, stoppedByTarget: true, stoppedByAttacker: false, next: null };
+  // Огненный Щит may take the attacker down (rules.md §11).
+  if (attackerOut) return { show: false, stoppedByTarget: false, stoppedByAttacker: true, next: null };
+  return { show: true, stoppedByTarget: false, stoppedByAttacker: false, next: index + 1 };
 }
 
 /**
@@ -1320,4 +1323,66 @@ export function compareTurnOrder(a, b) {
   const cb = b.coin ?? -1;
   if (ca !== cb) return cb - ca;
   return a.id > b.id ? 1 : -1;
+}
+
+/**
+ * «Ответная атака» (p. 115): «Эта способность ограничена по количеству раз в
+ * раунд (указано в скобках…)» — «Ответная Атака (1)», «(Неограничено)». The
+ * per-round number from a creature's tags; 0 without the tag.
+ * @param {string[]} tags   creature `system.specialSkills`
+ * @returns {number}   Infinity for «Неограничено»
+ */
+export function counterAttackTagLimit(tags = []) {
+  for (const raw of tags) {
+    const tag = String(raw ?? '').toLowerCase().replace(/ё/g, 'е').trim();
+    if (!tag.startsWith('ответная атака')) continue;
+    const inBrackets = tag.match(/\(([^)]*)\)/)?.[1] ?? '';
+    if (/неогранич/.test(inBrackets)) return Infinity;
+    const count = parseInt(inBrackets, 10);
+    return Number.isFinite(count) ? count : 1;
+  }
+  return 0;
+}
+
+/**
+ * A defender's counters used in this round — its flag counts per battle and
+ * round, a new round starts from none.
+ * @param {{combatId?: string, round?: number, used?: number, answered?: string[]}|null|undefined} flag
+ * @param {string} combatId
+ * @param {number} round
+ * @returns {{combatId: string, round: number, used: number, answered: string[]}}
+ */
+export function countersThisRound(flag, combatId, round) {
+  if (flag && flag.combatId === combatId && flag.round === round) {
+    return { combatId, round, used: flag.used ?? 0, answered: [...(flag.answered ?? [])] };
+  }
+  return { combatId, round, used: 0, answered: [] };
+}
+
+/**
+ * Ответный Удар (p. 56) and «Ответная атака» (p. 115), rules.md §11: whether
+ * a confirmed attack card offers its target a counterattack — a melee attack
+ * (both, rules.md §11), not itself a counter (a counter draws none), both
+ * sides still in the fight, in a battle, this card not answered yet, and a
+ * counter left this round: the larger of the tag's number and the spell's,
+ * not their sum.
+ * @param {object} args
+ * @param {boolean} args.confirmed
+ * @param {boolean} args.ranged         the attack was ranged
+ * @param {boolean} args.counter        the attack was itself a counter
+ * @param {boolean} args.defenderOut
+ * @param {boolean} args.attackerOut
+ * @param {boolean} args.inCombat
+ * @param {number} args.tagLimit        counterAttackTagLimit
+ * @param {number} args.spellLimit      Ответный Удар on the defender: 1 or 2
+ * @param {number} args.used            this round
+ * @param {boolean} args.answered       this card was answered already
+ * @returns {{show: boolean, left: number}}
+ */
+export function counterAttackOffer({
+  confirmed, ranged, counter, defenderOut, attackerOut, inCombat, tagLimit = 0, spellLimit = 0, used = 0, answered = false,
+}) {
+  const left = Math.max(tagLimit, spellLimit) - used;
+  const show = !!confirmed && !ranged && !counter && !defenderOut && !attackerOut && !!inCombat && !answered && left > 0;
+  return { show, left };
 }
