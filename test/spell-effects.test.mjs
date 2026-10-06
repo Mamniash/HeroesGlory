@@ -9,7 +9,7 @@ import {
   spellEffectModifiers, actorSpellModifiers, applySpellStatModifiers, spellHeroesOnly,
   NEGATIVE_SPELLS, HEAL_STATUSES, DISPEL_STATUSES, cleansingRemovals, healAmount, isFriendlyTarget,
   resurrectionBlockingTag, resolveSupportSpellResolution,
-  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -223,7 +223,10 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
 
   test('exactly the five stage-1 spells carry a damage effect', () => {
     const withEffect = docs.filter((d) => d.system.variants.none.effect.kind === 'damage').map((d) => d.name).sort();
-    assert.deepEqual(withEffect, ['Армагеддон', 'Взрыв', 'Волна Смерти', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Уничтожить Нежить', 'Цепная Молния']);
+    assert.deepEqual(withEffect, [
+      'Армагеддон', 'Взрыв', 'Волна Смерти', 'Волшебная Стрела', 'Инферно', 'Кольцо Холода', 'Ледяная Молния',
+      'Метеоритный Дождь', 'Молния', 'Огненный Шар', 'Уничтожить Нежить', 'Цепная Молния',
+    ]);
   });
 
   test('stage 2, groups А1 and А2 — twenty spells carry a modifier effect, on every tier', () => {
@@ -234,7 +237,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       'Молитва', 'Неудача', 'Огненный Щит', 'Ответный Удар', 'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость',
       'Слепота', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 31);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 35);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -371,6 +374,27 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
         assert.equal(effect.targeting.mode, 'visible');
         assert.equal(effect.targeting.filter, filter);
         assert.equal(effect.targeting.includeCaster, includeCaster);
+        assert.equal(effect.element, element);
+      });
+    });
+  }
+
+  // Step 5, «Выберите клетку» (pp. 54, 58, 60): [d6, flat, «за СМ», pattern] by tier, element.
+  const areaCases = [
+    ['Метеоритный Дождь', [[2, 0, true, '3x3'], [2, 0, true, '3x3'], [2, 1, true, '3x3'], [2, 2, true, '3x3']], 'fire'],
+    ['Огненный Шар', [[4, 0, false, '3x3'], [4, 0, false, '3x3'], [6, 0, false, '3x3'], [8, 0, false, '3x3']], 'fire'],
+    ['Инферно', [[1, 0, true, '3x3'], [1, 0, true, '3x3'], [1, 0, true, '5x5'], [1, 1, true, '5x5']], 'fire'],
+    ['Кольцо Холода', [[1, 0, true, 'ring'], [1, 0, true, 'ring'], [1, 1, true, 'ring'], [1, 1, true, 'ring']], 'ice'],
+  ];
+  for (const [name, byTier, element] of areaCases) {
+    test(`${name}: «Выберите клетку» by tier (step 5)`, () => {
+      ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        const [count, flat, perMagicPower, area] = byTier[i];
+        assert.equal(effect.kind, 'damage');
+        assert.deepEqual(effect.dice, { count, flat, perMagicPower, addMagicPower: !perMagicPower });
+        assert.equal(effect.targeting.mode, 'area');
+        assert.equal(effect.targeting.area, area);
         assert.equal(effect.element, element);
       });
     });
@@ -720,5 +744,43 @@ describe('resolveSpellResolution — a target the GM left out (step 4)', () => {
   test('excluded: nothing, whatever else it was', () => {
     const r = resolveSpellResolution({ total: 12, targets: [{ excluded: true, incapacitated: true }, { factor: 1 }] });
     assert.deepEqual(r, [{ outcome: 'excluded', damage: 0, armorHalved: false }, { outcome: 'damage', damage: 12, armorHalved: false }]);
+  });
+});
+
+describe('areaCells — the pattern around the chosen cell (step 5, rules.md §11)', () => {
+  // A square grid where a diagonal is a neighbour (p. 26).
+  const square = ({ i, j }) => {
+    const out = [];
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) if (di || dj) out.push({ i: i + di, j: j + dj });
+    return out;
+  };
+  const keys = (cells) => cells.map(({ i, j }) => `${i},${j}`).sort();
+  const center = { i: 5, j: 5 };
+  test('3×3: the cell and its 8 neighbours', () => {
+    const cells = areaCells({ center, pattern: '3x3', neighbors: square });
+    assert.equal(cells.length, 9);
+    assert.ok(keys(cells).includes('5,5'));
+    assert.ok(keys(cells).includes('4,4') && keys(cells).includes('6,6'));
+  });
+  test('ring: the 8 neighbours without the cell (Кольцо Холода)', () => {
+    const cells = areaCells({ center, pattern: 'ring', neighbors: square });
+    assert.equal(cells.length, 8);
+    assert.ok(!keys(cells).includes('5,5'));
+  });
+  test('5×5: within 2 steps (Инферно, «радиус 2 клеток»)', () => {
+    const cells = areaCells({ center, pattern: '5x5', neighbors: square });
+    assert.equal(cells.length, 25);
+    assert.ok(keys(cells).includes('3,3') && keys(cells).includes('7,7'));
+    assert.ok(!keys(cells).includes('2,5'));
+  });
+});
+
+describe('tokenInArea — a token with any cell in the pattern', () => {
+  const area = [{ i: 1, j: 1 }, { i: 1, j: 2 }];
+  test('one cell in — taken (a large token too)', () => {
+    assert.equal(tokenInArea([{ i: 1, j: 2 }, { i: 1, j: 3 }, { i: 2, j: 2 }, { i: 2, j: 3 }], area), true);
+  });
+  test('no cell in — not taken', () => {
+    assert.equal(tokenInArea([{ i: 3, j: 3 }], area), false);
   });
 });

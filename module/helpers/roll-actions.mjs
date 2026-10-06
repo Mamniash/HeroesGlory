@@ -58,7 +58,9 @@ import {
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
-import { tokensAdjacent, attackerTokenFor, tokenDistanceCells, tokenInSight, tokenInSceneRect } from './grid.mjs';
+import {
+  tokensAdjacent, attackerTokenFor, tokenDistanceCells, tokenInSight, tokenInSceneRect, tokenCellDistance,
+} from './grid.mjs';
 import { actorCombat, RESURRECTED_FLAG } from './combat.mjs';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
@@ -66,7 +68,7 @@ import {
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
-  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -1320,6 +1322,90 @@ function visibleSpellTargets(actor, spell, targeting) {
 }
 
 /**
+ * Step 5, «Выберите клетку» (Метеоритный Дождь, Огненный Шар, Инферно,
+ * Кольцо Холода; rules.md §11): the caster places the pattern on the scene
+ * (core region placement, nothing saved; left click — choose, right click
+ * or Esc — cancel; no rotation); its centre must be within 24 cells of the
+ * caster's token (p. 32), an empty cell will do, walls don't cut the area.
+ * Targets: every token with an actor on the caster's level, within the
+ * scene, not hidden, not dead (the incapacitated are taken), that has a
+ * cell in the pattern — the caster and allies too. No caster token, no
+ * grid, cancelled, or nobody in it — refused before any Mana.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} targeting   the variant's `targeting`
+ * @returns {Promise<{docs: TokenDocument[], casterToken: TokenDocument, area: object}|null>}
+ */
+async function areaSpellTargets(actor, spell, targeting) {
+  const i18n = game.i18n;
+  const casterToken = actor.token ?? actor.getActiveTokens(false, true).find((t) => t.parent === canvas.scene) ?? null;
+  if (!casterToken || casterToken.parent !== canvas.scene) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const grid = canvas.grid;
+  if (grid.isGridless) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
+    return null;
+  }
+  const pattern = (center) => areaCells({ center, pattern: targeting.area, neighbors: (cell) => grid.getAdjacentOffsets(cell) });
+  const start = casterToken.getOccupiedGridSpaceOffsets()[0];
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellAreaPlace', { spell: spell.name }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: [{ type: 'grid', offsets: pattern(start), origin: grid.getCenterPoint(start) }],
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ shape }) => {
+        const cells = tokenCellDistance(casterToken, grid.getOffset(shape.origin));
+        if (cells <= SPELL_RANGE_CELLS) return true;
+        ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaOutOfRange', { spell: spell.name, cells, range: SPELL_RANGE_CELLS }));
+        return false;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: area placement failed`, error);
+    return null;
+  }
+  // Esc gives null, a right click undefined — both cancel (rules.md §11).
+  if (!region) return null;
+  const shape = region.shapes[0];
+  const center = grid.getOffset(shape.origin);
+  const cells = shape.offsets.map(({ i, j }) => ({ i, j }));
+  const docs = casterToken.parent.tokens.filter((doc) => {
+    const target = doc.actor;
+    if (!target || doc.hidden || doc.level !== casterToken.level || !tokenInSceneRect(doc)) return false;
+    if (target.statuses.has(CONFIG.specialStatusEffects.DEFEATED)) return false;
+    return tokenInArea(doc.getOccupiedGridSpaceOffsets(), cells);
+  });
+  if (!docs.length) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNobodyInArea', { spell: spell.name }));
+    return null;
+  }
+  // «Центр: клетка …» on the card — the column and row within the scene,
+  // and who stands there.
+  const rect = casterToken.parent.dimensions.sceneRect;
+  const occupants = casterToken.parent.tokens
+    .filter((doc) => !doc.hidden && tokenInArea(doc.getOccupiedGridSpaceOffsets(), [center]))
+    .map((doc) => doc.name);
+  const area = {
+    center,
+    column: center.j - Math.floor(rect.x / grid.size) + 1,
+    row: center.i - Math.floor(rect.y / grid.size) + 1,
+    occupants,
+    pattern: targeting.area,
+  };
+  return { docs, casterToken, area };
+}
+
+/**
  * §6.4, stage 1: a hero's damage spell. One target (or none) from the
  * user's targets; more than one, or a target past 24 cells (p. 32), refuses
  * the cast before any Mana is spent. Цепная Молния adds the nearest
@@ -1338,10 +1424,12 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
   const chainSpec = targeting.mode === 'chain'
     ? chainLightningSpecialization(actor.system.specialization, spell.name)
     : chainLightningSpecialization(null, '');
-  // Step 4, «в поле зрения»: the spell finds its own targets — the user's
-  // are ignored, no 24-cell limit (rules.md §11).
-  const visible = targeting.mode === 'visible';
-  const found = visible ? visibleSpellTargets(actor, spell, targeting) : null;
+  // Step 4, «в поле зрения», and step 5, «Выберите клетку»: the spell finds
+  // its own targets — the user's are ignored (rules.md §11).
+  const visible = targeting.mode === 'visible' || targeting.mode === 'area';
+  let found = null;
+  if (targeting.mode === 'visible') found = visibleSpellTargets(actor, spell, targeting);
+  if (targeting.mode === 'area') found = await areaSpellTargets(actor, spell, targeting);
   if (visible && !found) return null;
   const selected = visible ? found.docs : [...game.user.targets].map((token) => token.document);
   if (!selected.length) {
@@ -1453,6 +1541,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     chainSpecialization,
     total,
     visible,
+    area: targeting.mode === 'area' ? found.area : null,
     rangeUnknown,
     targets,
     confirmed: false,
@@ -1512,8 +1601,17 @@ function buildSpellCardContext(flags) {
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
   context.confirmed = !!flags.confirmed;
-  // Step 4: the GM may leave a target out before confirming (rules.md §11).
+  // Steps 4, 5: the GM may leave a target out before confirming (rules.md §11).
   context.excludable = !!flags.visible && !flags.confirmed;
+  context.areaCenterLine = flags.area
+    ? i18n.format('HEROES_GLORY.Roll.SpellAreaCenter', {
+      column: flags.area.column,
+      row: flags.area.row,
+      who: flags.area.occupants?.length
+        ? i18n.format('HEROES_GLORY.Roll.SpellAreaCenterWho', { names: flags.area.occupants.join(', ') })
+        : '',
+    })
+    : null;
   context.targetRows = flags.targets.map((target, index) => ({ index, excluded: !!target.excluded }));
   context.targetLines = flags.targets.map((target, index) => {
     const result = results[index];

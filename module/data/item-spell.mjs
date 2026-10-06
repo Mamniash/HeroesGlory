@@ -49,6 +49,10 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
         // Нежить) — and whether the caster too (Армагеддон only).
         filter: new fields.StringField({ required: true, blank: true, initial: '', choices: ['notUndeadOrElemental', 'undeadOnly'] }),
         includeCaster: new fields.BooleanField({ initial: false }),
+        // `area` (step 5, «Выберите клетку»): the pattern around the chosen
+        // cell — 3×3 (the cell and its neighbours), 5×5 (Инферно's «радиус 2
+        // клеток»), the ring of 8 neighbours without the cell (Кольцо Холода).
+        area: new fields.StringField({ required: true, blank: true, initial: '', choices: ['3x3', '5x5', 'ring'] }),
         // Экспертный «Работает на количество …, равное СМ» — later stages.
         perMagicPowerTargets: new fields.BooleanField({ initial: false }),
         extraTargets: int(),

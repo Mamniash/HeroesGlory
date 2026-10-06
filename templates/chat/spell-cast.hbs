@@ -16,8 +16,12 @@
     {{#if noTarget}}
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
     {{/if}}
+    {{!-- Step 5: the chosen cell of an area spell. --}}
+    {{#if areaCenterLine}}
+      <p class="heroes-glory-chat-card__line">{{areaCenterLine}}</p>
+    {{/if}}
     {{#if excludable}}
-      {{!-- Step 4: per-target «исключить» / «вернуть», the GM only (chat.mjs). --}}
+      {{!-- Steps 4, 5: per-target «исключить» / «вернуть», the GM only (chat.mjs). --}}
       {{#each targetRows}}
         <p class="heroes-glory-chat-card__damage{{#if excluded}} heroes-glory-chat-card__line--muted{{/if}}">{{text}}
           <button type="button" class="heroes-glory-chat-card__exclude-btn" data-action="hg-spell-exclude" data-index="{{index}}">

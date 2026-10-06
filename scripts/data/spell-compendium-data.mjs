@@ -87,11 +87,13 @@ function buildVariants(base, basicCost, advanced = {}, expert = {}) {
  * @param {string} [options.element]   'fire' | 'ice' | 'lightning'
  * @param {{extraTargets: number, extraFactor: number}} [options.chain]
  * @param {{filter?: string, includeCaster?: boolean}} [options.visible]   «в поле зрения» (step 4)
+ * @param {'3x3'|'5x5'|'ring'} [options.area]   «Выберите клетку» (step 5)
  */
-function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = false, element = '', chain = null, visible = null } = {}) {
+function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = false, element = '', chain = null, visible = null, area = '' } = {}) {
   let targeting = { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 };
   if (chain) targeting = { mode: 'chain', perMagicPowerTargets: false, extraTargets: chain.extraTargets, extraFactor: chain.extraFactor };
   if (visible) targeting = { ...targeting, mode: 'visible', filter: visible.filter ?? '', includeCaster: !!visible.includeCaster };
+  if (area) targeting = { ...targeting, mode: 'area', area };
   return {
     kind: 'damage',
     targeting,
@@ -247,7 +249,9 @@ const EARTH = [
     supportEffect('resurrect', { healthFactor: 0.5 }),
     supportEffect('resurrect', { healthFactor: 1 }),
   ], { base: { desc: 'Воскрешает недавно погибшего персонажа, давая ему 50% максимального ОЗ. В конце битвы персонаж снова погибнет.', cost: 20 }, basicCost: 16, advanced: { desc: 'Существо воскресает навсегда' }, expert: { desc: 'Существо Воскресает с полными ОЗ' } }) },
-  { name: 'Метеоритный Дождь', level: 4, icon: 23, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 2d6 огненного урона за каждый ваш СМ.', cost: 40 }, basicCost: 35, advanced: { desc: 'Урон увеличивается до 2d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 2d6+2 за СМ' } },
+  // Step 5 (p. 54): the cell and its neighbours, (2d6 / +1 / +2) of fire
+  // for each СМ.
+  { name: 'Метеоритный Дождь', level: 4, icon: 23, ...withEffects([0, 1, 2].map((flat) => damageEffect(2, flat, { perMagicPower: true, element: 'fire', area: '3x3' })), { base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 2d6 огненного урона за каждый ваш СМ.', cost: 40 }, basicCost: 35, advanced: { desc: 'Урон увеличивается до 2d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 2d6+2 за СМ' } }) },
   { name: 'Взрыв', level: 5, icon: 18, base: { desc: 'Выберите существо. Оно получает 2d6+3 урона за каждый ваш СМ.', cost: 50, effect: damageEffect(2, 3, { perMagicPower: true }) }, basicCost: 40, advanced: { desc: 'Урон увеличивается до 2d6+4 за СМ', effect: damageEffect(2, 4, { perMagicPower: true }) }, expert: { desc: 'Урон увеличивается до 2d6+5 за СМ', effect: damageEffect(2, 5, { perMagicPower: true }) } },
 ];
 
@@ -308,7 +312,13 @@ const WATER = [
   // BOOK DEFECT: Экспертный не усиливает эффект, а просто повторяет
   // стоимость Базового — единственный такой случай во всей книге.
   // Транскрибировано дословно, не "исправлено".
-  { name: 'Кольцо Холода', level: 3, icon: 20, base: { desc: 'Выберите клетку. Все существа на соседних клетках (но не на этой) получают 1d6 урона за СМ.', cost: 27 }, basicCost: 20, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ' }, expert: { cost: 20 } },
+  // Step 5 (p. 58): the 8 neighbours, not the cell; ice. The expert = the
+  // advanced (rules.md §11).
+  { name: 'Кольцо Холода', level: 3, icon: 20, ...withEffects([
+    damageEffect(1, 0, { perMagicPower: true, element: 'ice', area: 'ring' }),
+    damageEffect(1, 1, { perMagicPower: true, element: 'ice', area: 'ring' }),
+    damageEffect(1, 1, { perMagicPower: true, element: 'ice', area: 'ring' }),
+  ], { base: { desc: 'Выберите клетку. Все существа на соседних клетках (но не на этой) получают 1d6 урона за СМ.', cost: 27 }, basicCost: 20, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ' }, expert: { cost: 20 } }) },
   // BOOK PATTERN (подтверждено как замысел, не дефект): эффект не
   // меняется ни на одной ступени — утилитарное заклинание, "нечего
   // усиливать", дешевеет только стоимость.
@@ -340,13 +350,20 @@ const FIRE = [
   { name: 'Стена Огня', level: 2, icon: 13, base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 28 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } },
   // BOOK DEFECT: в книге стоимости перепутаны местами (без навыка 15,
   // базовый 36); решение Сени — 36 и 15 (rules.md §11).
-  { name: 'Огненный Шар', level: 3, icon: 21, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.', cost: 36 }, basicCost: 15, advanced: { desc: 'Урон увеличивается до 6d6+СМ' }, expert: { desc: 'Урон увеличивается до 8d6+СМ' } },
+  // Step 5 (p. 60): the cell and its neighbours, 4/6/8d6+СМ of fire.
+  { name: 'Огненный Шар', level: 3, icon: 21, ...withEffects([4, 6, 8].map((count) => damageEffect(count, 0, { plusMagicPower: true, element: 'fire', area: '3x3' })), { base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 4d6+СМ огненного урона.', cost: 36 }, basicCost: 15, advanced: { desc: 'Урон увеличивается до 6d6+СМ' }, expert: { desc: 'Урон увеличивается до 8d6+СМ' } }) },
   // Group А1 (p. 60): «до минимума в -3» — the hero's ±3 clamp.
   { name: 'Неудача', level: 3, icon: 52, ...withEffects(statEffects('luck', [-1, -2, -2], { hostile: true }), { base: { desc: 'Параметр удачи цели снижается на 1 до минимума в -3. Длительность = СМ.', cost: 12 }, basicCost: 9, advanced: { desc: 'Параметр удачи снижается на 2 (до минимума в -3)' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   // Group А2 (p. 60): the caster's СМ at the cast is added (+3 / +6),
   // every attack on the bearer burns (rules.md §11).
   { name: 'Огненный Щит', level: 4, icon: 29, ...withEffects(statEffects('fireShield', [0, 3, 6], { expertTargets: false }), { base: { desc: 'Выберите цель. Любое существо, атакующее цель, получает урон огнем, равный вашему СМ. Длительность = СМ.', cost: 16 }, basicCost: 12, advanced: { desc: 'Урон увеличивается до 3+СМ' }, expert: { desc: 'Урон увеличивается до 6+СМ' } }) },
-  { name: 'Инферно', level: 4, icon: 22, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.', cost: 56 }, basicCost: 48, advanced: { desc: 'Затрагивает клетки в радиусе 2 клеток от центра' }, expert: { desc: 'Урон увеличивается до 1d6+1 за СМ' } },
+  // Step 5 (p. 60): Продвинутый «в радиусе 2 клеток» — 5×5, the expert
+  // keeps it (rules.md §11).
+  { name: 'Инферно', level: 4, icon: 22, ...withEffects([
+    damageEffect(1, 0, { perMagicPower: true, element: 'fire', area: '3x3' }),
+    damageEffect(1, 0, { perMagicPower: true, element: 'fire', area: '5x5' }),
+    damageEffect(1, 1, { perMagicPower: true, element: 'fire', area: '5x5' }),
+  ], { base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.', cost: 56 }, basicCost: 48, advanced: { desc: 'Затрагивает клетки в радиусе 2 клеток от центра' }, expert: { desc: 'Урон увеличивается до 1d6+1 за СМ' } }) },
   // Step 4 (p. 60): «Все существа (даже вы и союзники!)», fire.
   { name: 'Армагеддон', level: 5, icon: 26, ...withEffects([5, 7, 10].map((count) => damageEffect(count, 0, { plusMagicPower: true, element: 'fire', visible: { includeCaster: true } })), { base: { desc: 'Все существа (даже вы и союзники!) в поле зрения получают урон огнем, равный 5d6+СМ.', cost: 60 }, basicCost: 50, advanced: { desc: 'Урон увеличивается до 7d6+СМ' }, expert: { desc: 'Урон увеличивается до 10d6+СМ' } }) },
 ];

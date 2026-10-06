@@ -550,3 +550,48 @@ export function visibleSpellTakes({ targeting, isCaster, isCreature, tags = [] }
   if (targeting?.filter === 'notUndeadOrElemental') return !tagged('нежить') && !tagged('элементаль');
   return true;
 }
+
+/**
+ * Step 5, «Выберите клетку» (Метеоритный Дождь, Огненный Шар, Инферно,
+ * Кольцо Холода; rules.md §11): the cells of the pattern around the chosen
+ * one — the cell and those within 1 step (3×3), within 2 steps (5×5,
+ * Инферно's «радиус 2 клеток»), or the 1-step ring without the cell
+ * (Кольцо Холода, «на соседних клетках (но не на этой)»). Steps are the
+ * grid's own neighbours (a diagonal is one step, p. 26).
+ * @param {object} args
+ * @param {{i: number, j: number}} args.center
+ * @param {'3x3'|'5x5'|'ring'} args.pattern
+ * @param {(cell: {i: number, j: number}) => Array<{i: number, j: number}>} args.neighbors
+ * @returns {Array<{i: number, j: number}>}
+ */
+export function areaCells({ center, pattern, neighbors }) {
+  const key = (cell) => `${cell.i}.${cell.j}`;
+  const radius = pattern === '5x5' ? 2 : 1;
+  const seen = new Map([[key(center), { i: center.i, j: center.j }]]);
+  let frontier = [center];
+  for (let step = 0; step < radius; step += 1) {
+    const next = [];
+    for (const cell of frontier) {
+      for (const near of neighbors(cell)) {
+        if (seen.has(key(near))) continue;
+        seen.set(key(near), { i: near.i, j: near.j });
+        next.push(near);
+      }
+    }
+    frontier = next;
+  }
+  const cells = [...seen.values()];
+  return pattern === 'ring' ? cells.filter((cell) => key(cell) !== key(center)) : cells;
+}
+
+/**
+ * A token is in an area if any cell it occupies is (rules.md §11: a large
+ * token is taken by one of its cells).
+ * @param {Array<{i: number, j: number}>} tokenCells
+ * @param {Array<{i: number, j: number}>} area
+ * @returns {boolean}
+ */
+export function tokenInArea(tokenCells, area) {
+  const keys = new Set(area.map((cell) => `${cell.i}.${cell.j}`));
+  return tokenCells.some((cell) => keys.has(`${cell.i}.${cell.j}`));
+}

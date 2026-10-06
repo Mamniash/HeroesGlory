@@ -92,3 +92,17 @@ export function tokenInSceneRect(doc) {
   const size = doc.parent.grid.size;
   return rect.contains(doc.x + (doc.width * size) / 2, doc.y + (doc.height * size) / 2);
 }
+
+/**
+ * Step 5: how far the caster's token is from a cell, in grid cells, from
+ * its nearest cell (p. 32's 24 cells, rules.md §11).
+ * @param {TokenDocument} from
+ * @param {{i: number, j: number}} cell
+ * @returns {number}
+ */
+export function tokenCellDistance(from, cell) {
+  const grid = from.parent.grid;
+  let best = Infinity;
+  for (const own of from.getOccupiedGridSpaceOffsets()) best = Math.min(best, grid.measurePath([own, cell]).spaces);
+  return best;
+}
