@@ -54,12 +54,13 @@ import {
 import { buildEffectChanges } from './modifiers.mjs';
 import {
   hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization, hasteSpecializationBonus,
-  resurrectionSpecialization,
+  resurrectionSpecialization, fireWallSpecialization,
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
 import {
   tokensAdjacent, attackerTokenFor, tokenDistanceCells, tokenInSight, tokenInSceneRect, tokenCellDistance,
+  pointInSight, cellInSceneRect, sceneCellNumbers,
 } from './grid.mjs';
 import { actorCombat, RESURRECTED_FLAG } from './combat.mjs';
 import {
@@ -69,6 +70,7 @@ import {
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
+  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -1131,6 +1133,12 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     if (['heal', 'dispel', 'resurrect'].includes(effect?.kind)) {
       return castSupportSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
+    if (effect?.kind === 'teleport') {
+      return castTeleportSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
+    if (effect?.kind === 'field') {
+      return castFieldSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
   }
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -1590,6 +1598,8 @@ function buildSpellCardContext(flags) {
   };
   if (flags.effectKind === 'modifier') return buildModifierSpellCardContext(flags, context);
   if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return buildSupportSpellCardContext(flags, context);
+  if (flags.effectKind === 'teleport' || flags.effectKind === 'field') return buildPlacementSpellCardContext(flags, context);
+  if (flags.fieldTrigger) context.fieldTriggerLine = game.i18n.format(`HEROES_GLORY.Roll.FireWallTrigger.${flags.fieldTrigger}`, { target: flags.targets?.[0]?.name ?? '' });
   if (flags.total === undefined) return context;
 
   const results = resolveSpellResolution(flags);
@@ -1666,6 +1676,12 @@ function buildSpellCardContext(flags) {
   if (flags.chainSpecialization) {
     context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellChainSpecLine', { total: flags.chainSpecialization.total }));
   }
+  if (flags.fireWallSpecialization) {
+    context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellFireWallSpecLine', {
+      count: flags.fireWallSpecialization.count,
+      total: flags.fireWallSpecialization.total,
+    }));
+  }
   context.totalLine = i18n.format('HEROES_GLORY.Roll.SpellTotalLine', { total: flags.total });
   context.targetRows = context.targetRows.map((row, index) => ({ ...row, text: context.targetLines[index] }));
   return context;
@@ -1707,6 +1723,8 @@ export async function confirmSpellOutcome(message) {
   if (!canConfirmSpell(flags)) return;
   if (flags.effectKind === 'modifier') return confirmModifierSpell(message, flags);
   if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return confirmSupportSpell(message, flags);
+  if (flags.effectKind === 'teleport') return confirmTeleportSpell(message, flags);
+  if (flags.effectKind === 'field') return confirmFieldSpell(message, flags);
   const results = resolveSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     const result = results[index];
@@ -1801,6 +1819,10 @@ async function castSupportSpell(actor, spell, { variant, variantData, resolvedSc
   if (kind === 'resurrect' && !castStart) {
     ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
     return null;
+  }
+  // The expert Развеивание with no target chosen: a cell (rules.md §11).
+  if (kind === 'dispel' && effect.dispelFields && !game.user.targets.size) {
+    return castDispelCellSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost });
   }
   const picked = supportSpellTargets(actor, spell, effect);
   if (!picked) return null;
@@ -1933,6 +1955,14 @@ function buildSupportSpellCardContext(flags, context) {
     if (!names.length) return null;
     return i18n.format(done ? 'HEROES_GLORY.Roll.SpellRemovedApplied' : 'HEROES_GLORY.Roll.SpellRemovedPending', { list: names.join(', ') });
   };
+  if (flags.dispelCell) {
+    const { column, row, names } = flags.dispelCell;
+    context.noTarget = false;
+    context.targetLines = [i18n.format(done ? 'HEROES_GLORY.Roll.SpellDispelCellApplied' : 'HEROES_GLORY.Roll.SpellDispelCellPending', {
+      column, row, list: names.join(', '),
+    })];
+    return context;
+  }
   context.targetLines = flags.targets.map((target, index) => {
     const result = results[index];
     let text;
@@ -1995,6 +2025,11 @@ async function confirmSupportSpell(message, flags) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
     return;
   }
+  if (flags.dispelCell) {
+    const scene = game.scenes.get(flags.dispelCell.sceneId);
+    const ids = flags.dispelCell.regionIds.filter((id) => scene?.regions.has(id));
+    if (ids.length) await scene.deleteEmbeddedDocuments('Region', ids);
+  }
   const results = resolveSupportSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     if (results[index].outcome !== 'applied') continue;
@@ -2033,6 +2068,706 @@ async function confirmSupportSpell(message, flags) {
     buildSpellCardContext(nextFlags),
   );
   return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/**
+ * §6.4, group Г: the expert Развеивание Магии with no target chosen (p. 57:
+ * «Вы можете выбрать видимый эффект (например силовое поле, огненную стену и
+ * т.п.) и убрать его», rules.md §11) — the caster picks a cell within 24
+ * cells (core region placement, nothing saved); our field spells there that
+ * the user sees go at the GM's confirm. A cell with none keeps the choice
+ * open; right click or Esc cancels, no Mana spent. Works out of combat.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castDispelCellSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost }) {
+  const i18n = game.i18n;
+  const casterToken = casterTokenOnCanvas(actor);
+  if (!casterToken) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const grid = canvas.grid;
+  if (grid.isGridless) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
+    return null;
+  }
+  const scene = casterToken.parent;
+  const seenRegions = () => scene.regions.filter((region) => region.getFlag(FLAG_SCOPE, FIELD_FLAG)).map((region) => ({
+    id: region.id,
+    cells: region.shapes.flatMap((shape) => shape.offsets ?? []),
+    visible: !!region.object?.isVisible,
+  }));
+  const start = casterToken.getOccupiedGridSpaceOffsets()[0];
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellDispelCellPlace', { spell: spell.name }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: [{ type: 'grid', offsets: [start], origin: grid.getCenterPoint(start) }],
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ shape }) => {
+        const cell = grid.getOffset(shape.origin);
+        const cells = tokenCellDistance(casterToken, cell);
+        let refusal = null;
+        if (cells > SPELL_RANGE_CELLS) refusal = ['SpellFieldOutOfRange', { cells, range: SPELL_RANGE_CELLS }];
+        else if (!dispelCellRegionIds(seenRegions(), cell).length) refusal = ['SpellDispelCellNothing', {}];
+        if (!refusal) return true;
+        ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${refusal[0]}`, { spell: spell.name, ...refusal[1] }));
+        return false;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: placement failed`, error);
+    return null;
+  }
+  if (!region) return null;
+  const cell = grid.getOffset(region.shapes[0].origin);
+  const regionIds = dispelCellRegionIds(seenRegions(), cell);
+  if (!regionIds.length) return null;
+  const names = [...new Set(regionIds.map((id) => scene.regions.get(id).getFlag(FLAG_SCOPE, FIELD_FLAG).spellName))];
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+  const flags = {
+    kind: 'spell',
+    effectKind: 'dispel',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    dispelCell: { sceneId: scene.id, ...sceneCellNumbers(scene, cell), regionIds, names },
+    targets: [],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, []);
+}
+
+/** Region flag: a field spell (group Г) — its caster, battle, rounds, damage. */
+const FIELD_FLAG = 'fieldSpell';
+
+/**
+ * The caster's token on the scene the user is looking at — where a cell is
+ * chosen. `null` without one.
+ * @param {Actor} actor
+ * @returns {TokenDocument|null}
+ */
+function casterTokenOnCanvas(actor) {
+  const token = actor.token ?? actor.getActiveTokens(false, true).find((t) => t.parent === canvas.scene) ?? null;
+  return token?.parent === canvas.scene ? token : null;
+}
+
+/**
+ * A token's `displace` across the scene's regions. Core builds a region's
+ * polygon tree lazily, through the `polygonTree` getter (drawing does), but
+ * its teleport test for a `displace` reads the private field directly — a
+ * region not drawn on this client yet (a new trap, one this user can't see)
+ * throws «reading 'testPoint'». Touching the getter first builds them.
+ * @param {TokenDocument} tokenDoc
+ * @param {{x: number, y: number}} destination
+ * @returns {Promise<unknown>}
+ */
+function displaceToken(tokenDoc, { x, y }) {
+  for (const region of tokenDoc.parent.regions) void region.polygonTree;
+  return tokenDoc.move({ x, y, action: 'displace' });
+}
+
+/** `i.j` — a cell as a key. */
+const cellKey = (cell) => `${cell.i}.${cell.j}`;
+
+/**
+ * The cells a scene's tokens stand on, but `except`'s.
+ * @param {Scene} scene
+ * @param {TokenDocument|null} [except]
+ * @returns {Set<string>}
+ */
+function occupiedCellKeys(scene, except = null) {
+  const keys = new Set();
+  for (const doc of scene.tokens) {
+    if (doc === except) continue;
+    for (const cell of doc.getOccupiedGridSpaceOffsets()) keys.add(cellKey(cell));
+  }
+  return keys;
+}
+
+/**
+ * The cells of the scene's field spells of one kind (group Г).
+ * @param {Scene} scene
+ * @param {string} type
+ * @returns {Set<string>}
+ */
+function fieldCellKeys(scene, type) {
+  const keys = new Set();
+  for (const region of scene.regions) {
+    if (region.getFlag(FLAG_SCOPE, FIELD_FLAG)?.type !== type) continue;
+    for (const shape of region.shapes) for (const cell of shape.offsets ?? []) keys.add(cellKey(cell));
+  }
+  return keys;
+}
+
+/**
+ * §6.4, group Г: Телепорт (p. 58, rules.md §11) — «Выберите дружественное
+ * существо. Телепортирует его на видимую вами клетку.» One target (T) within
+ * 24 cells on the caster's side; then the caster places the target's
+ * footprint on the scene (core region placement, nothing saved): every cell
+ * free, within the scene, not in a Силовое Поле, one of them seen from the
+ * caster's token. Right click or Esc cancels. Works out of combat; the GM's
+ * confirm moves the token as core's `displace` — not stepping into a Стена
+ * Огня or a trap.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castTeleportSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
+  const i18n = game.i18n;
+  const selected = [...game.user.targets].map((token) => token.document).filter((doc) => doc.actor);
+  if (!selected.length) {
+    ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
+    return null;
+  }
+  if (selected.length > 1) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name }));
+    return null;
+  }
+  const [targetDoc] = selected;
+  const casterToken = casterTokenOnCanvas(actor);
+  if (!casterToken || targetDoc.parent !== casterToken.parent) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const distance = tokenDistanceCells(casterToken, targetDoc);
+  if (distance !== null && distance > SPELL_RANGE_CELLS) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
+      spell: spell.name, target: targetDoc.actor.name, cells: distance, range: SPELL_RANGE_CELLS,
+    }));
+    return null;
+  }
+  if (!isFriendlyTarget(targetDoc.disposition, casterToken.disposition, CONST.TOKEN_DISPOSITIONS.FRIENDLY)) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellTeleportNotFriendly', { spell: spell.name, target: targetDoc.actor.name }));
+    return null;
+  }
+  if (antimagicRefuses(spell, selected)) return null;
+
+  const scene = casterToken.parent;
+  const grid = canvas.grid;
+  const anchor = grid.getOffset({ x: targetDoc.x + 1, y: targetDoc.y + 1 });
+  const occupied = occupiedCellKeys(scene, targetDoc);
+  const forceField = fieldCellKeys(scene, 'forceField');
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellTeleportPlace', { spell: spell.name, target: targetDoc.actor.name }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: [{ type: 'grid', offsets: targetDoc.getOccupiedGridSpaceOffsets(), origin: grid.getCenterPoint(anchor) }],
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ shape }) => {
+        const cells = shape.offsets;
+        let refusal = null;
+        if (!cells.every((cell) => cellInSceneRect(scene, cell))) refusal = 'SpellTeleportOutside';
+        else if (cells.some((cell) => occupied.has(cellKey(cell)))) refusal = 'SpellTeleportOccupied';
+        else if (cells.some((cell) => forceField.has(cellKey(cell)))) refusal = 'SpellTeleportForceField';
+        else if (!cells.some((cell) => pointInSight(casterToken, grid.getCenterPoint(cell)))) refusal = 'SpellTeleportNotVisible';
+        if (!refusal) return true;
+        ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${refusal}`, { spell: spell.name }));
+        return false;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: placement failed`, error);
+    return null;
+  }
+  // Esc gives null, a right click undefined — both cancel (rules.md §11).
+  if (!region) return null;
+  const destinationCell = grid.getOffset(region.shapes[0].origin);
+  const topLeft = grid.getTopLeftPoint(destinationCell);
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+  const { entry } = await spellTargetEntry(targetDoc, spell, effect, 1, { resist: false, skipIncapacitated: false });
+  entry.destination = { x: topLeft.x, y: topLeft.y, ...sceneCellNumbers(scene, destinationCell) };
+
+  const flags = {
+    kind: 'spell',
+    effectKind: 'teleport',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    targets: [entry],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, []);
+}
+
+/**
+ * §6.4, group Г: Силовое Поле (p. 54) and Стена Огня (p. 59) — the caster
+ * chooses the cells one by one (core region placement, nothing saved; each
+ * click a cell): within 24 cells, within the scene, side by side as a chain,
+ * free of creatures for Стена Огня; right click or Esc on any cell cancels
+ * the cast (rules.md §11). Only in combat; a lasting spell (the limit of
+ * three). The «Стена Огня» specialization (p. 23) — one cell more and +5d6.
+ * The GM's confirm creates the region (confirmFieldSpell).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castFieldSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect }) {
+  const i18n = game.i18n;
+  const field = effect.field;
+  const castStart = casterCombatStart(actor);
+  if (!castStart) {
+    ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
+    return null;
+  }
+  const casterToken = casterTokenOnCanvas(actor);
+  if (!casterToken) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const grid = canvas.grid;
+  if (grid.isGridless) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
+    return null;
+  }
+  const specialization = field.type === 'fireWall'
+    ? fireWallSpecialization(actor.system.specialization, spell.name)
+    : fireWallSpecialization(null, '');
+  const count = field.cells + specialization.extraCells;
+  // Зыбучий Песок lasts to the end of the battle — not a lasting spell (rules.md §11).
+  const quicksand = field.type === 'quicksand';
+  const endCast = quicksand ? null : await chooseLastingSpellToEnd(actor, spell, []);
+  if (endCast === false) return null;
+
+  const scene = casterToken.parent;
+  const occupied = occupiedCellKeys(scene);
+  const start = casterToken.getOccupiedGridSpaceOffsets()[0];
+  const cellShape = () => ({ type: 'grid', offsets: [start], origin: grid.getCenterPoint(start) });
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellFieldPlace', { spell: spell.name, count }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: Array.from({ length: count }, cellShape),
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ document, shape, shapeIndex }) => {
+        const cell = grid.getOffset(shape.origin);
+        const warn = (key, data = {}) => {
+          ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${key}`, { spell: spell.name, ...data }));
+          return false;
+        };
+        const cells = tokenCellDistance(casterToken, cell);
+        if (cells > SPELL_RANGE_CELLS) return warn('SpellFieldOutOfRange', { cells, range: SPELL_RANGE_CELLS });
+        if (!cellInSceneRect(scene, cell)) return warn('SpellTeleportOutside');
+        if (field.freeCells && occupied.has(cellKey(cell))) return warn('SpellFieldOccupied');
+        const chosen = document.shapes.slice(0, shapeIndex).map((s) => grid.getOffset(s.origin));
+        const choice = fieldCellChoice({ cell, chosen, adjacent: field.adjacent, isAdjacent: (a, b) => grid.testAdjacency(a, b) });
+        if (choice === 'same') return warn('SpellFieldSameCell');
+        if (choice === 'notAdjacent') return warn('SpellFieldNotAdjacent');
+        return true;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: placement failed`, error);
+    return null;
+  }
+  // Cancelled, or a cell skipped with a right click — the whole cast is off (rules.md §11).
+  if (!region || region.shapes.length < count) return null;
+  const cells = region.shapes.map((shape) => grid.getOffset(shape.origin));
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+
+  // Стена Огня: what each burn rolls, frozen at the cast — 1d6 (+1 / +2) for
+  // each of the caster's СМ, Волшебство (a damage spell, rules.md §11), the
+  // specialization's 5d6.
+  let fire = null;
+  if (field.type === 'fireWall') {
+    const owned = actor.items.filter((i) => i.type === 'skill').map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+    const sorceryTier = highestSkillTier(owned, 'sorcery');
+    const sorcery = sorceryDice({
+      sorceryTier,
+      sorcerySpecialization: actor.system.specialization?.type === 'skill' && actor.system.specialization.key === 'sorcery',
+      spellLevel: spell.system.level,
+    });
+    fire = {
+      dice: spellDamageDice(effect.dice, actor.system.magicPower),
+      sorceryTier,
+      sorcerySkill: sorcery.skill,
+      sorcerySpecialization: sorcery.specialization,
+      fireWallSpecialization: specialization.bonusDice,
+      level: spell.system.level,
+    };
+  }
+
+  const flags = {
+    kind: 'spell',
+    effectKind: 'field',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    spellImg: spell.img,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    field: {
+      type: field.type,
+      sceneId: scene.id,
+      level: casterToken.level,
+      cells: cells.map(({ i, j }) => ({ i, j })),
+      labels: cells.map((cell) => sceneCellNumbers(scene, cell)),
+    },
+    fire,
+    rounds: lastingSpellRounds(actor.system.magicPower,
+      actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
+    castStart,
+    castId: foundry.utils.randomID(),
+    endCast,
+    targets: [],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  const messageData = { content, flags: { [FLAG_SCOPE]: { spell: flags } } };
+  // «Невидимые ловушки»: their cells only for the caster's owners and the GM.
+  if (quicksand) {
+    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), ...messageData, whisper: ownersAndGmIds(actor) });
+  }
+  return createActorVisibilityCard(actor, messageData, []);
+}
+
+/**
+ * A Телепорт or field spell card's lines — where to, which cells.
+ * @param {object} flags
+ * @param {object} context   the plain cast's context
+ * @returns {object}
+ */
+function buildPlacementSpellCardContext(flags, context) {
+  const i18n = game.i18n;
+  const done = !!flags.confirmed;
+  context.targetSpell = true;
+  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellSupportConfirmHint';
+  context.confirmed = done;
+  context.canConfirm = canConfirmSpell(flags);
+  if (flags.effectKind === 'teleport') {
+    const results = resolveSupportSpellResolution(flags);
+    context.targetLines = flags.targets.map((target, index) => {
+      if (results[index].outcome === 'immune') {
+        return i18n.format('HEROES_GLORY.Roll.SpellModifierImmune', {
+          target: target.name, reason: i18n.format(SPELL_IMMUNITY_LABELS[target.immunity], { element: '' }),
+        });
+      }
+      return i18n.format(done ? 'HEROES_GLORY.Roll.SpellTeleportApplied' : 'HEROES_GLORY.Roll.SpellTeleportPending', {
+        target: target.name, column: target.destination.column, row: target.destination.row,
+      });
+    });
+    return context;
+  }
+  const cells = flags.field.labels.map(({ column, row }) => `${column}:${row}`).join(', ');
+  context.targetLines = flags.field.type === 'quicksand'
+    ? [
+      i18n.format(done ? 'HEROES_GLORY.Roll.SpellQuicksandApplied' : 'HEROES_GLORY.Roll.SpellQuicksandPending', { spell: flags.spellName, count: flags.field.cells.length }),
+      i18n.format('HEROES_GLORY.Roll.SpellFieldCells', { cells }),
+      i18n.format('HEROES_GLORY.Roll.SpellQuicksandSecret', { caster: flags.casterName }),
+    ]
+    : [
+      i18n.format(done ? 'HEROES_GLORY.Roll.SpellFieldApplied' : 'HEROES_GLORY.Roll.SpellFieldPending', { spell: flags.spellName, rounds: flags.rounds }),
+      i18n.format('HEROES_GLORY.Roll.SpellFieldCells', { cells }),
+    ];
+  if (flags.fire) {
+    const { dice, sorcerySkill, sorcerySpecialization, fireWallSpecialization } = flags.fire;
+    const total = { count: dice.count + sorcerySkill + sorcerySpecialization + fireWallSpecialization, flat: dice.flat };
+    context.targetLines.push(i18n.format('HEROES_GLORY.Roll.SpellFieldDice', { formula: spellFormula(total) }));
+  }
+  context.endCastLine = flags.endCast
+    ? i18n.format(done ? 'HEROES_GLORY.Roll.SpellEndApplied' : 'HEROES_GLORY.Roll.SpellEndPending', { cast: flags.endCast.label })
+    : null;
+  return context;
+}
+
+/**
+ * §6.4, group Г: the GM's confirm on a Телепорт card — the token is moved as
+ * core's `displace` (through walls, not a step into a region; rules.md §11).
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmTeleportSpell(message, flags) {
+  const results = resolveSupportSpellResolution(flags);
+  for (const [index, target] of flags.targets.entries()) {
+    if (results[index].outcome !== 'applied') continue;
+    const tokenDoc = target.tokenUuid ? fromUuidSync(target.tokenUuid) : null;
+    if (!tokenDoc) {
+      ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: target.name }));
+      continue;
+    }
+    await displaceToken(tokenDoc, target.destination);
+  }
+  return markSpellConfirmed(message, flags);
+}
+
+/**
+ * §6.4, group Г: the GM's confirm on a field spell card — creates the region
+ * on the scene of the cast: Силовое Поле — impassable for movement, flying
+ * too (its behavior's infinite terrain cost); Стена Огня — with its behavior
+ * (burnFireWall). Both are seen by all,
+ * last the cast's rounds (expireFieldSpells) and end with the battle. If the
+ * battle is over, nothing is created.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmFieldSpell(message, flags) {
+  if (!game.combats.get(flags.castStart?.combat)) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
+    return;
+  }
+  const scene = game.scenes.get(flags.field.sceneId);
+  if (!scene) return;
+  if (flags.endCast) {
+    const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
+      .find((cast) => cast.castId === flags.endCast.castId);
+    for (const effect of ending?.effects ?? []) await effect.delete();
+    for (const region of ending?.regions ?? []) await region.delete();
+  }
+  if (flags.field.type === 'quicksand') {
+    await createQuicksandTraps(scene, flags);
+    return markSpellConfirmed(message, flags);
+  }
+  const forceField = flags.field.type === 'forceField';
+  await scene.createEmbeddedDocuments('Region', [{
+    name: flags.spellName,
+    color: forceField ? '#5aa0ff' : '#ff6400',
+    shapes: [{ type: 'grid', offsets: flags.field.cells }],
+    levels: [flags.field.level],
+    visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    highlightMode: 'coverage',
+    // Силовое Поле: impassable through its terrain (region-force-field.mjs).
+    behaviors: [{ name: flags.spellName, type: forceField ? 'heroes-glory.forceField' : 'heroes-glory.fireWall', system: {} }],
+    flags: {
+      [FLAG_SCOPE]: {
+        [FIELD_FLAG]: {
+          type: flags.field.type,
+          spellName: flags.spellName,
+          casterUuid: flags.actorUuid,
+          casterName: flags.casterName,
+          combatId: flags.castStart.combat,
+          casterCombatant: flags.castStart.combatant,
+          castId: flags.castId,
+          expiresRound: fieldExpiresRound(flags.castStart.round, flags.rounds),
+          fire: flags.fire,
+          school: flags.school,
+          variant: flags.variant,
+        },
+      },
+    },
+  }]);
+  return markSpellConfirmed(message, flags);
+}
+
+/**
+ * Зыбучий Песок (p. 53): one region a trap, so that a sprung one shows alone
+ * (rules.md §11). Seen by the GM and the caster's owners (Observer, the
+ * region's own ownership), sprung by everyone (region-quicksand.mjs); no
+ * rounds — gone with the battle (clearFieldSpellsAfterCombat).
+ * @param {Scene} scene
+ * @param {object} flags   the cast card's
+ * @returns {Promise<RegionDocument[]>}
+ */
+async function createQuicksandTraps(scene, flags) {
+  const caster = fromUuidSync(flags.actorUuid);
+  const ownerIds = caster instanceof Actor
+    ? game.users.filter((u) => !u.isGM && caster.testUserPermission(u, 'OWNER')).map((u) => u.id)
+    : [];
+  return scene.createEmbeddedDocuments('Region', flags.field.cells.map((cell) => ({
+    name: flags.spellName,
+    color: '#c8a050',
+    shapes: [{ type: 'grid', offsets: [cell] }],
+    levels: [flags.field.level],
+    visibility: CONST.REGION_VISIBILITY.OBSERVER,
+    ownership: quicksandOwnership(ownerIds),
+    highlightMode: 'coverage',
+    behaviors: [{ name: flags.spellName, type: 'heroes-glory.quicksand', system: {} }],
+    flags: {
+      [FLAG_SCOPE]: {
+        [FIELD_FLAG]: {
+          type: 'quicksand',
+          spellName: flags.spellName,
+          casterUuid: flags.actorUuid,
+          casterName: flags.casterName,
+          combatId: flags.castStart.combat,
+          casterCombatant: flags.castStart.combatant,
+          castId: flags.castId,
+          expiresRound: null,
+          sprung: false,
+          school: flags.school,
+          variant: flags.variant,
+        },
+      },
+    },
+  })));
+}
+
+/**
+ * A Зыбучий Песок trap sprung (p. 53: «Существо, попавшее в ловушку,
+ * немедленно заканчивает ход»): the mover's client already stopped the token
+ * (region-quicksand.mjs); the active GM shows the trap to everyone — it stays
+ * till the end of the battle (rules.md §11) — and posts the line. Passing
+ * the turn is the GM's.
+ * @param {RegionDocument} region
+ * @param {TokenDocument} tokenDoc
+ * @returns {Promise<ChatMessage|null>}
+ */
+export async function springQuicksand(region, tokenDoc) {
+  if (!game.user.isActiveGM) return null;
+  const data = region?.getFlag(FLAG_SCOPE, FIELD_FLAG);
+  if (!data || !tokenDoc?.actor) return null;
+  if (!data.sprung || region.visibility !== CONST.REGION_VISIBILITY.ALWAYS) {
+    await region.update({
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+      [`flags.${FLAG_SCOPE}.${FIELD_FLAG}.sprung`]: true,
+    });
+  }
+  // Core stops the token where it crossed into the region, off the grid;
+  // it stands in the trap's cell — set there as `displace`, after the
+  // animation (as core's teleport behavior waits), springing nothing again.
+  if (tokenDoc.rendered && tokenDoc.object.movementAnimationPromise) {
+    await game.raceWithWindowHidden(tokenDoc.object.movementAnimationPromise);
+  }
+  const snapped = tokenDoc.object?.getSnappedPosition(tokenDoc._source);
+  if (snapped && (snapped.x !== tokenDoc._source.x || snapped.y !== tokenDoc._source.y)) {
+    await displaceToken(tokenDoc, snapped);
+  }
+  return ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ token: tokenDoc }),
+    content: `<p>${foundry.utils.escapeHTML(game.i18n.format('HEROES_GLORY.Roll.QuicksandSprung', {
+      target: tokenDoc.actor.name, caster: data.casterName,
+    }))}</p>`,
+  });
+}
+
+/**
+ * The spell card after its confirm: `confirmed`, redrawn.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage>}
+ */
+async function markSpellConfirmed(message, flags) {
+  const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/**
+ * Стена Огня burns a token that stepped in or started its turn there (p. 59,
+ * rules.md §11): the active GM rolls the damage the cast froze — for each of
+ * the caster's СМ, Волшебство, the specialization — and posts a damage card
+ * for the confirm, as a damage spell's: fire immunity, a resistance roll each
+ * time, armor 4–5 halves, an incapacitated one dies. A dead token is left
+ * alone.
+ * @param {RegionDocument} region
+ * @param {TokenDocument} tokenDoc
+ * @param {'enter'|'turnStart'} reason
+ * @returns {Promise<ChatMessage|null>}
+ */
+export async function burnFireWall(region, tokenDoc, reason) {
+  if (!game.user.isActiveGM) return null;
+  const data = region?.getFlag(FLAG_SCOPE, FIELD_FLAG);
+  const target = tokenDoc?.actor;
+  if (!data?.fire || !target || target.statuses.has(CONFIG.specialStatusEffects.DEFEATED)) return null;
+  const formula = spellFormula(data.fire.dice);
+  const spellRoll = new Roll(formula);
+  await spellRoll.evaluate();
+  const rolls = [spellRoll];
+  const extraRoll = async (count) => {
+    if (!count) return null;
+    const roll = new Roll(`${count}d6`);
+    await roll.evaluate();
+    rolls.push(roll);
+    return { count, total: roll.total };
+  };
+  const sorcerySkill = await extraRoll(data.fire.sorcerySkill);
+  const sorcerySpecialization = await extraRoll(data.fire.sorcerySpecialization);
+  const fireWallSpecialization = await extraRoll(data.fire.fireWallSpecialization);
+  const spellRef = { name: data.spellName, system: { level: data.fire.level } };
+  const { entry, roll: resist } = await spellTargetEntry(tokenDoc, spellRef, { element: 'fire' }, 1);
+  if (resist) rolls.push(resist);
+  const caster = fromUuidSync(data.casterUuid);
+  const flags = {
+    kind: 'spell',
+    actorUuid: data.casterUuid,
+    casterName: data.casterName,
+    spellName: data.spellName,
+    element: 'fire',
+    variant: data.variant,
+    school: data.school,
+    description: '',
+    formula,
+    spellTotal: spellRoll.total,
+    sorceryTier: data.fire.sorceryTier,
+    sorcerySkill,
+    sorcerySpecialization,
+    fireWallSpecialization,
+    total: spellRoll.total + (sorcerySkill?.total ?? 0) + (sorcerySpecialization?.total ?? 0)
+      + (fireWallSpecialization?.total ?? 0),
+    fieldTrigger: reason,
+    targets: [entry],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  const messageData = { content, flags: { [FLAG_SCOPE]: { spell: flags } } };
+  if (caster instanceof Actor) return createActorVisibilityCard(caster, messageData, rolls);
+  return ChatMessage.create({ ...messageData, rolls });
 }
 
 /** Flag on an ActiveEffect a stage-2 spell put on its target (§6.4). */
@@ -2290,7 +3025,8 @@ function castModifiers(actor, spell, effect) {
  * unlinked tokens on every scene — one entry per cast, whatever the number
  * of targets. Effects from before `castId` existed group by spell and round.
  * @param {Actor} caster
- * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[]}>}
+ * Field spells (group Г) come as their regions.
+ * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[]}>}
  */
 function lastingSpellCasts(caster) {
   const actors = new Set(game.actors);
@@ -2312,6 +3048,23 @@ function lastingSpellCasts(caster) {
       cast.targetIds.push(target.uuid);
       cast.targetNames.push(target.name);
       cast.effects.push(effect);
+    }
+  }
+  // Group Г: Силовое Поле and Стена Огня are lasting spells too (p. 32).
+  for (const scene of game.scenes) {
+    for (const region of scene.regions) {
+      const data = region.getFlag(FLAG_SCOPE, FIELD_FLAG);
+      if (!data || data.casterUuid !== caster.uuid || data.expiresRound == null) continue;
+      const combat = game.combats.get(data.combatId);
+      casts.set(data.castId, {
+        castId: data.castId,
+        spellName: data.spellName,
+        targetIds: [],
+        targetNames: [game.i18n.localize('HEROES_GLORY.Roll.SpellFieldOnScene')],
+        remaining: combat ? Math.max(0, data.expiresRound - combat.round) : 0,
+        effects: [],
+        regions: [region],
+      });
     }
   }
   return [...casts.values()];
@@ -2440,6 +3193,7 @@ async function confirmModifierSpell(message, flags) {
     const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
       .find((cast) => cast.castId === flags.endCast.castId);
     for (const effect of ending?.effects ?? []) await effect.delete();
+    for (const region of ending?.regions ?? []) await region.delete();
   }
   const results = resolveModifierSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {

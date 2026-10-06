@@ -187,3 +187,15 @@ export function hasteSpecializationBonus(specialization, spellName) {
 export function resurrectionSpecialization(specialization, spellName) {
   return specialization?.type === 'spell' && specialization?.key === 'Воскрешение' && spellName === 'Воскрешение';
 }
+
+/**
+ * §4.3 p. 23, specialization «Стена Огня» on that spell: «Урон увеличен на
+ * 5d6, добавляет одну дополнительную клетку со Стеной Огня».
+ * @param {{type?: string, key?: string}|null} specialization
+ * @param {string} spellName
+ * @returns {{active: boolean, bonusDice: number, extraCells: number}}
+ */
+export function fireWallSpecialization(specialization, spellName) {
+  const active = specialization?.type === 'spell' && specialization?.key === 'Стена Огня' && spellName === 'Стена Огня';
+  return active ? { active: true, bonusDice: 5, extraCells: 1 } : { active: false, bonusDice: 0, extraCells: 0 };
+}

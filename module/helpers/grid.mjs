@@ -106,3 +106,42 @@ export function tokenCellDistance(from, cell) {
   for (const own of from.getOccupiedGridSpaceOffsets()) best = Math.min(best, grid.measurePath([own, cell]).spaces);
   return best;
 }
+
+/**
+ * Group Г, Телепорт's «видимую вами клетку» (rules.md §11): whether the
+ * caster's token sees a point — a line from its centre not blocked by sight
+ * walls (darkness doesn't count).
+ * @param {TokenDocument} from
+ * @param {{x: number, y: number}} point
+ * @returns {boolean}
+ */
+export function pointInSight(from, point) {
+  const grid = from.parent.grid;
+  const origin = { x: from.x + (from.width * grid.size) / 2, y: from.y + (from.height * grid.size) / 2 };
+  return !CONFIG.Canvas.polygonBackends.sight.testCollision(origin, point, { type: 'sight', mode: 'any' });
+}
+
+/**
+ * Whether a cell's centre lies within the scene's own rectangle.
+ * @param {Scene} scene
+ * @param {{i: number, j: number}} cell
+ * @returns {boolean}
+ */
+export function cellInSceneRect(scene, cell) {
+  const rect = scene.dimensions?.sceneRect;
+  if (!rect) return true;
+  const point = scene.grid.getCenterPoint(cell);
+  return rect.contains(point.x, point.y);
+}
+
+/**
+ * A cell's column and row within the scene, 1-based — for the chat.
+ * @param {Scene} scene
+ * @param {{i: number, j: number}} cell
+ * @returns {{column: number, row: number}}
+ */
+export function sceneCellNumbers(scene, cell) {
+  const rect = scene.dimensions.sceneRect;
+  const size = scene.grid.size;
+  return { column: cell.j - Math.floor(rect.x / size) + 1, row: cell.i - Math.floor(rect.y / size) + 1 };
+}

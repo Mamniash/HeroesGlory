@@ -88,6 +88,44 @@ export async function advanceBlindness(combat, previous, current) {
   });
 }
 
+/** Region flag: a field spell (group Г, roll-actions.mjs's confirmFieldSpell). */
+const FIELD_FLAG = 'fieldSpell';
+
+/**
+ * §6.4, group Г (p. 32): Силовое Поле and Стена Огня last Сила Магии rounds
+ * and end at the start of the caster's turn, like the lasting effects
+ * (`expiresRound`, fieldExpiresRound). Active GM only.
+ * @param {Combat} combat
+ * @param {{combatantId?: string}} previous
+ * @param {{combatantId?: string}} current
+ */
+export async function expireFieldSpells(combat, previous, current) {
+  if (game.users.activeGM !== game.user) return;
+  const scene = combat.scene;
+  if (!scene) return;
+  const now = current?.combatantId ?? null;
+  const ended = scene.regions.filter((region) => {
+    const data = region.getFlag('heroes-glory', FIELD_FLAG);
+    return data && data.combatId === combat.id && data.expiresRound != null
+      && data.casterCombatant === now && combat.round >= data.expiresRound;
+  });
+  if (ended.length) await scene.deleteEmbeddedDocuments('Region', ended.map((region) => region.id));
+}
+
+/**
+ * §6.4, group Г: the battle's over — every field spell cast in it goes.
+ * Active GM only.
+ * @param {Combat} combat
+ */
+export async function clearFieldSpellsAfterCombat(combat) {
+  if (game.users.activeGM !== game.user) return;
+  for (const scene of game.scenes) {
+    const ids = scene.regions.filter((region) => region.getFlag('heroes-glory', FIELD_FLAG)?.combatId === combat.id)
+      .map((region) => region.id);
+    if (ids.length) await scene.deleteEmbeddedDocuments('Region', ids);
+  }
+}
+
 /**
  * Actor flag: raised by Воскрешение without Продвинутый (roll-actions.mjs's
  * confirmSupportSpell) — `{combatId, dead}`, the battle whose end takes it

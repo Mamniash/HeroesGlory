@@ -199,6 +199,7 @@ function statEffects(stat, values, { floors = [null, null, null], hostile = fals
  */
 function supportEffect(kind, {
   healDice = 0, perMagicPowerTargets = false, friendlyOnly = false, healthFactor = 1, untilCombatEnd = false,
+  dispelFields = false,
 } = {}) {
   return {
     kind,
@@ -209,6 +210,26 @@ function supportEffect(kind, {
     friendlyOnly,
     healthFactor,
     untilCombatEnd,
+    dispelFields,
+  };
+}
+
+/**
+ * Group Г: Телепорт (`teleport`) and the field spells (`field`) —
+ * item-spell.mjs's `effect`.
+ * @param {'teleport'|'field'} kind
+ * @param {object} [options]
+ * @param {object} [options.field]   {type, cells, adjacent, freeCells}
+ * @param {object} [options.dice]    Стена Огня: {count, flat} for each СМ
+ */
+function placementEffect(kind, { field = null, dice = null } = {}) {
+  return {
+    kind,
+    targeting: { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 },
+    dice: dice ? { count: dice.count, flat: dice.flat, perMagicPower: true, addMagicPower: false } : { count: 0, flat: 0, perMagicPower: false, addMagicPower: false },
+    element: dice ? 'fire' : '',
+    modifiers: [],
+    field: field ?? { type: '', cells: 0, adjacent: false, freeCells: false },
   };
 }
 
@@ -237,11 +258,16 @@ const EARTH = [
   // Step 4 (p. 53): every creature in sight but Нежить and Элементали, the
   // caster not (rules.md §11).
   { name: 'Волна Смерти', level: 2, icon: 24, ...withEffects([1, 2, 3].map((count) => damageEffect(count, 0, { plusMagicPower: true, visible: { filter: 'notUndeadOrElemental' } })), { base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } }) },
-  { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
+  // Group Г (p. 53): 4 / 6 / 8 traps on free cells, anywhere within range;
+  // until the end of the battle, not a lasting spell (rules.md §11).
+  { name: 'Зыбучий Песок', level: 2, icon: 10, ...withEffects([4, 6, 8].map((cells) => placementEffect('field', { field: { type: 'quicksand', cells, adjacent: false, freeCells: true } })), {
+    base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } }) },
   // Group А2 (p. 54): every spell of levels 1–3 (1–4, 1–5) but
   // Развеивание Магии (rules.md §11).
   { name: 'Антимагия', level: 3, icon: 34, ...withEffects(statEffects('spellImmunityLevel', [3, 4, 5], { expertTargets: false }), { base: { desc: 'Существо получает иммунитет к заклинаниям 1-3 уровня. Может быть снято Рассеиванием. Длительность = СМ.', cost: 15 }, basicCost: 12, advanced: { desc: 'Иммунитет к заклинаниям 1-4 уровней' }, expert: { desc: 'Иммунитет к заклинаниям 1-5 уровня' } }) },
-  { name: 'Силовое Поле', level: 3, icon: 12, base: { desc: 'Выберите 2 клетки, находящиеся рядом друг с другом. Они становятся непроходимыми даже для летающих существ. Длительность = СМ.', cost: 18 }, basicCost: 12, advanced: { desc: 'Три соседние клетки' }, expert: { desc: 'Четыре соседние клетки' } },
+  // Group Г (p. 54): 2 / 3 / 4 cells side by side, impassable even when
+  // flying; creatures may stand there (rules.md §11).
+  { name: 'Силовое Поле', level: 3, icon: 12, ...withEffects([2, 3, 4].map((cells) => placementEffect('field', { field: { type: 'forceField', cells, adjacent: true, freeCells: false } })), { base: { desc: 'Выберите 2 клетки, находящиеся рядом друг с другом. Они становятся непроходимыми даже для летающих существ. Длительность = СМ.', cost: 18 }, basicCost: 12, advanced: { desc: 'Три соседние клетки' }, expert: { desc: 'Четыре соседние клетки' } }) },
   // Group В (p. 54): 50% of the maximum, until the end of the battle;
   // Продвинутый — for good; Эксперт — full Health (rules.md §11).
   { name: 'Воскрешение', level: 4, icon: 38, ...withEffects([
@@ -294,12 +320,13 @@ const WATER = [
     supportEffect('heal', { healDice: 2 }),
     supportEffect('heal', { healDice: 3, perMagicPowerTargets: true }),
   ], { base: { desc: 'Снимает с существа все негативные заклинания, и лечит его на 1d6+СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Лечит 2d6+СМ' }, expert: { desc: 'Лечит 3d6+СМ и может воздействовать на количество существ, равное СМ' } }) },
-  // Group В (p. 57): «дружественного существа», Продвинутый — any;
-  // the Эксперт's «убрать видимый эффект» waits for the field spells.
+  // Group В (p. 57): «дружественного существа», Продвинутый — any; the
+  // Эксперт's «убрать видимый эффект» — a cell when no target is chosen
+  // (group Г, rules.md §11).
   { name: 'Развеивание Магии', level: 1, icon: 35, ...withEffects([
     supportEffect('dispel', { friendlyOnly: true }),
     supportEffect('dispel'),
-    supportEffect('dispel', { perMagicPowerTargets: true }),
+    supportEffect('dispel', { perMagicPowerTargets: true, dispelFields: true }),
   ], { base: { desc: 'Снимает все заклинания с выбранного дружественного существа.', cost: 5 }, basicCost: 4, advanced: { desc: 'Работает на любое существо' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ. Вы можете выбрать видимый эффект (например силовое поле, огненную стену и т.п.) и убрать его' } }) },
   { name: 'Ледяная Молния', level: 2, icon: 16, base: { desc: 'Выберите существо. Оно получает урон, равный 2d6 + ваш СМ.', cost: 20, effect: damageEffect(2, 0, { plusMagicPower: true, element: 'ice' }) }, basicCost: 16, advanced: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true, element: 'ice' }) }, expert: { desc: 'Урон увеличивается до 4d6+СМ', effect: damageEffect(4, 0, { plusMagicPower: true, element: 'ice' }) } },
   { name: 'Слабость', level: 2, icon: 45, base: { desc: 'Выбранное существо получает -2 к наносимому атаками урону, до минимума 1. Длительность = СМ.', cost: 8, effect: modifierEffect('damageDealt', -2, { floorOne: true, hostile: true }) }, basicCost: 6, advanced: { desc: 'Снижает урон на 4, до минимума 1', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('damageDealt', -4, { floorOne: true, hostile: true, perMagicPowerTargets: true }) } },
@@ -322,7 +349,9 @@ const WATER = [
   // BOOK PATTERN (подтверждено как замысел, не дефект): эффект не
   // меняется ни на одной ступени — утилитарное заклинание, "нечего
   // усиливать", дешевеет только стоимость.
-  { name: 'Телепорт', level: 4, icon: 63, base: { desc: 'Выберите дружественное существо. Телепортирует его на видимую вами клетку.', cost: 20 }, basicCost: 14, advanced: { cost: 10 }, expert: { cost: 6 } },
+  // Group Г (p. 58): a friendly target within 24 cells, onto a free cell
+  // the caster sees (rules.md §11).
+  { name: 'Телепорт', level: 4, icon: 63, ...withEffects([placementEffect('teleport'), placementEffect('teleport'), placementEffect('teleport')], { base: { desc: 'Выберите дружественное существо. Телепортирует его на видимую вами клетку.', cost: 20 }, basicCost: 14, advanced: { cost: 10 }, expert: { cost: 6 } }) },
   // Group А1 (p. 58): «До конца боя»; Урон — before the multiplier, as
   // Благословение's (rules.md §11).
   { name: 'Молитва', level: 4, icon: 48, ...withEffects([2, 4, 4].map((value, i) => lastingEffect(
@@ -347,7 +376,13 @@ const FIRE = [
   })), { base: { desc: 'Бросьте 1d6. Если выпало 4 и больше, выбранное существо пропускает следующий ход. Заклинание отменяется, если цель получит урон. Не действует на нежить и элементалей.', cost: 20 }, basicCost: 16, advanced: { desc: 'Заклинание срабатывает, если выпало 3 и больше' }, expert: { desc: 'Заклинание срабатывает, если выпало 2 и больше' } }) },
   // BOOK DEFECT: у "Без Навыка" в книге нет числа стоимости; 28 —
   // решение Сени (rules.md §11).
-  { name: 'Стена Огня', level: 2, icon: 13, base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 28 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } },
+  // Group Г (p. 59): 2 / 3 / 3 free cells side by side; (1d6 / +1 / +2)
+  // of fire for each СМ on stepping in or starting the turn there.
+  { name: 'Стена Огня', level: 2, icon: 13, ...withEffects([
+    placementEffect('field', { field: { type: 'fireWall', cells: 2, adjacent: true, freeCells: true }, dice: { count: 1, flat: 0 } }),
+    placementEffect('field', { field: { type: 'fireWall', cells: 3, adjacent: true, freeCells: true }, dice: { count: 1, flat: 1 } }),
+    placementEffect('field', { field: { type: 'fireWall', cells: 3, adjacent: true, freeCells: true }, dice: { count: 1, flat: 2 } }),
+  ], { base: { desc: 'Выберите две соседние клетки, на которых нет существ и установите в них Стену Огня. Если существо наступит на них или начнет свой ход в Стене Огня, оно получит урон огнем, равный 1d6 за каждый ваш СМ. Длительность = СМ.', cost: 28 }, basicCost: 12, advanced: { desc: 'Вы можете выбрать три соседние клетки. Урон увеличен до 1d6+1 за СМ' }, expert: { desc: 'Урон увеличивается до 1d6+2 за СМ' } }) },
   // BOOK DEFECT: в книге стоимости перепутаны местами (без навыка 15,
   // базовый 36); решение Сени — 36 и 15 (rules.md §11).
   // Step 5 (p. 60): the cell and its neighbours, 4/6/8d6+СМ of fire.

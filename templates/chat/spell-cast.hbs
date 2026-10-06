@@ -12,6 +12,10 @@
   {{!-- §6.4: a spell with targets — one line per target, from the same
     resolveSpellResolution / resolveModifierSpellResolution the GM's
     confirm applies (roll-actions.mjs). --}}
+  {{!-- Group Г: a Стена Огня card — who stepped in or started the turn there. --}}
+  {{#if fieldTriggerLine}}
+    <p class="heroes-glory-chat-card__line">{{fieldTriggerLine}}</p>
+  {{/if}}
   {{#if targetSpell}}
     {{#if noTarget}}
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
@@ -54,11 +58,13 @@
     {{#if schoolLabelKey}}
       <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.SpellSchool' school=(localize schoolLabelKey)}}</p>
     {{/if}}
+    {{#unless fieldTriggerLine}}
     <p class="heroes-glory-chat-card__line">
       {{localize 'HEROES_GLORY.Roll.ManaCost' cost=manaCost}}
       —
       {{localize 'HEROES_GLORY.Roll.ManaRemaining' mana=manaRemaining}}
     </p>
+    {{/unless}}
   </div>
 
   {{#if canConfirm}}

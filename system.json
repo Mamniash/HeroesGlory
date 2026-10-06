@@ -40,6 +40,11 @@
       "artifact": {},
       "skill": {},
       "spellbook": {}
+    },
+    "RegionBehavior": {
+      "heroes-glory.fireWall": {},
+      "heroes-glory.forceField": {},
+      "heroes-glory.quicksand": {}
     }
   },
   "esmodules": ["module/heroes-glory.mjs"],

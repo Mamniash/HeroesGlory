@@ -63,5 +63,20 @@
   `foundry.appv1.sheets.ItemSheet`/`ActorSheet`.
 - **`loadTemplates`/`renderTemplate`/`getTemplate` — не глобалы**, а
   `foundry.applications.handlebars.*`.
+- **Непроходимая местность региона** — не `restriction` (это лишь обрезка фигуры
+  стенами) и не `difficulty: Infinity` (валидация `TerrainData` требует конечное
+  число), а `difficulty: null` из `_getTerrainEffects` плюс свой
+  `CONFIG.Token.movement.TerrainData` (`module/data/terrain-data.mjs`): core
+  `resolveTerrainEffects` перемножает сложности и превращает `null` в 0.
+  Проверять через `token.findMovementPath` — голый `constrainMovementPath`
+  местность не добавляет.
+- **`displace` по сцене с регионами** может упасть «reading 'testPoint'»:
+  `RegionDocument#testSamples` читает приватное `#polygonTree`, а оно строится
+  лениво только через геттер `polygonTree` (при отрисовке). Не нарисованный на
+  клиенте регион (невидимый, только что созданный) — ошибка. Перед своим
+  `move({action: "displace"})` трогать `region.polygonTree` у регионов сцены
+  (`displaceToken`, roll-actions.mjs).
+- **Скрытая панель браузера даёт канвас 0×0** — `canvas.ready` false; перед
+  живой проверкой задать размер окна (1440×900) и перезагрузить.
 - **`DialogV2.confirm`** — `foundry.applications.api.DialogV2.confirm({window:
   {title}, content})`, возвращает `true`/`false`.

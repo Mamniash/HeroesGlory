@@ -10,6 +10,7 @@ import {
   NEGATIVE_SPELLS, HEAL_STATUSES, DISPEL_STATUSES, cleansingRemovals, healAmount, isFriendlyTarget,
   resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
+  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -237,7 +238,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       'Молитва', 'Неудача', 'Огненный Щит', 'Ответный Удар', 'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость',
       'Слепота', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 35);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 39);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -399,6 +400,43 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       });
     });
   }
+
+  // Group Г, pp. 54, 58, 59.
+  test('Телепорт: a teleport on every tier, costs 20/14/10/6', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      assert.equal(byName['Телепорт'][tier].effect.kind, 'teleport');
+      assert.equal(byName['Телепорт'][tier].manaCost, [20, 14, 10, 6][i]);
+    });
+  });
+  test('Силовое Поле: 2 / 2 / 3 / 4 cells side by side, creatures allowed', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      const effect = byName['Силовое Поле'][tier].effect;
+      assert.equal(effect.kind, 'field');
+      assert.deepEqual(effect.field, { type: 'forceField', cells: [2, 2, 3, 4][i], adjacent: true, freeCells: false });
+    });
+  });
+  test('Стена Огня: 2 / 2 / 3 / 3 free cells side by side, (1d6 / +1 / +2) of fire for each СМ', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      const effect = byName['Стена Огня'][tier].effect;
+      assert.equal(effect.kind, 'field');
+      assert.deepEqual(effect.field, { type: 'fireWall', cells: [2, 2, 3, 3][i], adjacent: true, freeCells: true });
+      assert.deepEqual(effect.dice, { count: 1, flat: [0, 0, 1, 2][i], perMagicPower: true, addMagicPower: false });
+      assert.equal(effect.element, 'fire');
+    });
+  });
+
+  test('Зыбучий Песок: 4 / 4 / 6 / 8 free cells, anywhere', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      const effect = byName['Зыбучий Песок'][tier].effect;
+      assert.equal(effect.kind, 'field');
+      assert.deepEqual(effect.field, { type: 'quicksand', cells: [4, 4, 6, 8][i], adjacent: false, freeCells: true });
+    });
+  });
+  test('Развеивание Магии: only the expert takes a visible effect off a cell', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier) => {
+      assert.equal(byName['Развеивание Магии'][tier].effect.dispelFields, tier === 'expert');
+    });
+  });
 
   test('«+СМ» spells at СМ 3', () => {
     assert.deepEqual(dice('Волшебная Стрела', 'none', 3), { count: 1, flat: 3 });
@@ -782,5 +820,69 @@ describe('tokenInArea — a token with any cell in the pattern', () => {
   });
   test('no cell in — not taken', () => {
     assert.equal(tokenInArea([{ i: 3, j: 3 }], area), false);
+  });
+});
+
+describe('fieldCellChoice — «соседние» cells as a chain (rules.md §11)', () => {
+  const near = (a, b) => Math.max(Math.abs(a.i - b.i), Math.abs(a.j - b.j)) === 1;
+  test('the first cell: any', () => {
+    assert.equal(fieldCellChoice({ cell: { i: 5, j: 5 }, chosen: [], adjacent: true, isAdjacent: near }), 'ok');
+  });
+  test('next to any chosen one — a chain, diagonals too', () => {
+    const chosen = [{ i: 5, j: 5 }, { i: 5, j: 6 }];
+    assert.equal(fieldCellChoice({ cell: { i: 6, j: 7 }, chosen, adjacent: true, isAdjacent: near }), 'ok');
+    assert.equal(fieldCellChoice({ cell: { i: 5, j: 4 }, chosen, adjacent: true, isAdjacent: near }), 'ok');
+  });
+  test('away from all — refused; the same cell twice — refused', () => {
+    const chosen = [{ i: 5, j: 5 }];
+    assert.equal(fieldCellChoice({ cell: { i: 5, j: 7 }, chosen, adjacent: true, isAdjacent: near }), 'notAdjacent');
+    assert.equal(fieldCellChoice({ cell: { i: 5, j: 5 }, chosen, adjacent: true, isAdjacent: near }), 'same');
+  });
+  test('cells that needn\'t be side by side (Зыбучий Песок)', () => {
+    assert.equal(fieldCellChoice({ cell: { i: 9, j: 9 }, chosen: [{ i: 1, j: 1 }], adjacent: false, isAdjacent: near }), 'ok');
+  });
+});
+
+describe('fieldExpiresRound — Сила Магии rounds from the cast (p. 32)', () => {
+  test('cast in round 1 for 3 rounds: gone at the caster\'s turn in round 4', () => {
+    assert.equal(fieldExpiresRound(1, 3), 4);
+  });
+});
+
+describe('canConfirmSpell — a field spell has cells, not targets (group Г)', () => {
+  test('field, no targets — may be confirmed', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'field', targets: [] }), true);
+  });
+  test('the expert Развеивание on a cell — may be confirmed', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'dispel', targets: [], dispelCell: { regionIds: ['a'] } }), true);
+  });
+  test('other spells still need a target; a confirmed card — no', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', targets: [] }), false);
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'field', targets: [], confirmed: true }), false);
+  });
+});
+
+describe('quicksandOwnership — «невидимые ловушки» seen by the caster (rules.md §11)', () => {
+  test('the caster\'s owners observe, nobody else', () => {
+    assert.deepEqual(quicksandOwnership(['u1', 'u2']), { default: 0, u1: 2, u2: 2 });
+  });
+  test('no player owner — the GM alone', () => {
+    assert.deepEqual(quicksandOwnership([]), { default: 0 });
+  });
+});
+
+describe('dispelCellRegionIds — «выбрать видимый эффект … и убрать его» (rules.md §11)', () => {
+  const regions = [
+    { id: 'wall', cells: [{ i: 6, j: 8 }, { i: 6, j: 9 }], visible: true },
+    { id: 'field', cells: [{ i: 6, j: 9 }], visible: true },
+    { id: 'trap', cells: [{ i: 6, j: 9 }], visible: false },
+    { id: 'far', cells: [{ i: 9, j: 9 }], visible: true },
+  ];
+  test('every seen region on the cell', () => {
+    assert.deepEqual(dispelCellRegionIds(regions, { i: 6, j: 9 }), ['wall', 'field']);
+  });
+  test('a trap the caster doesn\'t see stays; an empty cell — nothing', () => {
+    assert.deepEqual(dispelCellRegionIds(regions, { i: 1, j: 1 }), []);
+    assert.equal(dispelCellRegionIds(regions, { i: 6, j: 9 }).includes('trap'), false);
   });
 });

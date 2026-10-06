@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
   hasArmorSpecialization, specializationManaDiscount, availableSpecializations, chainLightningSpecialization,
-  hasteSpecializationBonus, resurrectionSpecialization,
+  hasteSpecializationBonus, resurrectionSpecialization, fireWallSpecialization,
 } from '../module/helpers/specializations.mjs';
 
 describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
@@ -148,5 +148,15 @@ describe('resurrectionSpecialization — p. 23, «Воскрешенный пе�
   test('otherwise not', () => {
     assert.equal(resurrectionSpecialization({ type: 'spell', key: 'Воскрешение' }, 'Лечение'), false);
     assert.equal(resurrectionSpecialization(null, 'Воскрешение'), false);
+  });
+});
+
+describe('fireWallSpecialization — p. 23, «Урон увеличен на 5d6, добавляет одну дополнительную клетку»', () => {
+  test('the specialization, casting Стена Огня', () => {
+    assert.deepEqual(fireWallSpecialization({ type: 'spell', key: 'Стена Огня' }, 'Стена Огня'), { active: true, bonusDice: 5, extraCells: 1 });
+  });
+  test('otherwise nothing', () => {
+    assert.deepEqual(fireWallSpecialization({ type: 'spell', key: 'Стена Огня' }, 'Инферно'), { active: false, bonusDice: 0, extraCells: 0 });
+    assert.deepEqual(fireWallSpecialization(null, 'Стена Огня'), { active: false, bonusDice: 0, extraCells: 0 });
   });
 });

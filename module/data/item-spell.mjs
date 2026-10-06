@@ -38,7 +38,7 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
     const effect = () => new fields.SchemaField({
       kind: new fields.StringField({
         required: true, blank: true, initial: '',
-        choices: ['damage', 'heal', 'modifier', 'dispel', 'resurrect', 'summon', 'utility'],
+        choices: ['damage', 'heal', 'modifier', 'dispel', 'resurrect', 'summon', 'utility', 'teleport', 'field'],
       }),
       targeting: new fields.SchemaField({
         // single — one chosen target; chain — the chosen one, then the
@@ -104,9 +104,21 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       triggerThreshold: new fields.NumberField({ required: true, nullable: true, integer: true, initial: null, min: 1, max: 6 }),
       mindEffect: new fields.BooleanField({ initial: false }),
       skipsTurn: new fields.BooleanField({ initial: false }),
+      // Group Г, `field`: what the cells become — Силовое Поле (`forceField`,
+      // impassable), Стена Огня (`fireWall`), Зыбучий Песок (`quicksand`) —
+      // how many, side by side (a chain), free of creatures.
+      field: new fields.SchemaField({
+        type: new fields.StringField({ required: true, blank: true, initial: '', choices: ['forceField', 'fireWall', 'quicksand'] }),
+        cells: int(),
+        adjacent: new fields.BooleanField({ initial: false }),
+        freeCells: new fields.BooleanField({ initial: false }),
+      }),
       // Group В, `dispel`: «с выбранного дружественного существа» — only a
       // target on the caster's side (Без Навыка, Базовый).
       friendlyOnly: new fields.BooleanField({ initial: false }),
+      // Group Г, `dispel` Эксперт: «Вы можете выбрать видимый эффект … и убрать
+      // его» — with no target chosen, a cell; our regions seen there go.
+      dispelFields: new fields.BooleanField({ initial: false }),
       // Group В, `resurrect`: the share of maximum Health it gives back (50%
       // or full); `untilCombatEnd` — «В конце битвы персонаж снова погибнет».
       healthFactor: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0, max: 1 }),
@@ -128,7 +140,11 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
     return schema;
   }
 
-  /** A variant's single `modifier` from before stage 2's group А1 becomes `modifiers`. */
+  /**
+   * A variant's single `modifier` from before stage 2's group А1 becomes
+   * `modifiers`. An expert `dispel` copied before group Г — the book's one,
+   * Развеивание Магии (p. 57) — gets its «убрать видимый эффект».
+   */
   static migrateData(source) {
     for (const variant of Object.values(source.variants ?? {})) {
       const effect = variant?.effect;
@@ -137,6 +153,8 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
         delete effect.modifier;
       }
     }
+    const expert = source.variants?.expert?.effect;
+    if (expert?.kind === 'dispel' && !('dispelFields' in expert)) expert.dispelFields = true;
     return super.migrateData(source);
   }
 }

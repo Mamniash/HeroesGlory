@@ -217,12 +217,15 @@ export function resolveSpellResolution(flags) {
 
 /**
  * Whether a spell card's outcome may still be applied: not yet confirmed,
- * and there was at least one target.
+ * and there was at least one target (a field spell: its cells).
  * @param {object|null|undefined} flags
  * @returns {boolean}
  */
 export function canConfirmSpell(flags) {
-  return !!flags && flags.kind === 'spell' && !flags.confirmed && (flags.targets?.length ?? 0) > 0;
+  // A field spell (group Г) has cells, not targets; so has the expert
+  // Развеивание's cell.
+  const hasSomething = (flags?.targets?.length ?? 0) > 0 || flags?.effectKind === 'field' || !!flags?.dispelCell;
+  return !!flags && flags.kind === 'spell' && !flags.confirmed && hasSomething;
 }
 
 /**
@@ -594,4 +597,60 @@ export function areaCells({ center, pattern, neighbors }) {
 export function tokenInArea(tokenCells, area) {
   const keys = new Set(area.map((cell) => `${cell.i}.${cell.j}`));
   return tokenCells.some((cell) => keys.has(`${cell.i}.${cell.j}`));
+}
+
+/**
+ * Group Г: a cell chosen for Силовое Поле or Стена Огня — «находящиеся рядом
+ * друг с другом», «соседние»: a chain, each new cell next to at least one
+ * already chosen (rules.md §11); not the same cell twice.
+ * @param {object} args
+ * @param {{i: number, j: number}} args.cell
+ * @param {Array<{i: number, j: number}>} args.chosen
+ * @param {boolean} args.adjacent   the spell wants the cells side by side
+ * @param {(a: object, b: object) => boolean} args.isAdjacent   the grid's test
+ * @returns {'ok'|'same'|'notAdjacent'}
+ */
+export function fieldCellChoice({ cell, chosen = [], adjacent, isAdjacent }) {
+  if (chosen.some((c) => c.i === cell.i && c.j === cell.j)) return 'same';
+  if (adjacent && chosen.length && !chosen.some((c) => isAdjacent(c, cell))) return 'notAdjacent';
+  return 'ok';
+}
+
+/**
+ * Group Г: the round at whose start, on the caster's turn, a field spell
+ * cast in `startRound` ends — Сила Магии rounds counted as for the lasting
+ * effects (p. 32: «В начале хода уменьшайте отмеченное значение на 1»).
+ * @param {number} startRound
+ * @param {number} rounds
+ * @returns {number}
+ */
+export function fieldExpiresRound(startRound, rounds) {
+  return startRound + rounds;
+}
+
+/**
+ * Group Г: who sees a Зыбучий Песок trap — «невидимые ловушки», seen by the
+ * GM and the caster (rules.md §11): the region's ownership, Observer for the
+ * users owning the caster, nobody else (the GM sees every region anyway).
+ * @param {string[]} ownerIds   the caster's non-GM owners
+ * @returns {Record<string, number>}   ownership levels: 0 none, 2 observer
+ */
+export function quicksandOwnership(ownerIds = []) {
+  const ownership = { default: 0 };
+  for (const id of ownerIds) ownership[id] = 2;
+  return ownership;
+}
+
+/**
+ * Group Г: what the expert Развеивание takes off a cell — «Вы можете выбрать
+ * видимый эффект … и убрать его»: our field spells covering the cell that the
+ * caster's user sees (rules.md §11); a trap they don't see stays.
+ * @param {Array<{id: string, cells: Array<{i: number, j: number}>, visible: boolean}>} regions
+ * @param {{i: number, j: number}} cell
+ * @returns {string[]}   the region ids
+ */
+export function dispelCellRegionIds(regions, cell) {
+  return regions
+    .filter((region) => region.visible && region.cells.some((c) => c.i === cell.i && c.j === cell.j))
+    .map((region) => region.id);
 }

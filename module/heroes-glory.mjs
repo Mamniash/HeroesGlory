@@ -18,6 +18,7 @@ import { HeroesGloryCombat, drawCombatantCoin, recordRolledSpeed } from './docum
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat, endTemporaryResurrections, advanceBlindness,
+  expireFieldSpells, clearFieldSpellsAfterCombat,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
@@ -68,6 +69,19 @@ Hooks.once('init', function () {
     skill: models.HeroesGlorySkill,
     spellbook: models.HeroesGlorySpellbook
   }
+  // §6.4, group Г: the region behavior of a Стена Огня — a system type is
+  // named with the system's prefix, as in system.json.
+  CONFIG.RegionBehavior.dataModels['heroes-glory.fireWall'] = models.HeroesGloryFireWallBehavior;
+  CONFIG.RegionBehavior.typeLabels['heroes-glory.fireWall'] = 'HEROES_GLORY.Region.FireWall';
+  CONFIG.RegionBehavior.typeIcons['heroes-glory.fireWall'] = 'fa-solid fa-fire';
+  CONFIG.RegionBehavior.dataModels['heroes-glory.forceField'] = models.HeroesGloryForceFieldBehavior;
+  CONFIG.RegionBehavior.typeLabels['heroes-glory.forceField'] = 'HEROES_GLORY.Region.ForceField';
+  CONFIG.RegionBehavior.typeIcons['heroes-glory.forceField'] = 'fa-solid fa-shield-halved';
+  CONFIG.RegionBehavior.dataModels['heroes-glory.quicksand'] = models.HeroesGloryQuicksandBehavior;
+  CONFIG.RegionBehavior.typeLabels['heroes-glory.quicksand'] = 'HEROES_GLORY.Region.Quicksand';
+  CONFIG.RegionBehavior.typeIcons['heroes-glory.quicksand'] = 'fa-solid fa-hourglass-half';
+  // ...the Силовое Поле's impassable cells need a terrain that keeps a `null` difficulty infinite.
+  CONFIG.Token.movement.TerrainData = models.HeroesGloryTerrainData;
 
   // Active Effects are never copied to the Actor,
   // but will still apply to the Actor from within the Item
@@ -199,6 +213,9 @@ Hooks.on('preCreateActiveEffect', stampEffectStartFromActorCombat);
 
 // §6.4, group А2: Слепота — the blinded one skips its next turn.
 Hooks.on('combatTurnChange', advanceBlindness);
+// §6.4, group Г: Силовое Поле and Стена Огня end with their rounds and with the battle.
+Hooks.on('combatTurnChange', expireFieldSpells);
+Hooks.on('deleteCombat', clearFieldSpellsAfterCombat);
 // §6.4, group В: Воскрешение without Продвинутый ends with the battle —
 // before the experience window reads who is down.
 Hooks.on('deleteCombat', endTemporaryResurrections);
