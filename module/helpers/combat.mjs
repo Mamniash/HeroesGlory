@@ -33,13 +33,30 @@ export function resetMoraleAfterCombat(combat) {
 export function clearCombatStatesAfterCombat(combat) {
   if (game.users.activeGM !== game.user) return;
   const actors = new Set(combat.combatants.map((combatant) => combatant.actor).filter(Boolean));
-  const { prone, unconscious, defending, surprised } = CONFIG.HEROES_GLORY.statusEffects;
+  const { prone, unconscious, defending, surprised, ambush } = CONFIG.HEROES_GLORY.statusEffects;
   for (const actor of actors) {
     if (actor.statuses.has(prone)) actor.toggleStatusEffect(prone, { active: false });
     if (actor.statuses.has(unconscious)) actor.toggleStatusEffect(unconscious, { active: false });
     if (actor.statuses.has(surprised)) actor.toggleStatusEffect(surprised, { active: false });
+    if (actor.statuses.has(ambush)) actor.toggleStatusEffect(ambush, { active: false });
     if (actor.effects.some((e) => e.statuses.has(defending))) actor.toggleStatusEffect(defending, { active: false });
   }
+}
+
+/**
+ * §5.1 (p. 25, rules.md §11): «Из засады» and «Не обнаружил врага» exclude
+ * each other — an ambusher is the one not spotted. Putting one on takes the
+ * other off. `createActiveEffect`; the client that made it acts.
+ * @param {ActiveEffect} effect
+ * @param {object} options
+ * @param {string} userId
+ */
+export function excludeAmbushOrSurprise(effect, options, userId) {
+  if (userId !== game.user.id || !(effect.parent instanceof Actor)) return;
+  const { ambush, surprised } = CONFIG.HEROES_GLORY.statusEffects;
+  const actor = effect.parent;
+  if (effect.statuses.has(ambush) && actor.statuses.has(surprised)) actor.toggleStatusEffect(surprised, { active: false });
+  if (effect.statuses.has(surprised) && actor.statuses.has(ambush)) actor.toggleStatusEffect(ambush, { active: false });
 }
 
 /**

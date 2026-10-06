@@ -1222,21 +1222,73 @@ export const RACE_INITIATIVE_BONUS = { minotaur: 2 };
 /** p. 25: who didn't spot the enemy before the fight — −10 to the initiative roll. */
 export const SURPRISE_INITIATIVE_PENALTY = -10;
 
+/** p. 25: «Если вступившие в бой были в засаде, они получают +10 к нициативе». */
+export const AMBUSH_INITIATIVE_BONUS = 10;
+
 /**
  * §5.1: the extra terms of `1d20 + @speed + @tactics + @initiativeBonus`.
  * p. 25: a combatant who didn't spot the enemy gets −10 and «не может
- * использовать вторичный навык Тактика»; p. 12: a Минотавр hero +2.
+ * использовать вторичный навык Тактика»; p. 12: a Минотавр hero +2. A
+ * combatant who joined a battle under way (`lateJoin`, isLateJoin) «не может
+ * использовать навык Тактика» — unless out of an ambush: then +10 and Тактика
+ * (rules.md §11). The ambush counts only for one who joined.
  * @param {object} args
  * @param {string} [args.race]       a hero's race key; none for a creature
  * @param {number} [args.tactics]    the Тактика first-round bonus
  * @param {boolean} [args.surprised]
+ * @param {boolean} [args.lateJoin]
+ * @param {boolean} [args.ambush]
  * @returns {{tactics: number, initiativeBonus: number}}
  */
-export function initiativeRollParts({ race = '', tactics = 0, surprised = false } = {}) {
+export function initiativeRollParts({ race = '', tactics = 0, surprised = false, lateJoin = false, ambush = false } = {}) {
+  const fromAmbush = lateJoin && ambush && !surprised;
+  const noTactics = surprised || (lateJoin && !fromAmbush);
   return {
-    tactics: surprised ? 0 : tactics,
-    initiativeBonus: (RACE_INITIATIVE_BONUS[race] ?? 0) + (surprised ? SURPRISE_INITIATIVE_PENALTY : 0),
+    tactics: noTactics ? 0 : tactics,
+    initiativeBonus: (RACE_INITIATIVE_BONUS[race] ?? 0) + (surprised ? SURPRISE_INITIATIVE_PENALTY : 0)
+      + (fromAmbush ? AMBUSH_INITIATIVE_BONUS : 0),
   };
+}
+
+/**
+ * p. 25: «Если Существа вступают в бой, который уже идет (то есть это уже не
+ * первый раунд боя)» — a combatant added to a started battle from round 2 on
+ * (rules.md §11); in round 1 an ordinary one. A summoned elemental or a clone
+ * isn't one — it goes after its caster, rolling nothing.
+ * @param {object} args
+ * @param {boolean} args.started   the battle has begun
+ * @param {number} args.round
+ * @param {boolean} [args.summoned]
+ * @returns {boolean}
+ */
+export function isLateJoin({ started, round, summoned = false }) {
+  return !!started && round >= 2 && !summoned;
+}
+
+/**
+ * p. 25: joiners «появляются в начале нового раунда» — in the round they
+ * joined, their turn is passed by (rules.md §11); from the next one they go
+ * by their initiative.
+ * @param {number|null|undefined} joinedRound
+ * @param {number} round
+ * @returns {boolean}
+ */
+export function joinerWaits(joinedRound, round) {
+  return Number.isFinite(joinedRound) && round <= joinedRound;
+}
+
+/**
+ * Core keeps the turn by its number when initiatives change; the number
+ * that keeps it on the same combatant in the new order.
+ * @param {string[]} orderIds   the new turn order
+ * @param {string|null} currentId
+ * @param {number|null} turn    the turn now
+ * @returns {number|null}
+ */
+export function turnKeepingCombatant(orderIds, currentId, turn) {
+  if (turn === null || turn === undefined || !currentId) return turn ?? null;
+  const index = orderIds.indexOf(currentId);
+  return index === -1 ? turn : index;
 }
 
 /**
@@ -1264,10 +1316,14 @@ export function elfRerolledInitiative(total, oldDie, newDie) {
  * @param {number} args.round      the combat's round (0 — not started)
  * @param {boolean} args.isOwner
  * @param {boolean} args.isGM
+ * @param {number|null} [args.joinedRound]   a joiner's round (isLateJoin): open
+ *   through the round it appears in
  * @returns {boolean}
  */
-export function canElfReroll({ race, rerolled, current, round, isOwner, isGM }) {
-  return race === 'elf' && !rerolled && current && round <= 1 && (isOwner || isGM);
+export function canElfReroll({ race, rerolled, current, round, isOwner, isGM, joinedRound = null }) {
+  // A joiner rolls in the round it appears — its reroll stays open then (rules.md §11).
+  const lastRound = Number.isFinite(joinedRound) ? joinedRound + 1 : 1;
+  return race === 'elf' && !rerolled && current && round <= lastRound && (isOwner || isGM);
 }
 
 /**

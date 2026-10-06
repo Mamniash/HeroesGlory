@@ -323,6 +323,7 @@ HEROES_GLORY.statusEffects = {
   defending: 'hgDefending',
   unrested: 'hgUnrested',
   surprised: 'hgSurprised',
+  ambush: 'hgAmbush',
 };
 
 /**

@@ -20,6 +20,9 @@ import {
   countersThisRound,
   counterAttackOffer,
   orderWithFollowers,
+  isLateJoin,
+  joinerWaits,
+  turnKeepingCombatant,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -372,5 +375,70 @@ describe('orderWithFollowers — a summon goes right after its caster (rules.md 
   test('nothing to move — the same order; a loop keeps everyone', () => {
     assert.deepEqual(orderWithFollowers([{ id: 'a' }, { id: 'b' }]), ['a', 'b']);
     assert.deepEqual(orderWithFollowers([{ id: 'a', follows: 'b' }, { id: 'b', follows: 'a' }]).sort(), ['a', 'b']);
+  });
+});
+
+describe('initiativeRollParts — joining a battle under way (p. 25, rules.md §11)', () => {
+  test('a joiner rolls without Тактика', () => {
+    assert.deepEqual(initiativeRollParts({ tactics: 5, lateJoin: true }), { tactics: 0, initiativeBonus: 0 });
+  });
+  test('out of an ambush: +10 and Тактика', () => {
+    assert.deepEqual(initiativeRollParts({ tactics: 5, lateJoin: true, ambush: true }), { tactics: 5, initiativeBonus: 10 });
+  });
+  test('the ambush counts only for one who joined', () => {
+    assert.deepEqual(initiativeRollParts({ tactics: 5, ambush: true }), { tactics: 5, initiativeBonus: 0 });
+  });
+  test('a Минотавр joiner keeps his +2', () => {
+    assert.deepEqual(initiativeRollParts({ race: 'minotaur', tactics: 3, lateJoin: true, ambush: true }), { tactics: 3, initiativeBonus: 12 });
+  });
+  test('an ordinary combatant as before', () => {
+    assert.deepEqual(initiativeRollParts({ tactics: 3 }), { tactics: 3, initiativeBonus: 0 });
+    assert.deepEqual(initiativeRollParts({ tactics: 3, surprised: true }), { tactics: 0, initiativeBonus: -10 });
+  });
+});
+
+describe('isLateJoin — «уже не первый раунд боя» (rules.md §11)', () => {
+  test('a started battle from round 2 on', () => {
+    assert.equal(isLateJoin({ started: true, round: 2 }), true);
+    assert.equal(isLateJoin({ started: true, round: 5 }), true);
+  });
+  test('round 1, a battle not started, a summon — ordinary', () => {
+    assert.equal(isLateJoin({ started: true, round: 1 }), false);
+    assert.equal(isLateJoin({ started: false, round: 0 }), false);
+    assert.equal(isLateJoin({ started: true, round: 3, summoned: true }), false);
+  });
+});
+
+describe('joinerWaits — «появляются в начале нового раунда»', () => {
+  test('passed by in the round joined, goes from the next', () => {
+    assert.equal(joinerWaits(2, 2), true);
+    assert.equal(joinerWaits(2, 3), false);
+  });
+  test('no mark — never waits', () => {
+    assert.equal(joinerWaits(undefined, 2), false);
+    assert.equal(joinerWaits(null, 2), false);
+  });
+});
+
+describe('turnKeepingCombatant — the turn stays with its combatant when a roll reorders', () => {
+  test('a joiner rolling high moves the turn number, not the combatant', () => {
+    assert.equal(turnKeepingCombatant(['joiner', 'mage', 'knight'], 'mage', 0), 1);
+  });
+  test('no turn yet, or the combatant gone — the number as it was', () => {
+    assert.equal(turnKeepingCombatant(['a', 'b'], null, null), null);
+    assert.equal(turnKeepingCombatant(['a', 'b'], 'gone', 1), 1);
+  });
+});
+
+describe('canElfReroll — a joiner\'s reroll in the round it appears', () => {
+  const base = { race: 'elf', rerolled: false, current: true, isOwner: true, isGM: false };
+  test('open through the round after joining, closed later', () => {
+    assert.equal(canElfReroll({ ...base, round: 3, joinedRound: 3 }), true);
+    assert.equal(canElfReroll({ ...base, round: 4, joinedRound: 3 }), true);
+    assert.equal(canElfReroll({ ...base, round: 5, joinedRound: 3 }), false);
+  });
+  test('not a joiner — round 1 only, as before', () => {
+    assert.equal(canElfReroll({ ...base, round: 1 }), true);
+    assert.equal(canElfReroll({ ...base, round: 2 }), false);
   });
 });

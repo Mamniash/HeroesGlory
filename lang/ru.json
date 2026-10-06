@@ -520,7 +520,8 @@
       "Incapacitated": "Недееспособен",
       "Defending": "Защита",
       "Unrested": "Без отдыха",
-      "Surprised": "Не обнаружил врага"
+      "Surprised": "Не обнаружил врага",
+      "Ambush": "Из засады"
     },
     "Region": {
       "FireWall": "Стена Огня (Heroes & Glory)",

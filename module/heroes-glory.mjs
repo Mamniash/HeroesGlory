@@ -14,11 +14,11 @@ import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
 import { activateChatListeners } from './helpers/chat.mjs';
 import { decorateInitiativeCard } from './helpers/initiative.mjs';
-import { HeroesGloryCombat, drawCombatantCoin, recordRolledSpeed } from './documents/combat.mjs';
+import { HeroesGloryCombat, HeroesGloryCombatant, drawCombatantCoin, markLateJoiner, recordRolledSpeed } from './documents/combat.mjs';
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat, endTemporaryResurrections, advanceBlindness,
-  expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat,
+  expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat, excludeAmbushOrSurprise,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
@@ -56,6 +56,7 @@ Hooks.once('init', function () {
   CONFIG.Actor.documentClass = HeroesGloryActor;
   // §5.1: ties in initiative — Скорость, then a coin (documents/combat.mjs).
   CONFIG.Combat.documentClass = HeroesGloryCombat;
+  CONFIG.Combatant.documentClass = HeroesGloryCombatant;
 
   CONFIG.Actor.dataModels = {
     hero: models.HeroesGloryHero,
@@ -114,6 +115,10 @@ Hooks.once('init', function () {
     // marks it before initiative is rolled: −10 and no Тактика. Lifted at
     // the end of the battle.
     { id: HEROES_GLORY.statusEffects.surprised, name: 'HEROES_GLORY.Status.Surprised', img: 'icons/svg/daze.svg' },
+    // §5.1 (p. 25): joining a battle under way «в засаде» — the GM marks it
+    // before the roll: +10 and Тактика. Excludes «Не обнаружил врага»
+    // (excludeAmbushOrSurprise); lifted at the end of the battle.
+    { id: HEROES_GLORY.statusEffects.ambush, name: 'HEROES_GLORY.Status.Ambush', img: 'icons/svg/trap.svg' },
   );
 
   // Register sheet application classes.
@@ -194,7 +199,12 @@ Hooks.on('renderChatMessageHTML', activateChatListeners);
 // §5.1 (p. 9): the Эльф's initiative reroll button.
 Hooks.on('renderChatMessageHTML', decorateInitiativeCard);
 // §5.1: the tie coin, drawn once per combatant.
+// §5.1 (p. 25): who joins a battle under way — no Тактика, waits the round
+// out. Before the coin, whose recorded Скорость reads the mark.
+Hooks.on('preCreateCombatant', markLateJoiner);
 Hooks.on('preCreateCombatant', drawCombatantCoin);
+// «Из засады» and «Не обнаружил врага» exclude each other.
+Hooks.on('createActiveEffect', excludeAmbushOrSurprise);
 // §5.1: the Скорость an initiative roll used, kept for a tie (p. 24).
 Hooks.on('preUpdateCombatant', recordRolledSpeed);
 

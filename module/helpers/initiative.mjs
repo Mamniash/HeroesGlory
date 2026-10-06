@@ -41,6 +41,7 @@ function elfRerollAllowed(message, { combat, combatant }) {
     rerolled: !!message.getFlag(FLAG_SCOPE, 'elfRerolled'),
     current: combatant.initiative === message.rolls[0]?.total,
     round: combat.round,
+    joinedRound: combatant.getFlag(FLAG_SCOPE, 'joinedRound') ?? null,
     isOwner: !!actor?.isOwner,
     isGM: game.user.isGM,
   });
