@@ -44,6 +44,11 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
         // single — one chosen target; chain — the chosen one, then the
         // nearest to each previous; area / visible — later stages.
         mode: new fields.StringField({ required: true, blank: true, initial: '', choices: ['single', 'chain', 'area', 'visible'] }),
+        // `visible` («в поле зрения»): which creatures it takes — all, all
+        // but Нежить and Элементали (Волна Смерти), Нежить only (Уничтожить
+        // Нежить) — and whether the caster too (Армагеддон only).
+        filter: new fields.StringField({ required: true, blank: true, initial: '', choices: ['notUndeadOrElemental', 'undeadOnly'] }),
+        includeCaster: new fields.BooleanField({ initial: false }),
         // Экспертный «Работает на количество …, равное СМ» — later stages.
         perMagicPowerTargets: new fields.BooleanField({ initial: false }),
         extraTargets: int(),

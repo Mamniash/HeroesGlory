@@ -198,10 +198,12 @@ export function pickChainTargets({ first, pool, count, distance }) {
  * × its share (½ for the chain's extra targets), then a worn armor of
  * level 4–5 halves it (§5.5, as for attacks). Rounded down each step.
  * @param {{total: number, targets: object[]}} flags
- * @returns {Array<{outcome: 'kill'|'immune'|'resisted'|'damage', damage: number, armorHalved: boolean}>}
+ * @returns {Array<{outcome: 'excluded'|'kill'|'immune'|'resisted'|'damage', damage: number, armorHalved: boolean}>}
  */
 export function resolveSpellResolution(flags) {
   return (flags.targets ?? []).map((target) => {
+    // Step 4: left out by the GM before the confirm.
+    if (target.excluded) return { outcome: 'excluded', damage: 0, armorHalved: false };
     if (target.incapacitated) return { outcome: 'kill', damage: 0, armorHalved: false };
     if (target.immunity) return { outcome: 'immune', damage: 0, armorHalved: false };
     if (target.resistThreshold != null && target.resistDie != null && target.resistDie >= target.resistThreshold) {
@@ -526,4 +528,25 @@ export function rangedSeriesAfterSpells(total, modifiers = []) {
 export function resolveFireShieldDamage({ value, immune = false, armorMultiplier = 1 }) {
   if (immune) return 0;
   return Math.floor(value * armorMultiplier);
+}
+
+/**
+ * «В поле зрения» (Волна Смерти, Уничтожить Нежить, Армагеддон; pp. 53, 56,
+ * 60): whether a creature in sight is taken, by the spell's filter — «кроме
+ * Нежити и Элементалей», «Вся нежить» — by the creature's tags only (rules.md
+ * §11: no hero race is undead or an elemental); the caster only when the
+ * spell says so («даже вы», Армагеддон). Allies are taken.
+ * @param {object} args
+ * @param {{filter?: string, includeCaster?: boolean}} args.targeting
+ * @param {boolean} args.isCaster
+ * @param {boolean} args.isCreature
+ * @param {string[]} [args.tags]   creature `system.specialSkills`
+ * @returns {boolean}
+ */
+export function visibleSpellTakes({ targeting, isCaster, isCreature, tags = [] }) {
+  if (isCaster && !targeting?.includeCaster) return false;
+  const tagged = (name) => isCreature && tags.some((raw) => new RegExp(`^${name}(\\s|,|\\.|$)`).test(normalize(raw)));
+  if (targeting?.filter === 'undeadOnly') return tagged('нежить');
+  if (targeting?.filter === 'notUndeadOrElemental') return !tagged('нежить') && !tagged('элементаль');
+  return true;
 }

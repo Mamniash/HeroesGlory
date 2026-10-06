@@ -60,3 +60,35 @@ export function tokenDistanceCells(a, b) {
   }
   return Number.isFinite(best) ? best : null;
 }
+
+/**
+ * Step 4, «в поле зрения» (rules.md §11): whether the caster's token sees a
+ * token — a line from the caster's centre to the centre of any cell the
+ * target occupies, not blocked by sight walls (an open door lets it through;
+ * darkness doesn't count). Same scene only.
+ * @param {TokenDocument} from
+ * @param {TokenDocument} to
+ * @returns {boolean}
+ */
+export function tokenInSight(from, to) {
+  if (!from || !to || from.parent !== to.parent) return false;
+  const grid = from.parent.grid;
+  const center = (doc) => ({ x: doc.x + (doc.width * grid.size) / 2, y: doc.y + (doc.height * grid.size) / 2 });
+  const origin = center(from);
+  const points = grid.isGridless ? [center(to)] : to.getOccupiedGridSpaceOffsets().map((offset) => grid.getCenterPoint(offset));
+  const backend = CONFIG.Canvas.polygonBackends.sight;
+  return points.some((point) => !backend.testCollision(origin, point, { type: 'sight', mode: 'any' }));
+}
+
+/**
+ * Whether a token stands within the scene's own rectangle — one left beside
+ * the map is not «в поле зрения» (rules.md §11).
+ * @param {TokenDocument} doc
+ * @returns {boolean}
+ */
+export function tokenInSceneRect(doc) {
+  const rect = doc.parent?.dimensions?.sceneRect;
+  if (!rect) return true;
+  const size = doc.parent.grid.size;
+  return rect.contains(doc.x + (doc.width * size) / 2, doc.y + (doc.height * size) / 2);
+}

@@ -16,9 +16,20 @@
     {{#if noTarget}}
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
     {{/if}}
-    {{#each targetLines}}
-      <p class="heroes-glory-chat-card__damage">{{this}}</p>
-    {{/each}}
+    {{#if excludable}}
+      {{!-- Step 4: per-target «исключить» / «вернуть», the GM only (chat.mjs). --}}
+      {{#each targetRows}}
+        <p class="heroes-glory-chat-card__damage{{#if excluded}} heroes-glory-chat-card__line--muted{{/if}}">{{text}}
+          <button type="button" class="heroes-glory-chat-card__exclude-btn" data-action="hg-spell-exclude" data-index="{{index}}">
+            {{#if excluded}}{{localize 'HEROES_GLORY.Roll.SpellTargetInclude'}}{{else}}{{localize 'HEROES_GLORY.Roll.SpellTargetExclude'}}{{/if}}
+          </button>
+        </p>
+      {{/each}}
+    {{else}}
+      {{#each targetLines}}
+        <p class="heroes-glory-chat-card__damage">{{this}}</p>
+      {{/each}}
+    {{/if}}
     {{!-- p. 32: the lasting spell this cast ends (a fourth one). --}}
     {{#if endCastLine}}
       <p class="heroes-glory-chat-card__line">{{endCastLine}}</p>

@@ -1,6 +1,7 @@
 import { canRerollWithLuck, hadUnconfirmedAttackBefore } from './rolls.mjs';
 import {
   rerollLuckDie, confirmAttackOutcome, rollNextAttack, confirmSpellOutcome, counterAttackState, rollCounterAttack,
+  toggleSpellTargetExcluded,
 } from './roll-actions.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
@@ -76,6 +77,17 @@ export function activateChatListeners(message, html) {
         confirmSpellOutcome(message);
       });
     }
+  }
+
+  // Step 4: «исключить» / «вернуть» a target of a «в поле зрения» card —
+  // the GM only, before the confirm.
+  for (const button of html.querySelectorAll('[data-action="hg-spell-exclude"]')) {
+    button.hidden = !game.user.isGM;
+    if (!game.user.isGM) continue;
+    button.addEventListener('click', () => {
+      button.disabled = true;
+      toggleSpellTargetExcluded(message, Number(button.dataset.index));
+    });
   }
 
   // §11 attack series: the attacker's owners and the GM may roll the next

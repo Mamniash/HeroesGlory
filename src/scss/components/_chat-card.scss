@@ -129,6 +129,35 @@
     }
   }
 
+  // Step 4: «исключить» / «вернуть» beside a target line, the GM only.
+  &__exclude-btn {
+    display: inline;
+    width: auto;
+    margin-left: 4px;
+    padding: 0 4px;
+    border: 1px solid $c-dark;
+    background: $c-white;
+    color: $c-dark;
+    font-family: $font-primary;
+    font-size: 11px;
+    line-height: 1.4;
+    cursor: pointer;
+
+    &:hover {
+      background: $c-dark;
+      color: $c-white;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
   &__applied {
     margin-top: $padding-sm;
     font-weight: bold;

@@ -58,7 +58,7 @@ import {
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
-import { tokensAdjacent, attackerTokenFor, tokenDistanceCells } from './grid.mjs';
+import { tokensAdjacent, attackerTokenFor, tokenDistanceCells, tokenInSight, tokenInSceneRect } from './grid.mjs';
 import { actorCombat, RESURRECTED_FLAG } from './combat.mjs';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
@@ -66,7 +66,7 @@ import {
   resolveSpellResolution, canConfirmSpell, isUndeadCreature, modifierTargetLimit, resolveModifierSpellResolution,
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
-  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -1283,6 +1283,43 @@ function antimagicRefuses(spell, selected) {
 }
 
 /**
+ * Step 4, «в поле зрения» (Волна Смерти, Уничтожить Нежить, Армагеддон;
+ * rules.md §11): every token with an actor on the caster's scene, on the
+ * caster's level, within the scene, not hidden, not dead
+ * («повержен»; the incapacitated are taken — the spell kills them), that
+ * the spell takes (visibleSpellTakes: its filter by creature tags, the
+ * caster only for Армагеддон) and the caster's token sees (tokenInSight).
+ * No caster token on the scene, or nobody left — refused before any Mana.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} targeting   the variant's `targeting`
+ * @returns {{docs: TokenDocument[], casterToken: TokenDocument}|null}
+ */
+function visibleSpellTargets(actor, spell, targeting) {
+  const casterToken = actor.token ?? actor.getActiveTokens(false, true).find((t) => t.parent === canvas.scene)
+    ?? actor.getActiveTokens(false, true)[0] ?? null;
+  if (!casterToken) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const docs = casterToken.parent.tokens.filter((doc) => {
+    const target = doc.actor;
+    if (!target || doc.hidden || doc.level !== casterToken.level || !tokenInSceneRect(doc)) return false;
+    if (target.statuses.has(CONFIG.specialStatusEffects.DEFEATED)) return false;
+    const isCaster = doc === casterToken;
+    if (!visibleSpellTakes({
+      targeting, isCaster, isCreature: target.type === 'creature', tags: target.system.specialSkills ?? [],
+    })) return false;
+    return isCaster || tokenInSight(casterToken, doc);
+  });
+  if (!docs.length) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellNobodyInSight', { spell: spell.name }));
+    return null;
+  }
+  return { docs, casterToken };
+}
+
+/**
  * §6.4, stage 1: a hero's damage spell. One target (or none) from the
  * user's targets; more than one, or a target past 24 cells (p. 32), refuses
  * the cast before any Mana is spent. Цепная Молния adds the nearest
@@ -1301,22 +1338,27 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
   const chainSpec = targeting.mode === 'chain'
     ? chainLightningSpecialization(actor.system.specialization, spell.name)
     : chainLightningSpecialization(null, '');
-  const selected = [...game.user.targets].map((token) => token.document);
+  // Step 4, «в поле зрения»: the spell finds its own targets — the user's
+  // are ignored, no 24-cell limit (rules.md §11).
+  const visible = targeting.mode === 'visible';
+  const found = visible ? visibleSpellTargets(actor, spell, targeting) : null;
+  if (visible && !found) return null;
+  const selected = visible ? found.docs : [...game.user.targets].map((token) => token.document);
   if (!selected.length) {
     ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
     return null;
   }
   const maxSelected = 1 + chainSpec.chosenTargets;
-  if (selected.length > maxSelected) {
+  if (!visible && selected.length > maxSelected) {
     ui.notifications.warn(maxSelected === 1
       ? game.i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name })
       : game.i18n.format('HEROES_GLORY.Roll.SpellTooManyTargets', { spell: spell.name, count: maxSelected }));
     return null;
   }
-  const [targetDoc, ...chosenDocs] = selected;
-  const casterToken = attackerTokenFor(actor, targetDoc);
+  const [targetDoc, ...chosenDocs] = visible ? [null] : selected;
+  const casterToken = visible ? found.casterToken : attackerTokenFor(actor, targetDoc);
   let rangeUnknown = false;
-  for (const doc of selected) {
+  for (const doc of visible ? [] : selected) {
     const cells = tokenDistanceCells(attackerTokenFor(actor, doc), doc);
     if (cells === null) {
       rangeUnknown = true;
@@ -1328,7 +1370,9 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     }
   }
 
-  if (antimagicRefuses(spell, selected)) return null;
+  // Антимагия: one chosen target is refused; «в поле зрения» checks each
+  // target on the card instead (rules.md §11).
+  if (!visible && antimagicRefuses(spell, selected)) return null;
 
   // Цепная Молния: the chain's extra targets aren't limited by range; the
   // targets picked by the specialization are left out of it.
@@ -1377,7 +1421,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
 
   const targets = [];
   const extraFactor = chainSpec.active ? chainSpec.extraFactor : (targeting.extraFactor ?? 1);
-  const targetDocs = [
+  const targetDocs = visible ? selected.map((doc) => [doc, 1, false]) : [
     [targetDoc, 1, false],
     ...chosenDocs.map((doc) => [doc, extraFactor, true]),
     ...chainDocs.map((doc) => [doc, extraFactor, false]),
@@ -1408,6 +1452,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     sorcerySpecialization,
     chainSpecialization,
     total,
+    visible,
     rangeUnknown,
     targets,
     confirmed: false,
@@ -1467,6 +1512,9 @@ function buildSpellCardContext(flags) {
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
   context.confirmed = !!flags.confirmed;
+  // Step 4: the GM may leave a target out before confirming (rules.md §11).
+  context.excludable = !!flags.visible && !flags.confirmed;
+  context.targetRows = flags.targets.map((target, index) => ({ index, excluded: !!target.excluded }));
   context.targetLines = flags.targets.map((target, index) => {
     const result = results[index];
     const done = flags.confirmed;
@@ -1482,6 +1530,9 @@ function buildSpellCardContext(flags) {
     }
     if (result.armorHalved) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellArmorHalf'));
     let text;
+    if (result.outcome === 'excluded') {
+      return i18n.format('HEROES_GLORY.Roll.SpellTargetExcluded', { target: target.name });
+    }
     if (result.outcome === 'kill') {
       text = i18n.format(done ? 'HEROES_GLORY.Roll.SpellKillApplied' : 'HEROES_GLORY.Roll.SpellKillPending', { target: target.name });
     } else if (result.outcome === 'immune') {
@@ -1518,7 +1569,29 @@ function buildSpellCardContext(flags) {
     context.breakdown.push(i18n.format('HEROES_GLORY.Roll.SpellChainSpecLine', { total: flags.chainSpecialization.total }));
   }
   context.totalLine = i18n.format('HEROES_GLORY.Roll.SpellTotalLine', { total: flags.total });
+  context.targetRows = context.targetRows.map((row, index) => ({ ...row, text: context.targetLines[index] }));
   return context;
+}
+
+/**
+ * Step 4: the GM leaves a target of a «в поле зрения» card out — or puts it
+ * back — before confirming (rules.md §11). The card is redrawn from the
+ * same flags; an excluded target takes nothing.
+ * @param {ChatMessage} message
+ * @param {number} index
+ * @returns {Promise<ChatMessage|void>}
+ */
+export async function toggleSpellTargetExcluded(message, index) {
+  if (!game.user.isGM) return;
+  const flags = message.getFlag(FLAG_SCOPE, 'spell');
+  if (!flags?.visible || flags.confirmed || !flags.targets?.[index]) return;
+  const targets = flags.targets.map((target, i) => (i === index ? { ...target, excluded: !target.excluded } : target));
+  const nextFlags = { ...flags, targets };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
 }
 
 /**

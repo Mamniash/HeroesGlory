@@ -3579,6 +3579,30 @@
   opacity: 0.5;
   cursor: default;
 }
+.heroes-glory-chat-card__exclude-btn {
+  display: inline;
+  width: auto;
+  margin-left: 4px;
+  padding: 0 4px;
+  border: 1px solid #191813;
+  background: #fff;
+  color: #191813;
+  font-family: "Roboto", sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.heroes-glory-chat-card__exclude-btn:hover {
+  background: #191813;
+  color: #fff;
+}
+.heroes-glory-chat-card__exclude-btn[hidden] {
+  display: none;
+}
+.heroes-glory-chat-card__exclude-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .heroes-glory-chat-card__applied {
   margin-top: 5px;
   font-weight: bold;

@@ -86,13 +86,15 @@ function buildVariants(base, basicCost, advanced = {}, expert = {}) {
  * @param {boolean} [options.plusMagicPower]
  * @param {string} [options.element]   'fire' | 'ice' | 'lightning'
  * @param {{extraTargets: number, extraFactor: number}} [options.chain]
+ * @param {{filter?: string, includeCaster?: boolean}} [options.visible]   «в поле зрения» (step 4)
  */
-function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = false, element = '', chain = null } = {}) {
+function damageEffect(count, flat, { perMagicPower = false, plusMagicPower = false, element = '', chain = null, visible = null } = {}) {
+  let targeting = { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 };
+  if (chain) targeting = { mode: 'chain', perMagicPowerTargets: false, extraTargets: chain.extraTargets, extraFactor: chain.extraFactor };
+  if (visible) targeting = { ...targeting, mode: 'visible', filter: visible.filter ?? '', includeCaster: !!visible.includeCaster };
   return {
     kind: 'damage',
-    targeting: chain
-      ? { mode: 'chain', perMagicPowerTargets: false, extraTargets: chain.extraTargets, extraFactor: chain.extraFactor }
-      : { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 },
+    targeting,
     dice: { count, flat, perMagicPower, addMagicPower: plusMagicPower },
     element,
   };
@@ -230,7 +232,9 @@ const EARTH = [
   { name: 'Замедление', level: 1, icon: 54, ...withEffects(statEffects('speed', [-3, -6, -6], { floors: [3, 1, 1], hostile: true }), { base: { desc: 'Выбранное существо снижает свою скорость на 3, до минимума 3. Длительность = СМ.', cost: 6 }, basicCost: 5, advanced: { desc: 'Скорость уменьшается на 6, до минимума 1' }, expert: { desc: 'Работает на количество противников, равное СМ' } }) },
   { name: 'Щит', level: 1, icon: 27, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 6, до минимума 1. Длительность = СМ.', cost: 5, effect: modifierEffect('meleeDamageTaken', -6, { floorOne: true }) }, basicCost: 4, advanced: { desc: 'Выбранное существо снижает любой получаемый физический урон в ближнем бою на 10 до минимума в 1', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Работает на количество союзников, равное СМ', effect: modifierEffect('meleeDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
   { name: 'Каменная Кожа', level: 1, icon: 46, ...withEffects(statEffects('defense', [3, 6, 6]), { base: { desc: 'Увеличивает Защиту выбранного существа на 3. Длительность = СМ.', cost: 5 }, basicCost: 4, advanced: { desc: 'Увеличивает Защиту на 6' }, expert: { desc: 'Работает на количество союзников, равное СМ' } }) },
-  { name: 'Волна Смерти', level: 2, icon: 24, base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } },
+  // Step 4 (p. 53): every creature in sight but Нежить and Элементали, the
+  // caster not (rules.md §11).
+  { name: 'Волна Смерти', level: 2, icon: 24, ...withEffects([1, 2, 3].map((count) => damageEffect(count, 0, { plusMagicPower: true, visible: { filter: 'notUndeadOrElemental' } })), { base: { desc: 'Все существа в поле зрения заклинателя, кроме Нежити и Элементалей, получают урон, равный 1d6+СМ.', cost: 20 }, basicCost: 16, advanced: { desc: 'Урон 2d6+СМ' }, expert: { desc: 'Урон 3d6+СМ' } }) },
   { name: 'Зыбучий Песок', level: 2, icon: 10, base: { desc: 'Выберите 4 клетки, на которых нет существ, и создайте на них невидимые ловушки. Существо, попавшее в ловушку, немедленно заканчивает ход. Длительность — до конца сражения.', cost: 8 }, basicCost: 6, advanced: { desc: '6 ловушек' }, expert: { desc: '8 ловушек' } },
   // Group А2 (p. 54): every spell of levels 1–3 (1–4, 1–5) but
   // Развеивание Магии (rules.md §11).
@@ -259,7 +263,8 @@ const AIR = [
   // Group А1 (p. 55): the expert is stronger, not on more targets.
   { name: 'Разрушительный Луч', level: 2, icon: 47, ...withEffects(statEffects('defense', [-3, -5, -7], { floors: [0, 0, 0], hostile: true, expertTargets: false }), { base: { desc: 'Выбранное существо снижает свою Защиту на 3, до минимума 0. Длительность = СМ.', cost: 10 }, basicCost: 8, advanced: { desc: 'Снижает Защиту на 5, минимум 0' }, expert: { desc: 'Снижает Защиту на 7, минимум 0' } }) },
   { name: 'Воздушный Щит', level: 3, icon: 28, base: { desc: 'Выбранное существо снижает любой получаемый физический урон в дальнем бою на 5, до минимума 1. Длительность = СМ.', cost: 12, effect: modifierEffect('rangedDamageTaken', -5, { floorOne: true }) }, basicCost: 10, advanced: { desc: 'Снижает получаемый урон в дальнем бою на 10, до минимума в 1', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true }) }, expert: { desc: 'Может воздействовать на количество существ, равное СМ', effect: modifierEffect('rangedDamageTaken', -10, { floorOne: true, perMagicPowerTargets: true }) } },
-  { name: 'Уничтожить Нежить', level: 3, icon: 25, base: { desc: 'Вся нежить в поле зрения получает урон, равный 2d6+СМ урона.', cost: 20 }, basicCost: 14, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } },
+  // Step 4 (p. 56): «Вся нежить в поле зрения» — by the creature tag.
+  { name: 'Уничтожить Нежить', level: 3, icon: 25, ...withEffects([2, 3, 4].map((count) => damageEffect(count, 0, { plusMagicPower: true, visible: { filter: 'undeadOnly' } })), { base: { desc: 'Вся нежить в поле зрения получает урон, равный 2d6+СМ урона.', cost: 20 }, basicCost: 14, advanced: { desc: 'Урон увеличивается до 3d6+СМ' }, expert: { desc: 'Урон увеличивается до 4d6+СМ' } }) },
   // p. 56: «Три других ближайших существа получают половину от этого
   // урона»; эксперт — «Воздействует на 4 дополнительных цели вместо 3».
   { name: 'Цепная Молния', level: 4, icon: 19, base: { desc: 'Выберите существо. Оно получает урон, равный 1d6 за каждый ваш СМ. Три других ближайших существа получают половину от этого урона, даже если это ваши союзники.', cost: 40, effect: damageEffect(1, 0, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, basicCost: 24, advanced: { desc: 'Урон увеличивается до 1d6+1 за СМ', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 3, extraFactor: 0.5 } }) }, expert: { desc: 'Воздействует на 4 дополнительных цели вместо 3', effect: damageEffect(1, 1, { perMagicPower: true, element: 'lightning', chain: { extraTargets: 4, extraFactor: 0.5 } }) } },
@@ -342,7 +347,8 @@ const FIRE = [
   // every attack on the bearer burns (rules.md §11).
   { name: 'Огненный Щит', level: 4, icon: 29, ...withEffects(statEffects('fireShield', [0, 3, 6], { expertTargets: false }), { base: { desc: 'Выберите цель. Любое существо, атакующее цель, получает урон огнем, равный вашему СМ. Длительность = СМ.', cost: 16 }, basicCost: 12, advanced: { desc: 'Урон увеличивается до 3+СМ' }, expert: { desc: 'Урон увеличивается до 6+СМ' } }) },
   { name: 'Инферно', level: 4, icon: 22, base: { desc: 'Выберите клетку. Все существа на этой и на соседних клетках получат 1d6 огненного урона за каждый ваш СМ.', cost: 56 }, basicCost: 48, advanced: { desc: 'Затрагивает клетки в радиусе 2 клеток от центра' }, expert: { desc: 'Урон увеличивается до 1d6+1 за СМ' } },
-  { name: 'Армагеддон', level: 5, icon: 26, base: { desc: 'Все существа (даже вы и союзники!) в поле зрения получают урон огнем, равный 5d6+СМ.', cost: 60 }, basicCost: 50, advanced: { desc: 'Урон увеличивается до 7d6+СМ' }, expert: { desc: 'Урон увеличивается до 10d6+СМ' } },
+  // Step 4 (p. 60): «Все существа (даже вы и союзники!)», fire.
+  { name: 'Армагеддон', level: 5, icon: 26, ...withEffects([5, 7, 10].map((count) => damageEffect(count, 0, { plusMagicPower: true, element: 'fire', visible: { includeCaster: true } })), { base: { desc: 'Все существа (даже вы и союзники!) в поле зрения получают урон огнем, равный 5d6+СМ.', cost: 60 }, basicCost: 50, advanced: { desc: 'Урон увеличивается до 7d6+СМ' }, expert: { desc: 'Урон увеличивается до 10d6+СМ' } }) },
 ];
 
 // --- Универсальные, стр. 61 — 2 заклинания, без управляющего вторичного

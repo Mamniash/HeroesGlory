@@ -9,7 +9,7 @@ import {
   spellEffectModifiers, actorSpellModifiers, applySpellStatModifiers, spellHeroesOnly,
   NEGATIVE_SPELLS, HEAL_STATUSES, DISPEL_STATUSES, cleansingRemovals, healAmount, isFriendlyTarget,
   resurrectionBlockingTag, resolveSupportSpellResolution,
-  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage,
+  antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -223,7 +223,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
 
   test('exactly the five stage-1 spells carry a damage effect', () => {
     const withEffect = docs.filter((d) => d.system.variants.none.effect.kind === 'damage').map((d) => d.name).sort();
-    assert.deepEqual(withEffect, ['Взрыв', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Цепная Молния']);
+    assert.deepEqual(withEffect, ['Армагеддон', 'Взрыв', 'Волна Смерти', 'Волшебная Стрела', 'Ледяная Молния', 'Молния', 'Уничтожить Нежить', 'Цепная Молния']);
   });
 
   test('stage 2, groups А1 and А2 — twenty spells carry a modifier effect, on every tier', () => {
@@ -234,7 +234,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       'Молитва', 'Неудача', 'Огненный Щит', 'Ответный Удар', 'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость',
       'Слепота', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 28);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 31);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -355,6 +355,26 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
     assert.deepEqual([cost('Огненный Шар', 'none'), cost('Огненный Шар', 'basic')], [36, 15]);
     assert.deepEqual([cost('Удача', 'none'), cost('Удача', 'basic')], [12, 4]);
   });
+
+  // Step 4, «в поле зрения» (pp. 53, 56, 60): d6 count by tier (+ СМ), filter, caster, element.
+  const visibleCases = [
+    ['Волна Смерти', [1, 1, 2, 3], 'notUndeadOrElemental', false, ''],
+    ['Уничтожить Нежить', [2, 2, 3, 4], 'undeadOnly', false, ''],
+    ['Армагеддон', [5, 5, 7, 10], '', true, 'fire'],
+  ];
+  for (const [name, counts, filter, includeCaster, element] of visibleCases) {
+    test(`${name}: «в поле зрения» by tier (step 4)`, () => {
+      ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+        const effect = byName[name][tier].effect;
+        assert.equal(effect.kind, 'damage');
+        assert.deepEqual(effect.dice, { count: counts[i], flat: 0, perMagicPower: false, addMagicPower: true });
+        assert.equal(effect.targeting.mode, 'visible');
+        assert.equal(effect.targeting.filter, filter);
+        assert.equal(effect.targeting.includeCaster, includeCaster);
+        assert.equal(effect.element, element);
+      });
+    });
+  }
 
   test('«+СМ» spells at СМ 3', () => {
     assert.deepEqual(dice('Волшебная Стрела', 'none', 3), { count: 1, flat: 3 });
@@ -665,5 +685,40 @@ describe('resolveModifierSpellResolution — Слепота\'s d6', () => {
   test('resisted before the die', () => {
     const r = resolveModifierSpellResolution({ triggerThreshold: 4, targets: [{ resistThreshold: 5, resistDie: 6 }] });
     assert.deepEqual(r.map((x) => x.outcome), ['resisted']);
+  });
+});
+
+describe('visibleSpellTakes — who a «в поле зрения» spell takes (rules.md §11)', () => {
+  const deathWave = { filter: 'notUndeadOrElemental', includeCaster: false };
+  const destroyUndead = { filter: 'undeadOnly', includeCaster: false };
+  const armageddon = { filter: '', includeCaster: true };
+  const creature = (tags) => ({ isCaster: false, isCreature: true, tags });
+  const hero = { isCaster: false, isCreature: false, tags: [] };
+  test('Волна Смерти: all but Нежить and Элементали, heroes and allies included', () => {
+    assert.equal(visibleSpellTakes({ targeting: deathWave, ...creature(['Летает']) }), true);
+    assert.equal(visibleSpellTakes({ targeting: deathWave, ...creature(['Нежить', 'Летает']) }), false);
+    assert.equal(visibleSpellTakes({ targeting: deathWave, ...creature(['Элементаль', 'Стрелок']) }), false);
+    assert.equal(visibleSpellTakes({ targeting: deathWave, ...hero }), true);
+  });
+  test('Уничтожить Нежить: Нежить only; heroes never', () => {
+    assert.equal(visibleSpellTakes({ targeting: destroyUndead, ...creature(['Нежить']) }), true);
+    assert.equal(visibleSpellTakes({ targeting: destroyUndead, ...creature(['Летает']) }), false);
+    assert.equal(visibleSpellTakes({ targeting: destroyUndead, ...hero }), false);
+  });
+  test('the caster: only Армагеддон', () => {
+    assert.equal(visibleSpellTakes({ targeting: armageddon, isCaster: true, isCreature: false }), true);
+    assert.equal(visibleSpellTakes({ targeting: deathWave, isCaster: true, isCreature: false }), false);
+    assert.equal(visibleSpellTakes({ targeting: destroyUndead, isCaster: true, isCreature: true, tags: ['Нежить'] }), false);
+  });
+  test('Армагеддон: everyone, Нежить and Элементали too', () => {
+    assert.equal(visibleSpellTakes({ targeting: armageddon, ...creature(['Нежить']) }), true);
+    assert.equal(visibleSpellTakes({ targeting: armageddon, ...creature(['Элементаль']) }), true);
+  });
+});
+
+describe('resolveSpellResolution — a target the GM left out (step 4)', () => {
+  test('excluded: nothing, whatever else it was', () => {
+    const r = resolveSpellResolution({ total: 12, targets: [{ excluded: true, incapacitated: true }, { factor: 1 }] });
+    assert.deepEqual(r, [{ outcome: 'excluded', damage: 0, armorHalved: false }, { outcome: 'damage', damage: 12, armorHalved: false }]);
   });
 });
