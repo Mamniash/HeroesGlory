@@ -43,6 +43,20 @@ export const ABILITY_TAG_ALIASES = {
 };
 
 /**
+ * «Большое существо: Существо занимает 4 соседние клетки (вместо одной)»
+ * (p. 113) — a token 2×2. Read the way a tag finds its journal page, so a
+ * hand-made «Большой» counts too.
+ * @param {string[]} tags   creature `system.specialSkills`
+ * @returns {boolean}
+ */
+export function isLargeCreature(tags = []) {
+  return tags.some((tag) => resolveTagAbilities(tag, ['Большое существо']).length > 0);
+}
+
+/** A «Большое существо»'s token side, in cells (p. 113: 4 cells, 2×2). */
+export const LARGE_CREATURE_CELLS = 2;
+
+/**
  * Journal page names a tag links to — empty when the book has no article
  * for it (the tag then stays plain text).
  * @param {string} tag

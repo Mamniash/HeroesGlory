@@ -163,9 +163,10 @@ export function buildItemDocument({ name, type, system, img, index, seed, flags 
  * @param {string} params.img
  * @param {number} params.index    Position in the pack, for `sort`.
  * @param {string} [params.seed]   Stable-id seed; defaults to `name`.
+ * @param {number} [params.size]   Token side in cells (a «Большое существо» — 2).
  * @returns {object}
  */
-export function buildActorDocument({ name, type, system, img, index, seed }) {
+export function buildActorDocument({ name, type, system, img, index, seed, size = 1 }) {
   const id = stableId(seed ?? name);
   return {
     _id: id,
@@ -173,7 +174,7 @@ export function buildActorDocument({ name, type, system, img, index, seed }) {
     type,
     img,
     system,
-    prototypeToken: { name, texture: { src: img } },
+    prototypeToken: { name, texture: { src: img }, ...(size !== 1 ? { width: size, height: size } : {}) },
     items: [],
     effects: [],
     folder: null,

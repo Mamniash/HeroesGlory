@@ -7,6 +7,7 @@ import path from 'node:path';
 import { FACTIONS, readFaction, creatureEntries, buildDescription, buildCreatureDocuments } from '../scripts/data/creature-compendium-data.mjs';
 import { ROOT, coreVersion } from '../scripts/lib/pack-builder.mjs';
 import { HEROES_GLORY } from '../module/helpers/config.mjs';
+import { isLargeCreature } from '../module/helpers/creature-abilities.mjs';
 
 // Unit tests must not need Foundry installed: point the builder at a
 // fixture Foundry manifest instead of the real install.
@@ -197,5 +198,30 @@ describe('Дикая мораль — §11 threshold from the statblock tag', as
       .filter((entry) => entry.system.moraleThreshold !== null)
       .map((entry) => [entry.name, entry.system.moraleThreshold]);
     assert.deepEqual(withThreshold, [['Минотавры', 6], ['Короли Минотавров', 5]]);
+  });
+});
+
+describe('«Большое существо» (p. 113: «занимает 4 соседние клетки») — a token 2×2', () => {
+  const docs = buildCreatureDocuments();
+  const large = docs.filter((d) => isLargeCreature(d.system.specialSkills));
+  test('42 creatures carry the tag, every one spelled «Большое существо»', () => {
+    assert.equal(large.length, 42);
+    for (const d of docs) {
+      for (const tag of d.system.specialSkills) {
+        if (/^больш/i.test(tag.trim())) assert.equal(tag, 'Большое существо', `${d.name}: «${tag}»`);
+      }
+    }
+  });
+  test('their prototype token is 2×2, everyone else\'s 1×1', () => {
+    for (const d of docs) {
+      const size = large.includes(d) ? 2 : 1;
+      assert.equal(d.prototypeToken.width ?? 1, size, d.name);
+      assert.equal(d.prototypeToken.height ?? 1, size, d.name);
+    }
+  });
+  test('a hand-made «Большой» or «Большое Существо» counts too; other tags don\'t', () => {
+    assert.equal(isLargeCreature(['Большой']), true);
+    assert.equal(isLargeCreature(['Летает', 'Большое Существо']), true);
+    assert.equal(isLargeCreature(['Летает', 'Стрелок']), false);
   });
 });

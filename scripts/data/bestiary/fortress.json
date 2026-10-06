@@ -205,7 +205,7 @@
           "speed": 5,
           "level": 5,
           "specialSkills": [
-            "Большое Существо"
+            "Большое существо"
           ],
           "legendary": false,
           "img": "systems/heroes-glory/assets/twcrport/twcrport_g00_f108.png"
@@ -220,7 +220,7 @@
           "speed": 7,
           "level": 6,
           "specialSkills": [
-            "Большое Существо",
+            "Большое существо",
             "Окаменение 4+"
           ],
           "legendary": false,
@@ -264,7 +264,7 @@
           "speed": 5,
           "level": 8,
           "specialSkills": [
-            "Большое Существо"
+            "Большое существо"
           ],
           "legendary": false,
           "img": "systems/heroes-glory/assets/twcrport/twcrport_g00_f104.png"
@@ -279,7 +279,7 @@
           "speed": 6,
           "level": 11,
           "specialSkills": [
-            "Большое Существо",
+            "Большое существо",
             "Смерть 6"
           ],
           "legendary": true,

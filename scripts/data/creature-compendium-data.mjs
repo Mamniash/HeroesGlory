@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildActorDocument, ROOT } from '../lib/pack-builder.mjs';
-import { wildMoraleThreshold } from '../../module/helpers/creature-abilities.mjs';
+import { wildMoraleThreshold, isLargeCreature, LARGE_CREATURE_CELLS } from '../../module/helpers/creature-abilities.mjs';
 
 /** Factions extracted and accepted so far, in book order. */
 export const FACTIONS = ['castle', 'stronghold', 'tower', 'inferno', 'necropolis', 'dungeon', 'citadel', 'fortress', 'nexus', 'haven'];
@@ -90,5 +90,7 @@ export function buildCreatureDocuments() {
     system: entry.system,
     index,
     seed: `creature:${entry.system.faction}:${entry.name}`,
+    // «Большое существо» (p. 113): 4 cells — the token 2×2.
+    size: isLargeCreature(entry.system.specialSkills) ? LARGE_CREATURE_CELLS : 1,
   }));
 }
