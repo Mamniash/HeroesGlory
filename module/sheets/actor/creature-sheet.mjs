@@ -7,6 +7,7 @@ import { resolveTagAbilities } from '../../helpers/creature-abilities.mjs';
 import { KNOWLEDGE_BASE_PACK, CREATURE_ABILITIES_ENTRY } from '../../helpers/knowledge-base.mjs';
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { moraleIconPath } from '../../helpers/skill-icons.mjs';
+import { summonedData } from '../../helpers/combat.mjs';
 
 let abilityPagesPromise = null;
 
@@ -65,13 +66,17 @@ export class HeroesGloryCreatureSheet extends HeroesGloryFramedSheetMixin(Heroes
   /**
    * The creature sheet is the GM's: whatever ownership a player holds, any
    * way of opening it (token double-click, the actors list, a link in chat
-   * or a journal, the combat tracker) ends here, and only a note is shown.
+   * or a journal, the combat tracker) ends here, and only a note is shown —
+   * but for the owner of a summoned elemental's or a clone's token.
    * A re-render request (not `force`) for a sheet that isn't open does
    * nothing anyway, so it stays silent.
    * @override
    */
   render(options = {}, _options = {}) {
-    if (!game.user.isGM) {
+    // Group Д: a summoned elemental or a clone is the caster's player's to
+    // command — its token's owner opens the sheet (rules.md §11).
+    const ownSummon = !!summonedData(this.actor) && this.actor.isOwner;
+    if (!game.user.isGM && !ownSummon) {
       const force = options === true || options?.force;
       if (force) ui.notifications.warn('HEROES_GLORY.Creature.GmOnly', { localize: true });
       return Promise.resolve(this);
@@ -90,6 +95,8 @@ export class HeroesGloryCreatureSheet extends HeroesGloryFramedSheetMixin(Heroes
     const context = await super._prepareContext(options);
     const system = this.actor.system;
     context.editMode = this.#editMode;
+    // Editing stays the GM's, the owner of a summon or a clone only reads and acts.
+    context.canEdit = game.user.isGM;
     context.panelColor = resolveEffectivePanelColor({ panelColor: 'auto', faction: system.faction });
     const factionKey = CONFIG.HEROES_GLORY.factions[system.faction];
     context.subline = factionKey

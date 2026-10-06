@@ -3,7 +3,7 @@ import {
   moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount, parseGoldInput, parseCorrectionInput,
 } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { findSpellVariant, castSpell } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant, castSpell, spellChoosesElement } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
@@ -1419,9 +1419,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @param {PointerEvent} event
    * @param {HTMLElement} target
    */
-  static #onCastSpell(event, target) {
+  static async #onCastSpell(event, target) {
     const spell = this.actor.items.get(target.dataset.itemId);
     if (!spell) return;
+    // Group Д: Призыв Элементаля asks for the element instead — its school
+    // decides the variant (castSpell's own dialog, rules.md §11).
+    if (await spellChoosesElement(spell)) return castSpell(this.actor, spell);
 
     const { ambiguous, candidateSchools } = findSpellVariant(this.actor, spell);
     if (!ambiguous) return castSpell(this.actor, spell);

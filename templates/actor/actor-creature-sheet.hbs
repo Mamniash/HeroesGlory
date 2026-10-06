@@ -172,8 +172,10 @@
 </div>
 
 {{#*inline "editToggle"}}
+  {{#if canEdit}}
   <button type="button" class="hg-creature__edit-toggle" data-action="toggleEditMode" aria-pressed="{{#if editMode}}true{{else}}false{{/if}}"
     aria-label="{{#if editMode}}{{localize 'HEROES_GLORY.Hero.EditModeDisableHint'}}{{else}}{{localize 'HEROES_GLORY.Hero.EditModeEnableHint'}}{{/if}}"></button>
+  {{/if}}
 {{/inline}}
 
 {{!-- Folded on every opening, as on the weapon sheet. --}}

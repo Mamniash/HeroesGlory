@@ -2,6 +2,7 @@ import { isIncapacitated } from '../helpers/rolls.mjs';
 import { subchoiceModifiersFor } from '../helpers/race-stats.mjs';
 import { specializationModifiers } from '../helpers/specializations.mjs';
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
+import { summonedData, dismissSummoned } from '../helpers/combat.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -86,7 +87,16 @@ export class HeroesGloryActor extends Actor {
     // toggle, so it isn't attempted redundantly on every connected client.
     // `keepStatuses` — the caller sets the statuses itself (Воскрешение
     // ending: dead again, helpers/combat.mjs).
-    if (userId === game.user.id && changed.system?.health?.value !== undefined
+    // Group Д: a summoned elemental at 0 Здоровья doesn't lie down — «пока не
+    // погибнет, а затем исчезает» (p. 61, rules.md §11). The active GM acts.
+    // A clone: «получив любой урон, немедленно исчезает» (p. 58) — any drop in
+    // Здоровье; a miss or 0 damage changes nothing (rules.md §11).
+    const summoned = summonedData(this);
+    if (summoned?.kind === 'clone') {
+      if (options?.['heroes-glory']?.healthDropped) dismissSummoned(this.token, 'CloneVanished');
+    } else if (summoned && changed.system?.health?.value !== undefined && isIncapacitated(this.system.health.value)) {
+      dismissSummoned(this.token, 'SummonFell');
+    } else if (userId === game.user.id && changed.system?.health?.value !== undefined
       && isIncapacitated(this.system.health.value) && !options?.['heroes-glory']?.keepStatuses) {
       this.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: true });
     }

@@ -234,6 +234,34 @@ function placementEffect(kind, { field = null, dice = null } = {}) {
 }
 
 /**
+ * Group Д: Призыв Элементаля (`summon`) — the elemental's bonuses, item-spell.mjs's
+ * `effect.summon`.
+ * @param {number} attackBonus   to Атака and Урон
+ * @param {number} healthBonus   to Здоровье
+ */
+function summonEffect(attackBonus, healthBonus) {
+  return {
+    kind: 'summon',
+    targeting: { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 },
+    dice: { count: 0, flat: 0, perMagicPower: false, addMagicPower: false },
+    element: '',
+    modifiers: [],
+    summon: { attackBonus, damageBonus: attackBonus, healthBonus },
+  };
+}
+
+/** Group Д: Клон (`clone`) — item-spell.mjs's `effect`; one target, a creature. */
+function cloneEffect() {
+  return {
+    kind: 'clone',
+    targeting: { mode: 'single', perMagicPowerTargets: false, extraTargets: 0, extraFactor: 1 },
+    dice: { count: 0, flat: 0, perMagicPower: false, addMagicPower: false },
+    element: '',
+    modifiers: [],
+  };
+}
+
+/**
  * Puts group А1's three effects (base = basic, advanced, expert) onto a
  * spell entry's `base` / `advanced` / `expert`.
  * @param {object[]} effects
@@ -359,7 +387,10 @@ const WATER = [
     { untilCombatEnd: true, perMagicPowerTargets: i === 2 },
   )), { base: { desc: 'Выберите дружественное существо. До конца боя оно получает +2 к Атаке, Защите, Скорости и Урону.', cost: 16 }, basicCost: 12, advanced: { desc: 'Бонус к Атаке, Защите, Скорости и Урону и увеличиваются до +4' }, expert: { desc: 'Может воздействовать на количество существ, равное СМ' } }) },
   // BOOK PATTERN — см. комментарий у Телепорта выше.
-  { name: 'Клон', level: 5, icon: 65, base: { desc: 'Создает идеальную копию дружеского существа. Она неотличима от оригинала и может использовать все его атаки и заклинания. Копия действует с момента создания и контролируется вами. Клон, получив любой урон, немедленно исчезает. Длительность = СМ.', cost: 35 }, basicCost: 30, advanced: { cost: 20 }, expert: { cost: 10 } },
+  // Group Д (p. 58): a copy of a friendly creature, Длительность = СМ, any
+  // damage ends it (rules.md §11).
+  { name: 'Клон', level: 5, icon: 65, ...withEffects([cloneEffect(), cloneEffect(), cloneEffect()], {
+    base: { desc: 'Создает идеальную копию дружеского существа. Она неотличима от оригинала и может использовать все его атаки и заклинания. Копия действует с момента создания и контролируется вами. Клон, получив любой урон, немедленно исчезает. Длительность = СМ.', cost: 35 }, basicCost: 30, advanced: { cost: 20 }, expert: { cost: 10 } }) },
 ];
 
 // --- Магия Огня, стр. 59-60 — 9 заклинаний (не 10, как у остальных трёх
@@ -408,7 +439,10 @@ const FIRE = [
 // сознательно резолвит их всегда в "Без Навыка", это не баг сборки.
 const UNIVERSAL = [
   { name: 'Волшебная Стрела', level: 1, icon: 15, base: { desc: 'Наносит урон, равный 1d6+СМ выбранному существу.', cost: 10, effect: damageEffect(1, 0, { plusMagicPower: true }) }, basicCost: 8, advanced: { desc: 'Урон увеличивается до 2d6+СМ', effect: damageEffect(2, 0, { plusMagicPower: true }) }, expert: { desc: 'Урон увеличивается до 3d6+СМ', effect: damageEffect(3, 0, { plusMagicPower: true }) } },
-  { name: 'Призыв Элементаля', level: 5, icon: 66, base: { desc: 'Призывает Элементаля Огня, Воздуха, Земли или Воды. Он верно служит вам количество раундов, равное СМ, или пока не погибнет, а затем исчезает. Вы можете призвать одного Элементаля за раз. Стихия этого заклинания — это стихия выбранного элементаля.', cost: 50 }, basicCost: 40, advanced: { desc: 'Призванный элементаль получает +2 к атаке и урону, и его Очки Здоровья увеличены на 10' }, expert: { desc: 'Бонус к атаке и урон увеличиваются до +4, и его Очки Здоровья увеличены на 20' } },
+  // Group Д (p. 61): the base elemental of the chosen element; Продвинутый
+  // +2 to Атака and Урон, +10 Здоровья, Эксперт +4, +20 (rules.md §11).
+  { name: 'Призыв Элементаля', level: 5, icon: 66, ...withEffects([summonEffect(0, 0), summonEffect(2, 10), summonEffect(4, 20)], {
+    base: { desc: 'Призывает Элементаля Огня, Воздуха, Земли или Воды. Он верно служит вам количество раундов, равное СМ, или пока не погибнет, а затем исчезает. Вы можете призвать одного Элементаля за раз. Стихия этого заклинания — это стихия выбранного элементаля.', cost: 50 }, basicCost: 40, advanced: { desc: 'Призванный элементаль получает +2 к атаке и урону, и его Очки Здоровья увеличены на 10' }, expert: { desc: 'Бонус к атаке и урон увеличиваются до +4, и его Очки Здоровья увеличены на 20' } }) },
 ];
 
 const SCHOOLS = [

@@ -199,3 +199,16 @@ export function fireWallSpecialization(specialization, spellName) {
   const active = specialization?.type === 'spell' && specialization?.key === 'Стена Огня' && spellName === 'Стена Огня';
   return active ? { active: true, bonusDice: 5, extraCells: 1 } : { active: false, bonusDice: 0, extraCells: 0 };
 }
+
+/**
+ * §4.3 p. 23, specialization «Клон» on that spell: «Вы создаёте двух клонов
+ * вместо одного, если потратите вдвое больше Маны» — the player's choice at
+ * the cast (rules.md §11).
+ * @param {{type?: string, key?: string}|null} specialization
+ * @param {string} spellName
+ * @returns {{active: boolean, clones: number, manaFactor: number}}   with two clones
+ */
+export function cloneSpecialization(specialization, spellName) {
+  const active = specialization?.type === 'spell' && specialization?.key === 'Клон' && spellName === 'Клон';
+  return active ? { active: true, clones: 2, manaFactor: 2 } : { active: false, clones: 1, manaFactor: 1 };
+}

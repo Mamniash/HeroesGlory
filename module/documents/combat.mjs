@@ -1,4 +1,4 @@
-import { compareTurnOrder, tieBreakSpeed, rolledSpeedToRecord } from '../helpers/rolls.mjs';
+import { compareTurnOrder, tieBreakSpeed, rolledSpeedToRecord, orderWithFollowers } from '../helpers/rolls.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
 
@@ -47,6 +47,22 @@ export class HeroesGloryCombat extends Combat {
       { initiative: a.initiative, speed: tieSpeed(a), coin: a.getFlag(FLAG_SCOPE, 'coin') ?? null, id: a.id },
       { initiative: b.initiative, speed: tieSpeed(b), coin: b.getFlag(FLAG_SCOPE, 'coin') ?? null, id: b.id },
     );
+  }
+
+  /**
+   * Group Д: a summoned elemental or a clone (the combatant's `follows`
+   * flag) goes right after its caster (orderWithFollowers, rules.md §11).
+   * @override
+   */
+  setupTurns() {
+    const turns = super.setupTurns();
+    const order = orderWithFollowers(turns.map((c) => ({ id: c.id, follows: c.getFlag(FLAG_SCOPE, 'follows') ?? null })));
+    if (order.every((id, index) => id === turns[index].id)) return turns;
+    const byId = new Map(turns.map((c) => [c.id, c]));
+    const reordered = order.map((id) => byId.get(id));
+    if (this.turn !== null) reordered.forEach((c, index) => { c.turnNumber = index; });
+    this.current = this._getCurrentState(reordered[this.turn]);
+    return this.turns = reordered;
   }
 
   /**

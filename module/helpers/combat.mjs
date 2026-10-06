@@ -127,6 +127,88 @@ export async function clearFieldSpellsAfterCombat(combat) {
 }
 
 /**
+ * Token flag: a summoned elemental or a clone (group Д, roll-actions.mjs's
+ * confirmSummonSpell) — `{kind, casterUuid, casterName, castId, spellName,
+ * combatId, casterCombatant, expiresRound}`.
+ */
+export const SUMMONED_FLAG = 'summoned';
+
+/**
+ * The summoned flag of an actor's token — an unlinked token's synthetic
+ * actor carries it through `actor.token`.
+ * @param {Actor|null|undefined} actor
+ * @returns {object|null}
+ */
+export function summonedData(actor) {
+  return actor?.token?.getFlag('heroes-glory', SUMMONED_FLAG) ?? null;
+}
+
+/**
+ * Group Д: a summoned elemental or a clone goes — its token and its place in
+ * every battle, and a line in the chat when there's a reason to tell
+ * (rules.md §11: «а затем исчезает»). Active GM only; nothing is left in the
+ * world but the shared base actor.
+ * @param {TokenDocument} tokenDoc
+ * @param {string|null} [lineKey]   HEROES_GLORY.Roll.* key, {name}
+ */
+export async function dismissSummoned(tokenDoc, lineKey = null) {
+  if (game.users.activeGM !== game.user || !tokenDoc?.parent?.tokens.has(tokenDoc.id)) return;
+  const name = tokenDoc.name;
+  for (const combat of game.combats) {
+    const ids = combat.combatants.filter((c) => c.tokenId === tokenDoc.id && c.sceneId === tokenDoc.parent.id).map((c) => c.id);
+    if (ids.length) await combat.deleteEmbeddedDocuments('Combatant', ids);
+  }
+  await tokenDoc.delete();
+  if (lineKey) {
+    await ChatMessage.create({
+      content: `<p>${foundry.utils.escapeHTML(game.i18n.format(`HEROES_GLORY.Roll.${lineKey}`, { name }))}</p>`,
+    });
+  }
+}
+
+/**
+ * The summoned tokens on every scene that pass `test`.
+ * @param {(data: object, token: TokenDocument) => boolean} test
+ * @returns {TokenDocument[]}
+ */
+export function summonedTokens(test) {
+  const found = [];
+  for (const scene of game.scenes) {
+    for (const token of scene.tokens) {
+      const data = token.getFlag('heroes-glory', SUMMONED_FLAG);
+      if (data && test(data, token)) found.push(token);
+    }
+  }
+  return found;
+}
+
+/**
+ * Group Д (p. 61: «служит вам количество раундов, равное СМ»; Клон —
+ * «Длительность = СМ»): at the start of the caster's turn in the round it
+ * runs out, the summoned one goes, as the lasting effects do. Active GM only.
+ * @param {Combat} combat
+ * @param {{combatantId?: string}} previous
+ * @param {{combatantId?: string}} current
+ */
+export async function expireSummons(combat, previous, current) {
+  if (game.users.activeGM !== game.user) return;
+  const now = current?.combatantId ?? null;
+  const ended = summonedTokens((data) => data.combatId === combat.id && data.expiresRound != null
+    && data.casterCombatant === now && combat.round >= data.expiresRound);
+  for (const token of ended) await dismissSummoned(token, 'SummonExpired');
+}
+
+/**
+ * Group Д: the battle's over — whatever was summoned or cloned in it goes.
+ * Active GM only.
+ * @param {Combat} combat
+ */
+export async function clearSummonsAfterCombat(combat) {
+  if (game.users.activeGM !== game.user) return;
+  for (const token of summonedTokens((data) => data.combatId === combat.id)) await dismissSummoned(token);
+}
+
+/**
  * Actor flag: raised by Воскрешение without Продвинутый (roll-actions.mjs's
  * confirmSupportSpell) — `{combatId, dead}`, the battle whose end takes it
  * back down.

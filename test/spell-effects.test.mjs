@@ -11,6 +11,7 @@ import {
   resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
   fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
+  SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -238,7 +239,7 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
       'Молитва', 'Неудача', 'Огненный Щит', 'Ответный Удар', 'Полет', 'Проклятие', 'Разрушительный Луч', 'Слабость',
       'Слепота', 'Точность', 'Удача', 'Ускорение', 'Щит',
     ]);
-    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 39);
+    assert.equal(docs.filter((d) => hasSpellEffect(d.system.variants)).length, 41);
   });
 
   // pp. 53, 56, 57, 59: [none, basic, advanced, expert] values; only expert takes СМ targets.
@@ -425,6 +426,19 @@ describe('spell compendium — stage 1 effects read off the book text', async ()
     });
   });
 
+  test('Призыв Элементаля: +0 / +0 / +2 / +4 to Атака and Урон, +0 / +0 / +10 / +20 Здоровья', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      const effect = byName['Призыв Элементаля'][tier].effect;
+      assert.equal(effect.kind, 'summon');
+      assert.deepEqual(effect.summon, { attackBonus: [0, 0, 2, 4][i], damageBonus: [0, 0, 2, 4][i], healthBonus: [0, 0, 10, 20][i] });
+    });
+  });
+  test('Клон: a clone on every tier, costs 35/30/20/10', () => {
+    ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
+      assert.equal(byName['Клон'][tier].effect.kind, 'clone');
+      assert.equal(byName['Клон'][tier].manaCost, [35, 30, 20, 10][i]);
+    });
+  });
   test('Зыбучий Песок: 4 / 4 / 6 / 8 free cells, anywhere', () => {
     ['none', 'basic', 'advanced', 'expert'].forEach((tier, i) => {
       const effect = byName['Зыбучий Песок'][tier].effect;
@@ -853,6 +867,12 @@ describe('canConfirmSpell — a field spell has cells, not targets (group Г)', 
   test('field, no targets — may be confirmed', () => {
     assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'field', targets: [] }), true);
   });
+  test('a clone — its cells, no target — may be confirmed', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'clone', targets: [] }), true);
+  });
+  test('a summon — its cell, no target — may be confirmed', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'summon', targets: [] }), true);
+  });
   test('the expert Развеивание on a cell — may be confirmed', () => {
     assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'dispel', targets: [], dispelCell: { regionIds: ['a'] } }), true);
   });
@@ -884,5 +904,32 @@ describe('dispelCellRegionIds — «выбрать видимый эффект �
   test('a trap the caster doesn\'t see stays; an empty cell — nothing', () => {
     assert.deepEqual(dispelCellRegionIds(regions, { i: 1, j: 1 }), []);
     assert.equal(dispelCellRegionIds(regions, { i: 6, j: 9 }).includes('trap'), false);
+  });
+});
+
+describe('SUMMON_ELEMENTALS — the base elemental of each element (p. 61, rules.md §11)', () => {
+  test('the four elements, each a creature of the bestiary', async () => {
+    const { readFileSync } = await import('node:fs');
+    const nexus = JSON.stringify(JSON.parse(readFileSync(new URL('../scripts/data/bestiary/nexus.json', import.meta.url), 'utf8')));
+    assert.deepEqual(Object.keys(SUMMON_ELEMENTALS).sort(), ['air', 'earth', 'fire', 'water']);
+    for (const name of Object.values(SUMMON_ELEMENTALS)) assert.ok(nexus.includes(`"name":"${name}"`), name);
+  });
+});
+
+describe('summonedCreatureStats — the bonuses written into the statblock', () => {
+  const fire = { attack: 10, damage: 6, health: { value: 35, max: 35 } };
+  test('Эксперт: +4 to Атака and Урон, +20 Здоровья, full', () => {
+    assert.deepEqual(summonedCreatureStats(fire, { attackBonus: 4, damageBonus: 4, healthBonus: 20 }),
+      { attack: 14, damage: 10, health: { value: 55, max: 55 } });
+  });
+  test('no bonus — the bestiary\'s own', () => {
+    assert.deepEqual(summonedCreatureStats(fire), { attack: 10, damage: 6, health: { value: 35, max: 35 } });
+  });
+});
+
+describe('summonOwnership — «контролируется вами» (rules.md §11)', () => {
+  test('the caster\'s players own it; none — the GM alone', () => {
+    assert.deepEqual(summonOwnership(['u1']), { default: 0, u1: 3 });
+    assert.deepEqual(summonOwnership([]), { default: 0 });
   });
 });

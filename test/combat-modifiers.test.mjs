@@ -19,6 +19,7 @@ import {
   counterAttackTagLimit,
   countersThisRound,
   counterAttackOffer,
+  orderWithFollowers,
 } from '../module/helpers/rolls.mjs';
 
 describe('resolveHit with a modifier — §11 table read at the modified total', () => {
@@ -351,5 +352,25 @@ describe('counterAttackOffer — Ответный Удар and «Ответна�
   });
   test('«Неограничено» never runs out', () => {
     assert.deepEqual(counterAttackOffer({ ...base, tagLimit: Infinity, spellLimit: 0, used: 9 }), { show: true, left: Infinity });
+  });
+});
+
+describe('orderWithFollowers — a summon goes right after its caster (rules.md §11)', () => {
+  test('the follower moves behind its leader', () => {
+    assert.deepEqual(orderWithFollowers([
+      { id: 'mage' }, { id: 'knight' }, { id: 'pike' }, { id: 'elem', follows: 'mage' },
+    ]), ['mage', 'elem', 'knight', 'pike']);
+  });
+  test('two followers of one leader keep their sorted order', () => {
+    assert.deepEqual(orderWithFollowers([
+      { id: 'clone2', follows: 'mage' }, { id: 'knight' }, { id: 'mage' }, { id: 'clone1', follows: 'mage' },
+    ]), ['knight', 'mage', 'clone2', 'clone1']);
+  });
+  test('a leader gone from the battle — the follower stays where sorted', () => {
+    assert.deepEqual(orderWithFollowers([{ id: 'elem', follows: 'gone' }, { id: 'knight' }]), ['elem', 'knight']);
+  });
+  test('nothing to move — the same order; a loop keeps everyone', () => {
+    assert.deepEqual(orderWithFollowers([{ id: 'a' }, { id: 'b' }]), ['a', 'b']);
+    assert.deepEqual(orderWithFollowers([{ id: 'a', follows: 'b' }, { id: 'b', follows: 'a' }]).sort(), ['a', 'b']);
   });
 });

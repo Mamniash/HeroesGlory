@@ -50,11 +50,12 @@ import {
   resolveSecondarySkillRoll,
   nextTier,
   secondarySkillSlotCount,
+  orderWithFollowers,
 } from './rolls.mjs';
 import { buildEffectChanges } from './modifiers.mjs';
 import {
   hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization, hasteSpecializationBonus,
-  resurrectionSpecialization, fireWallSpecialization,
+  resurrectionSpecialization, fireWallSpecialization, cloneSpecialization,
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
@@ -62,7 +63,7 @@ import {
   tokensAdjacent, attackerTokenFor, tokenDistanceCells, tokenInSight, tokenInSceneRect, tokenCellDistance,
   pointInSight, cellInSceneRect, sceneCellNumbers,
 } from './grid.mjs';
-import { actorCombat, RESURRECTED_FLAG } from './combat.mjs';
+import { actorCombat, RESURRECTED_FLAG, SUMMONED_FLAG, summonedTokens, summonedData, dismissSummoned } from './combat.mjs';
 import {
   SPELL_RANGE_CELLS, hasSpellEffect, chooseSpellEffectVariants, spellDamageDice, spellFormula, sorceryDice,
   creatureSpellProfile, heroSpellResistanceThreshold, spellImmunity, pickChainTargets,
@@ -71,6 +72,7 @@ import {
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
   fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
+  SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
 import { primarySkillIconPath, secondarySkillIconPath, secondarySkillEmptyIconPath } from './skill-icons.mjs';
@@ -1102,7 +1104,17 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     return null;
   }
 
-  const { variant, variantData, resolvedSchool, ambiguous } = findSpellVariant(actor, spell, chosenSchool);
+  // Group Д: Призыв Элементаля — the element first; «Стихия этого заклинания —
+  // это стихия выбранного элементаля», its school's variant and cost (rules.md §11).
+  let summonElement = null;
+  if (actor.type === 'hero' && await spellChoosesElement(spell)) {
+    if (!summonCanStart(actor, spell)) return null;
+    summonElement = chosenSchool ?? await chooseSummonElement(actor, spell);
+    if (!summonElement) return null;
+  }
+  const { variant, variantData, resolvedSchool, ambiguous } = summonElement
+    ? elementSpellVariant(actor, spell, summonElement)
+    : findSpellVariant(actor, spell, chosenSchool);
   if (ambiguous) return null;
 
   const discount = specializationManaDiscount(actor.system.specialization, spell.name);
@@ -1139,6 +1151,12 @@ export async function castSpell(actor, spell, chosenSchool = null) {
     if (effect?.kind === 'field') {
       return castFieldSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
     }
+    if (effect?.kind === 'clone') {
+      return castCloneSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect });
+    }
+    if (effect?.kind === 'summon' && summonElement) {
+      return castSummonSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect, element: summonElement });
+    }
   }
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -1165,6 +1183,77 @@ export async function castSpell(actor, spell, chosenSchool = null) {
 
 /** §6.4: the spell compendium, where a hero's spell item finds its effect. */
 const SPELLS_PACK = 'heroes-glory.spells';
+
+/** Group Д: the bestiary, where a summoned elemental comes from. */
+const CREATURES_PACK = 'heroes-glory.creatures';
+
+/**
+ * Group Д: does this spell summon an elemental (`summon`)? The hero sheet
+ * asks before its school picker — the element is chosen instead.
+ * @param {Item} spell
+ * @returns {Promise<boolean>}
+ */
+export async function spellChoosesElement(spell) {
+  if (spell?.system?.school !== 'universal') return false;
+  const variants = await spellEffectVariants(spell);
+  return variants?.none?.effect?.kind === 'summon';
+}
+
+/**
+ * Group Д: a spell's variant by one element's school — Призыв Элементаля's
+ * element is its school (p. 61, rules.md §11), not the highest of the four.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {string} element   a school key
+ * @returns {{variant: string, variantData: object, resolvedSchool: string, ambiguous: boolean}}
+ */
+function elementSpellVariant(actor, spell, element) {
+  const tier = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === SCHOOL_SKILL_KEYS[element])?.system.tier;
+  const variant = resolveSpellVariant(tier);
+  return { variant, variantData: spell.system.variants[variant], resolvedSchool: element, ambiguous: false };
+}
+
+/**
+ * Group Д: «Призывает Элементаля Огня, Воздуха, Земли или Воды» — the
+ * player picks the element in the system's dialog; each row says the
+ * variant and the Mana that element's school gives. `null` — cancelled.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @returns {Promise<string|null>}   the element's school key
+ */
+async function chooseSummonElement(actor, spell) {
+  const i18n = game.i18n;
+  const discount = specializationManaDiscount(actor.system.specialization, spell.name);
+  const rows = Object.entries(SUMMON_ELEMENTALS).map(([element, creature], index) => {
+    const { variant, variantData } = elementSpellVariant(actor, spell, element);
+    const label = i18n.format('HEROES_GLORY.Roll.SummonElementRow', {
+      school: i18n.localize(CONFIG.HEROES_GLORY.schools[element]),
+      creature,
+      variant: i18n.localize(SPELL_VARIANT_LABELS[variant]),
+      cost: Math.max(0, variantData.manaCost - discount),
+    });
+    return radioRow('element', element, label, index === 0);
+  });
+  const content = document.createElement('div');
+  content.innerHTML = `<p>${foundry.utils.escapeHTML(i18n.format('HEROES_GLORY.Roll.SummonElementText', { spell: spell.name }))}</p>
+    <div class="hg-dialog__checklist">${rows.join('')}</div>`;
+  const element = await HeroesGloryDialog.wait({
+    hgColor: HeroesGloryDialog.actorColor(actor),
+    window: { title: 'HEROES_GLORY.Roll.SummonElementTitle' },
+    content,
+    buttons: [
+      {
+        action: 'summon',
+        label: 'HEROES_GLORY.Roll.SummonElementConfirm',
+        default: true,
+        callback: (event, button) => button.form.querySelector('input[name="element"]:checked')?.value ?? null,
+      },
+      { action: 'cancel', label: 'HEROES_GLORY.Rest.Cancel' },
+    ],
+    rejectClose: false,
+  });
+  return SUMMON_ELEMENTALS[element] ? element : null;
+}
 
 /**
  * §6.4: a hero's spell item's structured effect — its own, else the entry
@@ -1598,7 +1687,7 @@ function buildSpellCardContext(flags) {
   };
   if (flags.effectKind === 'modifier') return buildModifierSpellCardContext(flags, context);
   if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return buildSupportSpellCardContext(flags, context);
-  if (flags.effectKind === 'teleport' || flags.effectKind === 'field') return buildPlacementSpellCardContext(flags, context);
+  if (['teleport', 'field', 'summon', 'clone'].includes(flags.effectKind)) return buildPlacementSpellCardContext(flags, context);
   if (flags.fieldTrigger) context.fieldTriggerLine = game.i18n.format(`HEROES_GLORY.Roll.FireWallTrigger.${flags.fieldTrigger}`, { target: flags.targets?.[0]?.name ?? '' });
   if (flags.total === undefined) return context;
 
@@ -1725,6 +1814,8 @@ export async function confirmSpellOutcome(message) {
   if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return confirmSupportSpell(message, flags);
   if (flags.effectKind === 'teleport') return confirmTeleportSpell(message, flags);
   if (flags.effectKind === 'field') return confirmFieldSpell(message, flags);
+  if (flags.effectKind === 'summon') return confirmSummonSpell(message, flags);
+  if (flags.effectKind === 'clone') return confirmCloneSpell(message, flags);
   const results = resolveSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     const result = results[index];
@@ -2507,6 +2598,37 @@ function buildPlacementSpellCardContext(flags, context) {
     });
     return context;
   }
+  if (flags.effectKind === 'clone') {
+    const { name, system, destinations } = flags.clone;
+    context.targetLines = [
+      ...destinations.map((d) => i18n.format(done ? 'HEROES_GLORY.Roll.CloneApplied' : 'HEROES_GLORY.Roll.ClonePending', {
+        name, column: d.column, row: d.row, rounds: flags.rounds,
+      })),
+      i18n.format('HEROES_GLORY.Roll.CloneStats', {
+        attack: system.attack, defense: system.defense, damage: system.damage,
+        health: system.health.value, max: system.health.max,
+      }),
+    ];
+    context.endCastLine = flags.endCast
+      ? i18n.format(done ? 'HEROES_GLORY.Roll.SpellEndApplied' : 'HEROES_GLORY.Roll.SpellEndPending', { cast: flags.endCast.label })
+      : null;
+    return context;
+  }
+  if (flags.effectKind === 'summon') {
+    const { creatureName, stats, destination } = flags.summon;
+    context.targetLines = [
+      i18n.format(done ? 'HEROES_GLORY.Roll.SummonApplied' : 'HEROES_GLORY.Roll.SummonPending', {
+        creature: creatureName, column: destination.column, row: destination.row, rounds: flags.rounds,
+      }),
+      i18n.format('HEROES_GLORY.Roll.SummonStats', {
+        attack: stats.attack, damage: stats.damage, health: stats.health.max,
+      }),
+    ];
+    context.endCastLine = flags.endCast
+      ? i18n.format(done ? 'HEROES_GLORY.Roll.SpellEndApplied' : 'HEROES_GLORY.Roll.SpellEndPending', { cast: flags.endCast.label })
+      : null;
+    return context;
+  }
   const cells = flags.field.labels.map(({ column, row }) => `${column}:${row}`).join(', ');
   context.targetLines = flags.field.type === 'quicksand'
     ? [
@@ -2568,12 +2690,7 @@ async function confirmFieldSpell(message, flags) {
   }
   const scene = game.scenes.get(flags.field.sceneId);
   if (!scene) return;
-  if (flags.endCast) {
-    const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
-      .find((cast) => cast.castId === flags.endCast.castId);
-    for (const effect of ending?.effects ?? []) await effect.delete();
-    for (const region of ending?.regions ?? []) await region.delete();
-  }
+  await endLastingCast(flags);
   if (flags.field.type === 'quicksand') {
     await createQuicksandTraps(scene, flags);
     return markSpellConfirmed(message, flags);
@@ -2688,6 +2805,535 @@ export async function springQuicksand(region, tokenDoc) {
       target: tokenDoc.actor.name, caster: data.casterName,
     }))}</p>`,
   });
+}
+
+/**
+ * The cells a token-sized footprint takes with `cell` as its top-left.
+ * @param {{i: number, j: number}} cell
+ * @param {number} width   in cells
+ * @param {number} height  in cells
+ * @returns {Array<{i: number, j: number}>}
+ */
+function footprintCells(cell, width, height) {
+  const cells = [];
+  for (let di = 0; di < Math.max(1, height); di++) {
+    for (let dj = 0; dj < Math.max(1, width); dj++) cells.push({ i: cell.i + di, j: cell.j + dj });
+  }
+  return cells;
+}
+
+/**
+ * Group Д: may a Призыв Элементаля start at all — in combat, and no
+ * elemental of this caster alive («одного Элементаля за раз», rules.md §11)?
+ * Asked before the element dialog and again at the cast; a refusal is told.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @returns {boolean}
+ */
+function summonCanStart(actor, spell) {
+  if (!casterCombatStart(actor)) {
+    ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
+    return false;
+  }
+  const alive = summonedTokens((data) => data.kind === 'summon' && data.casterUuid === actor.uuid);
+  if (alive.length) {
+    ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SummonAlready', { spell: spell.name, name: alive[0].name }));
+    return false;
+  }
+  return true;
+}
+
+/**
+ * §6.4, group Д: Призыв Элементаля (p. 61, rules.md §11). Only in combat, a
+ * lasting spell (the limit of three); one elemental at a time — while the
+ * caster's previous one lives, refused before any Mana. The element was
+ * picked already (chooseSummonElement), its school's variant. The caster
+ * places the elemental's footprint (core region placement, nothing saved):
+ * free cells within the scene, not in a Силовое Поле, within 24 cells; no
+ * line of sight. Right click or Esc cancels. The GM's confirm makes the
+ * token (confirmSummonSpell).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost, effect, element
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castSummonSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost, effect, element }) {
+  const i18n = game.i18n;
+  if (!summonCanStart(actor, spell)) return null;
+  const castStart = casterCombatStart(actor);
+  const casterToken = casterTokenOnCanvas(actor);
+  if (!casterToken) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const grid = canvas.grid;
+  if (grid.isGridless) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
+    return null;
+  }
+  const pack = game.packs.get(CREATURES_PACK);
+  const entry = pack ? (await pack.getIndex()).find((e) => e.name === SUMMON_ELEMENTALS[element]) : null;
+  const creature = entry ? await pack.getDocument(entry._id) : null;
+  if (!creature) {
+    ui.notifications.error(i18n.format('HEROES_GLORY.Roll.SummonNoCreature', { creature: SUMMON_ELEMENTALS[element] }));
+    return null;
+  }
+  const endCast = await chooseLastingSpellToEnd(actor, spell, []);
+  if (endCast === false) return null;
+
+  const scene = casterToken.parent;
+  const width = creature.prototypeToken.width;
+  const height = creature.prototypeToken.height;
+  const occupied = occupiedCellKeys(scene);
+  const forceField = fieldCellKeys(scene, 'forceField');
+  const start = casterToken.getOccupiedGridSpaceOffsets()[0];
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SummonPlace', { spell: spell.name, creature: creature.name }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: [{ type: 'grid', offsets: footprintCells(start, width, height), origin: grid.getCenterPoint(start) }],
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ shape }) => {
+        const cells = shape.offsets;
+        const distance = Math.min(...cells.map((cell) => tokenCellDistance(casterToken, cell)));
+        let refusal = null;
+        if (distance > SPELL_RANGE_CELLS) refusal = ['SpellFieldOutOfRange', { cells: distance, range: SPELL_RANGE_CELLS }];
+        else if (!cells.every((cell) => cellInSceneRect(scene, cell))) refusal = ['SpellTeleportOutside', {}];
+        else if (cells.some((cell) => occupied.has(cellKey(cell)))) refusal = ['SpellTeleportOccupied', {}];
+        else if (cells.some((cell) => forceField.has(cellKey(cell)))) refusal = ['SpellTeleportForceField', {}];
+        if (!refusal) return true;
+        ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${refusal[0]}`, { spell: spell.name, ...refusal[1] }));
+        return false;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: placement failed`, error);
+    return null;
+  }
+  if (!region) return null;
+  const cell = grid.getOffset(region.shapes[0].origin);
+  const topLeft = grid.getTopLeftPoint(cell);
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+  const flags = {
+    kind: 'spell',
+    effectKind: 'summon',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    summon: {
+      element,
+      creatureUuid: creature.uuid,
+      creatureName: creature.name,
+      stats: summonedCreatureStats(creature.system, effect.summon),
+      sceneId: scene.id,
+      level: casterToken.level,
+      destination: { x: topLeft.x, y: topLeft.y, ...sceneCellNumbers(scene, cell) },
+    },
+    rounds: lastingSpellRounds(actor.system.magicPower,
+      actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
+    castStart,
+    castId: foundry.utils.randomID(),
+    endCast,
+    targets: [],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, []);
+}
+
+/**
+ * The world actor a summoned elemental's token stands on — the bestiary's,
+ * imported once into a folder of its own and reused (rules.md §11: the
+ * world isn't filled with actors; the token's delta holds the bonuses and
+ * the owner). Players have no rights on it.
+ * @param {string} creatureUuid
+ * @returns {Promise<Actor|null>}
+ */
+async function summonBaseActor(creatureUuid) {
+  const found = game.actors.find((a) => a.getFlag(FLAG_SCOPE, 'summonBase') === creatureUuid);
+  if (found) return found;
+  const source = await fromUuid(creatureUuid);
+  if (!source) return null;
+  const folderName = game.i18n.localize('HEROES_GLORY.Roll.SummonFolder');
+  const folder = game.folders.find((f) => f.type === 'Actor' && f.name === folderName)
+    ?? await Folder.create({ name: folderName, type: 'Actor' });
+  const data = game.actors.fromCompendium(source);
+  data.folder = folder.id;
+  data.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
+  foundry.utils.setProperty(data, `flags.${FLAG_SCOPE}.summonBase`, creatureUuid);
+  return Actor.create(data);
+}
+
+/**
+ * The non-GM users owning `actor` — whoever controls what it summons.
+ * @param {Actor|null} actor
+ * @returns {string[]}
+ */
+function playerOwnerIds(actor) {
+  return actor instanceof Actor ? game.users.filter((u) => !u.isGM && actor.testUserPermission(u, 'OWNER')).map((u) => u.id) : [];
+}
+
+/**
+ * Group Д: a summoned elemental or a clone joins the caster's battle right
+ * after the caster (the combatant's `follows`, HeroesGloryCombat#setupTurns)
+ * with the caster's initiative; the turn now under way stays the same.
+ * @param {Combat} combat
+ * @param {TokenDocument} tokenDoc
+ * @param {string} leaderId   the caster's combatant
+ * @returns {Promise<Combatant[]>}
+ */
+async function addFollowerCombatant(combat, tokenDoc, leaderId) {
+  const leader = combat.combatants.get(leaderId);
+  const order = orderWithFollowers([
+    ...combat.turns.map((c) => ({ id: c.id, follows: c.getFlag(FLAG_SCOPE, 'follows') ?? null })),
+    { id: '__new', follows: leader ? leaderId : null },
+  ]);
+  const currentId = combat.combatant?.id;
+  const options = currentId && combat.turn !== null ? { combatTurn: order.indexOf(currentId) } : {};
+  return combat.createEmbeddedDocuments('Combatant', [{
+    tokenId: tokenDoc.id,
+    sceneId: tokenDoc.parent.id,
+    actorId: tokenDoc.actorId,
+    initiative: leader?.initiative ?? null,
+    flags: { [FLAG_SCOPE]: { follows: leader ? leaderId : null, summoned: true } },
+  }], options);
+}
+
+/**
+ * §6.4, group Д: the GM's confirm on a Призыв Элементаля card — the token
+ * on the chosen cell: the bestiary's elemental with the bonuses written into
+ * its statblock (rules.md §11), the caster's side, owned by the caster's
+ * players (none — the GM's), in the battle right after the caster. It lasts
+ * the cast's rounds (expireSummons) and goes at 0 Здоровья (documents/
+ * actor.mjs) and with the battle. Not created if the battle is over or the
+ * caster has an elemental already.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmSummonSpell(message, flags) {
+  const i18n = game.i18n;
+  const combat = game.combats.get(flags.castStart?.combat);
+  if (!combat) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
+    return;
+  }
+  const alive = summonedTokens((data) => data.kind === 'summon' && data.casterUuid === flags.actorUuid);
+  if (alive.length) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SummonAlready', { spell: flags.spellName, name: alive[0].name }));
+    return;
+  }
+  const scene = game.scenes.get(flags.summon.sceneId);
+  const base = scene ? await summonBaseActor(flags.summon.creatureUuid) : null;
+  if (!base) {
+    ui.notifications.error(i18n.format('HEROES_GLORY.Roll.SummonNoCreature', { creature: flags.summon.creatureName }));
+    return;
+  }
+  await endLastingCast(flags);
+  const caster = actorFromCard(flags.actorUuid, flags.actorId);
+  const casterToken = scene.tokens.find((t) => t.actor === caster || t.actorId === caster?.id) ?? null;
+  const tokenData = (await base.getTokenDocument({
+    x: flags.summon.destination.x,
+    y: flags.summon.destination.y,
+    level: flags.summon.level,
+    actorLink: false,
+    disposition: casterToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.FRIENDLY,
+    delta: { system: flags.summon.stats, ownership: summonOwnership(playerOwnerIds(caster)) },
+    flags: {
+      [FLAG_SCOPE]: {
+        [SUMMONED_FLAG]: {
+          kind: 'summon',
+          casterUuid: flags.actorUuid,
+          casterName: flags.casterName,
+          castId: flags.castId,
+          spellName: flags.spellName,
+          combatId: combat.id,
+          casterCombatant: flags.castStart.combatant,
+          expiresRound: fieldExpiresRound(flags.castStart.round, flags.rounds),
+        },
+      },
+    },
+  }, { parent: scene })).toObject();
+  const [tokenDoc] = await scene.createEmbeddedDocuments('Token', [tokenData]);
+  if (tokenDoc) await addFollowerCombatant(combat, tokenDoc, flags.castStart.combatant);
+  return markSpellConfirmed(message, flags);
+}
+
+/**
+ * Group Д: with the «Клон» specialization (p. 23) — one clone, or two for
+ * double the Mana (rules.md §11). Without it, or Mana short for two, one.
+ * `null` — cancelled.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {number} manaCost   for one clone
+ * @returns {Promise<number|null>}   how many clones
+ */
+async function chooseCloneCount(actor, spell, manaCost) {
+  const specialization = cloneSpecialization(actor.system.specialization, spell.name);
+  if (!specialization.active || !canAffordSpell(actor.system.mana.value, manaCost * specialization.manaFactor)) return 1;
+  const i18n = game.i18n;
+  const content = document.createElement('div');
+  content.innerHTML = `<p>${foundry.utils.escapeHTML(i18n.format('HEROES_GLORY.Roll.CloneCountText', { spell: spell.name }))}</p>`;
+  const count = await HeroesGloryDialog.wait({
+    hgColor: HeroesGloryDialog.actorColor(actor),
+    window: { title: 'HEROES_GLORY.Roll.CloneCountTitle' },
+    content,
+    buttons: [
+      { action: 'one', label: i18n.format('HEROES_GLORY.Roll.CloneCountOne', { cost: manaCost }), default: true, callback: () => 1 },
+      { action: 'two', label: i18n.format('HEROES_GLORY.Roll.CloneCountTwo', { cost: manaCost * specialization.manaFactor }), callback: () => specialization.clones },
+      { action: 'cancel', label: 'HEROES_GLORY.Rest.Cancel' },
+    ],
+    rejectClose: false,
+  });
+  return Number.isInteger(count) ? count : null;
+}
+
+/**
+ * §6.4, group Д: Клон (p. 58, rules.md §11) — «идеальную копию дружеского
+ * существа». Only in combat, a lasting spell (the limit of three). One target
+ * (T): a creature on the caster's side, within 24 cells, not a clone itself
+ * (a summoned elemental may be cloned). Its statblock and current Здоровье are
+ * copied now, without spell effects and statuses. With the specialization, one
+ * or two clones (double Mana, one cast). The caster places each footprint
+ * (core region placement, nothing saved; one shape a clone): free cells within
+ * the scene, not in a Силовое Поле, within 24 cells. Right click or Esc
+ * cancels. The GM's confirm makes the tokens (confirmCloneSpell).
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {object} cast   variant, variantData, resolvedSchool, manaCost
+ * @returns {Promise<ChatMessage|null>}
+ */
+async function castCloneSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost: oneCost }) {
+  const i18n = game.i18n;
+  const castStart = casterCombatStart(actor);
+  if (!castStart) {
+    ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellOutOfCombat'));
+    return null;
+  }
+  const selected = [...game.user.targets].map((token) => token.document).filter((doc) => doc.actor);
+  if (!selected.length) {
+    ui.notifications.warn(i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
+    return null;
+  }
+  if (selected.length > 1) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellOneTarget', { spell: spell.name }));
+    return null;
+  }
+  const [targetDoc] = selected;
+  const casterToken = casterTokenOnCanvas(actor);
+  if (!casterToken || targetDoc.parent !== casterToken.parent) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellNoCasterToken', { spell: spell.name }));
+    return null;
+  }
+  const target = targetDoc.actor;
+  let refusal = null;
+  if (target.type !== 'creature') refusal = 'CloneNotCreature';
+  else if (summonedData(target)?.kind === 'clone') refusal = 'CloneOfClone';
+  else if (!isFriendlyTarget(targetDoc.disposition, casterToken.disposition, CONST.TOKEN_DISPOSITIONS.FRIENDLY)) refusal = 'CloneNotFriendly';
+  if (refusal) {
+    ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${refusal}`, { spell: spell.name, target: target.name }));
+    return null;
+  }
+  const distance = tokenDistanceCells(casterToken, targetDoc);
+  if (distance !== null && distance > SPELL_RANGE_CELLS) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellOutOfRange', {
+      spell: spell.name, target: target.name, cells: distance, range: SPELL_RANGE_CELLS,
+    }));
+    return null;
+  }
+  if (antimagicRefuses(spell, [targetDoc])) return null;
+  const grid = canvas.grid;
+  if (grid.isGridless) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
+    return null;
+  }
+  const count = await chooseCloneCount(actor, spell, oneCost);
+  if (!count) return null;
+  const manaCost = oneCost * count;
+  const endCast = await chooseLastingSpellToEnd(actor, spell, []);
+  if (endCast === false) return null;
+
+  const scene = casterToken.parent;
+  const { width, height } = targetDoc;
+  const occupied = occupiedCellKeys(scene);
+  const forceField = fieldCellKeys(scene, 'forceField');
+  const start = casterToken.getOccupiedGridSpaceOffsets()[0];
+  const footprint = () => ({ type: 'grid', offsets: footprintCells(start, width, height), origin: grid.getCenterPoint(start) });
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.ClonePlace', { spell: spell.name, target: target.name, count }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: Array.from({ length: count }, footprint),
+      levels: [casterToken.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ document, shape, shapeIndex }) => {
+        const cells = shape.offsets;
+        const taken = new Set(document.shapes.slice(0, shapeIndex).flatMap((s) => s.offsets ?? []).map(cellKey));
+        const cellsAway = Math.min(...cells.map((cell) => tokenCellDistance(casterToken, cell)));
+        let why = null;
+        if (cellsAway > SPELL_RANGE_CELLS) why = ['SpellFieldOutOfRange', { cells: cellsAway, range: SPELL_RANGE_CELLS }];
+        else if (!cells.every((cell) => cellInSceneRect(scene, cell))) why = ['SpellTeleportOutside', {}];
+        else if (cells.some((cell) => occupied.has(cellKey(cell)) || taken.has(cellKey(cell)))) why = ['SpellTeleportOccupied', {}];
+        else if (cells.some((cell) => forceField.has(cellKey(cell)))) why = ['SpellTeleportForceField', {}];
+        if (!why) return true;
+        ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${why[0]}`, { spell: spell.name, ...why[1] }));
+        return false;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: placement failed`, error);
+    return null;
+  }
+  // Cancelled, or a clone's cell skipped — the whole cast is off.
+  if (!region || region.shapes.length < count) return null;
+  const destinations = region.shapes.map((shape) => {
+    const cell = grid.getOffset(shape.origin);
+    const topLeft = grid.getTopLeftPoint(cell);
+    return { x: topLeft.x, y: topLeft.y, ...sceneCellNumbers(scene, cell) };
+  });
+
+  const manaRemaining = actor.system.mana.value - manaCost;
+  await actor.update({ 'system.mana.value': manaRemaining });
+  const system = target.toObject().system;
+  const flags = {
+    kind: 'spell',
+    effectKind: 'clone',
+    actorId: actor.id,
+    actorUuid: actor.uuid,
+    casterName: actor.name,
+    spellName: spell.name,
+    variant,
+    school: resolvedSchool,
+    description: variantData.description,
+    manaCost,
+    manaRemaining,
+    clone: {
+      name: targetDoc.name,
+      sourceActorId: targetDoc.actorId,
+      texture: targetDoc.texture.src,
+      width,
+      height,
+      system,
+      sceneId: scene.id,
+      level: casterToken.level,
+      destinations,
+    },
+    rounds: lastingSpellRounds(actor.system.magicPower,
+      actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
+    castStart,
+    castId: foundry.utils.randomID(),
+    endCast,
+    targets: [],
+    confirmed: false,
+  };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(flags),
+  );
+  return createActorVisibilityCard(actor, { content, flags: { [FLAG_SCOPE]: { spell: flags } } }, []);
+}
+
+/**
+ * §6.4, group Д: the GM's confirm on a Клон card — a token per clone on its
+ * cell: unlinked, on the original's world actor, its delta holding the copied
+ * statblock and Здоровье, none of the actor's own effects (tombstoned), the
+ * caster's side and players; in the battle right after the caster. It lasts
+ * the cast's rounds (expireSummons), vanishes on any loss of Здоровья
+ * (documents/actor.mjs), goes with the battle. Not created if the battle is
+ * over or the original's actor is gone.
+ * @param {ChatMessage} message
+ * @param {object} flags
+ * @returns {Promise<ChatMessage|void>}
+ */
+async function confirmCloneSpell(message, flags) {
+  const i18n = game.i18n;
+  const combat = game.combats.get(flags.castStart?.combat);
+  if (!combat) {
+    ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
+    return;
+  }
+  const scene = game.scenes.get(flags.clone.sceneId);
+  const base = game.actors.get(flags.clone.sourceActorId);
+  if (!scene || !base) {
+    ui.notifications.error(i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: flags.clone.name }));
+    return;
+  }
+  await endLastingCast(flags);
+  const caster = actorFromCard(flags.actorUuid, flags.actorId);
+  const casterToken = scene.tokens.find((t) => t.actor === caster || t.actorId === caster?.id) ?? null;
+  const summoned = {
+    kind: 'clone',
+    casterUuid: flags.actorUuid,
+    casterName: flags.casterName,
+    castId: flags.castId,
+    spellName: flags.spellName,
+    combatId: combat.id,
+    casterCombatant: flags.castStart.combatant,
+    expiresRound: fieldExpiresRound(flags.castStart.round, flags.rounds),
+  };
+  for (const destination of flags.clone.destinations) {
+    const tokenData = (await base.getTokenDocument({
+      name: flags.clone.name,
+      x: destination.x,
+      y: destination.y,
+      width: flags.clone.width,
+      height: flags.clone.height,
+      level: flags.clone.level,
+      texture: { src: flags.clone.texture },
+      actorLink: false,
+      disposition: casterToken?.disposition ?? CONST.TOKEN_DISPOSITIONS.FRIENDLY,
+      delta: {
+        system: flags.clone.system,
+        ownership: summonOwnership(playerOwnerIds(caster)),
+        // «Without effects and statuses»: the actor's own ones don't carry over.
+        effects: base.effects.map((effect) => ({ _id: effect.id, _tombstone: true })),
+      },
+      flags: { [FLAG_SCOPE]: { [SUMMONED_FLAG]: summoned } },
+    }, { parent: scene })).toObject();
+    const [tokenDoc] = await scene.createEmbeddedDocuments('Token', [tokenData]);
+    if (tokenDoc) await addFollowerCombatant(combat, tokenDoc, flags.castStart.combatant);
+  }
+  return markSpellConfirmed(message, flags);
+}
+
+/**
+ * The lasting cast the player chose to end for the new one (the limit of
+ * three, chooseLastingSpellToEnd) goes at the GM's confirm — its effects,
+ * regions, summoned tokens.
+ * @param {object} flags   the new cast's card flags
+ * @returns {Promise<void>}
+ */
+async function endLastingCast(flags) {
+  if (!flags.endCast) return;
+  const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
+    .find((cast) => cast.castId === flags.endCast.castId);
+  for (const effect of ending?.effects ?? []) await effect.delete();
+  for (const region of ending?.regions ?? []) await region.delete();
+  for (const token of ending?.tokens ?? []) await dismissSummoned(token);
 }
 
 /**
@@ -3026,7 +3672,8 @@ function castModifiers(actor, spell, effect) {
  * of targets. Effects from before `castId` existed group by spell and round.
  * @param {Actor} caster
  * Field spells (group Г) come as their regions.
- * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[]}>}
+ * Summoned elementals and clones (group Д) come as their tokens.
+ * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[], tokens?: TokenDocument[]}>}
  */
 function lastingSpellCasts(caster) {
   const actors = new Set(game.actors);
@@ -3066,6 +3713,23 @@ function lastingSpellCasts(caster) {
         regions: [region],
       });
     }
+  }
+  // Group Д: a summoned elemental or a clone lasts its rounds too.
+  for (const token of summonedTokens((data) => data.casterUuid === caster.uuid && data.expiresRound != null)) {
+    const data = token.getFlag(FLAG_SCOPE, SUMMONED_FLAG);
+    const combat = game.combats.get(data.combatId);
+    const cast = casts.get(data.castId) ?? {
+      castId: data.castId,
+      spellName: data.spellName,
+      targetIds: [],
+      targetNames: [],
+      remaining: combat ? Math.max(0, data.expiresRound - combat.round) : 0,
+      effects: [],
+      tokens: [],
+    };
+    cast.targetNames.push(token.name);
+    cast.tokens.push(token);
+    casts.set(data.castId, cast);
   }
   return [...casts.values()];
 }
@@ -3189,12 +3853,7 @@ async function confirmModifierSpell(message, flags) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
     return;
   }
-  if (flags.endCast) {
-    const ending = lastingSpellCasts(actorFromCard(flags.actorUuid, flags.actorId) ?? { uuid: flags.actorUuid })
-      .find((cast) => cast.castId === flags.endCast.castId);
-    for (const effect of ending?.effects ?? []) await effect.delete();
-    for (const region of ending?.regions ?? []) await region.delete();
-  }
+  await endLastingCast(flags);
   const results = resolveModifierSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {
     if (results[index].outcome !== 'applied') continue;

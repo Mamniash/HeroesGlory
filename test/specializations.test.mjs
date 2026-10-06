@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
   hasArmorSpecialization, specializationManaDiscount, availableSpecializations, chainLightningSpecialization,
-  hasteSpecializationBonus, resurrectionSpecialization, fireWallSpecialization,
+  hasteSpecializationBonus, resurrectionSpecialization, fireWallSpecialization, cloneSpecialization,
 } from '../module/helpers/specializations.mjs';
 
 describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
@@ -158,5 +158,15 @@ describe('fireWallSpecialization — p. 23, «Урон увеличен на 5d6
   test('otherwise nothing', () => {
     assert.deepEqual(fireWallSpecialization({ type: 'spell', key: 'Стена Огня' }, 'Инферно'), { active: false, bonusDice: 0, extraCells: 0 });
     assert.deepEqual(fireWallSpecialization(null, 'Стена Огня'), { active: false, bonusDice: 0, extraCells: 0 });
+  });
+});
+
+describe('cloneSpecialization — p. 23, «двух клонов вместо одного, если потратите вдвое больше Маны»', () => {
+  test('the specialization, casting Клон', () => {
+    assert.deepEqual(cloneSpecialization({ type: 'spell', key: 'Клон' }, 'Клон'), { active: true, clones: 2, manaFactor: 2 });
+  });
+  test('otherwise one clone at the usual price', () => {
+    assert.deepEqual(cloneSpecialization({ type: 'spell', key: 'Клон' }, 'Телепорт'), { active: false, clones: 1, manaFactor: 1 });
+    assert.deepEqual(cloneSpecialization(null, 'Клон'), { active: false, clones: 1, manaFactor: 1 });
   });
 });

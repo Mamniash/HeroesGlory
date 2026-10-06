@@ -18,7 +18,7 @@ import { HeroesGloryCombat, drawCombatantCoin, recordRolledSpeed } from './docum
 import {
   resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat, endTemporaryResurrections, advanceBlindness,
-  expireFieldSpells, clearFieldSpellsAfterCombat,
+  expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
@@ -216,6 +216,10 @@ Hooks.on('combatTurnChange', advanceBlindness);
 // §6.4, group Г: Силовое Поле and Стена Огня end with their rounds and with the battle.
 Hooks.on('combatTurnChange', expireFieldSpells);
 Hooks.on('deleteCombat', clearFieldSpellsAfterCombat);
+// §6.4, group Д: a summoned elemental or a clone runs out at its caster's
+// turn and goes with the battle.
+Hooks.on('combatTurnChange', expireSummons);
+Hooks.on('deleteCombat', clearSummonsAfterCombat);
 // §6.4, group В: Воскрешение without Продвинутый ends with the battle —
 // before the experience window reads who is down.
 Hooks.on('deleteCombat', endTemporaryResurrections);

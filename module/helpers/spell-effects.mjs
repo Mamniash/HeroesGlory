@@ -223,8 +223,9 @@ export function resolveSpellResolution(flags) {
  */
 export function canConfirmSpell(flags) {
   // A field spell (group Г) has cells, not targets; so has the expert
-  // Развеивание's cell.
-  const hasSomething = (flags?.targets?.length ?? 0) > 0 || flags?.effectKind === 'field' || !!flags?.dispelCell;
+  // Развеивание's cell, and a summon (group Д) its own cell.
+  const hasSomething = (flags?.targets?.length ?? 0) > 0 || flags?.effectKind === 'field' || !!flags?.dispelCell
+    || flags?.effectKind === 'summon' || flags?.effectKind === 'clone';
   return !!flags && flags.kind === 'spell' && !flags.confirmed && hasSomething;
 }
 
@@ -638,6 +639,44 @@ export function fieldExpiresRound(startRound, rounds) {
 export function quicksandOwnership(ownerIds = []) {
   const ownership = { default: 0 };
   for (const id of ownerIds) ownership[id] = 2;
+  return ownership;
+}
+
+/**
+ * Group Д: Призыв Элементаля (p. 61) — «Элементаля Огня, Воздуха, Земли или
+ * Воды»: the base elemental of each element in the bestiary (Сопряжение,
+ * rules.md §11), by the element's school key.
+ */
+export const SUMMON_ELEMENTALS = Object.freeze({
+  fire: 'Огненные Элементали',
+  air: 'Воздушные Элементали',
+  earth: 'Элементали Земли',
+  water: 'Элементали Воды',
+});
+
+/**
+ * Group Д: the summoned elemental's statblock — the bestiary's with the
+ * variant's bonuses written in (rules.md §11): Атака and Урон up, Здоровье up
+ * and full.
+ * @param {{attack: number, damage: number, health: {max: number}}} base
+ * @param {{attackBonus?: number, damageBonus?: number, healthBonus?: number}} [bonus]
+ * @returns {{attack: number, damage: number, health: {value: number, max: number}}}
+ */
+export function summonedCreatureStats(base, { attackBonus = 0, damageBonus = 0, healthBonus = 0 } = {}) {
+  const max = base.health.max + healthBonus;
+  return { attack: base.attack + attackBonus, damage: base.damage + damageBonus, health: { value: max, max } };
+}
+
+/**
+ * Group Д: who controls a summoned elemental or a clone — «контролируется
+ * вами»: the caster's non-GM owners own its token (the delta's ownership);
+ * none — the GM alone (rules.md §11).
+ * @param {string[]} ownerIds
+ * @returns {Record<string, number>}   ownership levels: 0 none, 3 owner
+ */
+export function summonOwnership(ownerIds = []) {
+  const ownership = { default: 0 };
+  for (const id of ownerIds) ownership[id] = 3;
   return ownership;
 }
 

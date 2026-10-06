@@ -38,7 +38,7 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
     const effect = () => new fields.SchemaField({
       kind: new fields.StringField({
         required: true, blank: true, initial: '',
-        choices: ['damage', 'heal', 'modifier', 'dispel', 'resurrect', 'summon', 'utility', 'teleport', 'field'],
+        choices: ['damage', 'heal', 'modifier', 'dispel', 'resurrect', 'summon', 'clone', 'utility', 'teleport', 'field'],
       }),
       targeting: new fields.SchemaField({
         // single — one chosen target; chain — the chosen one, then the
@@ -119,6 +119,13 @@ export default class HeroesGlorySpell extends HeroesGloryDataModel {
       // Group Г, `dispel` Эксперт: «Вы можете выбрать видимый эффект … и убрать
       // его» — with no target chosen, a cell; our regions seen there go.
       dispelFields: new fields.BooleanField({ initial: false }),
+      // Group Д, `summon`: Призыв Элементаля's Продвинутый / Эксперт — «+2 к
+      // атаке и урону, и его Очки Здоровья увеличены на 10» (+4, +20).
+      summon: new fields.SchemaField({
+        attackBonus: int(),
+        damageBonus: int(),
+        healthBonus: int(),
+      }),
       // Group В, `resurrect`: the share of maximum Health it gives back (50%
       // or full); `untilCombatEnd` — «В конце битвы персонаж снова погибнет».
       healthFactor: new fields.NumberField({ required: true, nullable: false, initial: 1, min: 0, max: 1 }),

@@ -1326,6 +1326,34 @@ export function compareTurnOrder(a, b) {
 }
 
 /**
+ * Group Д (rules.md §11): a summoned elemental or a clone goes right after
+ * its caster — the turn order as compareTurnOrder sorted it, each follower
+ * moved behind its leader (several followers keep their sorted order); one
+ * whose leader isn't in the battle stays where it was sorted.
+ * @param {Array<{id: string, follows?: string|null}>} sorted
+ * @returns {string[]}   the ids in turn order
+ */
+export function orderWithFollowers(sorted) {
+  const ids = new Set(sorted.map((entry) => entry.id));
+  const leads = (entry) => entry.follows && entry.follows !== entry.id && ids.has(entry.follows);
+  const followers = new Map();
+  for (const entry of sorted) {
+    if (!leads(entry)) continue;
+    if (!followers.has(entry.follows)) followers.set(entry.follows, []);
+    followers.get(entry.follows).push(entry.id);
+  }
+  const order = [];
+  const place = (id) => {
+    order.push(id);
+    for (const follower of followers.get(id) ?? []) place(follower);
+  };
+  for (const entry of sorted) if (!leads(entry)) place(entry.id);
+  // A loop of followers (never made by a spell) keeps its sorted places.
+  for (const entry of sorted) if (!order.includes(entry.id)) order.push(entry.id);
+  return order;
+}
+
+/**
  * «Ответная атака» (p. 115): «Эта способность ограничена по количеству раз в
  * раунд (указано в скобках…)» — «Ответная Атака (1)», «(Неограничено)». The
  * per-round number from a creature's tags; 0 without the tag.

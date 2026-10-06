@@ -137,7 +137,8 @@ export function offerCombatExperience(combat) {
   const heroes = new Map();
   for (const combatant of combat.combatants) {
     const actor = combatant.actor;
-    if (!actor) continue;
+    // Group Д: a summoned elemental or a clone isn't a defeated foe (rules.md §11).
+    if (!actor || combatant.getFlag('heroes-glory', 'summoned')) continue;
     if (actor.type === 'hero') heroes.set(actor.uuid, { actor, checked: true });
     else if (actor.type === 'creature') {
       creatures.push({
