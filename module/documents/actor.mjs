@@ -3,6 +3,7 @@ import { subchoiceModifiersFor } from '../helpers/race-stats.mjs';
 import { specializationModifiers } from '../helpers/specializations.mjs';
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 import { summonedData, dismissSummoned } from '../helpers/combat.mjs';
+import { showHealthPopup } from '../helpers/health-popup.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -62,7 +63,8 @@ export class HeroesGloryActor extends Actor {
    * @override
    */
   /**
-   * Notes a drop in Health for _onUpdate — Слепота ends on any damage.
+   * Notes a drop in Health for _onUpdate — Слепота ends on any damage — and
+   * the Health before it, for the number rising over the token.
    * @override
    */
   async _preUpdate(changed, options, user) {
@@ -70,11 +72,21 @@ export class HeroesGloryActor extends Actor {
     if (next !== undefined && next < (this.system.health?.value ?? next)) {
       options['heroes-glory'] = { ...options['heroes-glory'], healthDropped: true };
     }
+    if (next !== undefined && this.system.health?.value !== undefined) {
+      options['heroes-glory'] = { ...options['heroes-glory'], healthBefore: this.system.health.value };
+    }
     return super._preUpdate(changed, options, user);
   }
 
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
+
+    // «−N» / «+N» over the token, on every client that sees it; the colour
+    // by its source (`damageKind` from the caller, health-popup.mjs).
+    const before = options?.['heroes-glory']?.healthBefore;
+    if (before !== undefined && changed.system?.health?.value !== undefined) {
+      showHealthPopup(this, this.system.health.value - before, options['heroes-glory'].damageKind ?? null);
+    }
 
     // Слепота (p. 59): «Заклинание отменяется, если цель получит урон» —
     // only a drop in Health (rules.md §11). The client that dealt it acts.

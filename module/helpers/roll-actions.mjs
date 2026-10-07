@@ -1,4 +1,5 @@
 import { HeroesGloryDialog, radioRow } from '../apps/dialog.mjs';
+import { spellDamageKind } from './health-popup.mjs';
 
 /**
  * Foundry-facing roll orchestration: builds and evaluates Rolls, reads
@@ -229,7 +230,7 @@ async function killIncapacitatedTarget(actor, targetActor) {
 
   await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
   await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
-  if (fireShield?.damage) await actor.update({ 'system.health.value': actor.system.health.value - fireShield.damage });
+  if (fireShield?.damage) await actor.update({ 'system.health.value': actor.system.health.value - fireShield.damage }, damageKindOption('fire'));
 
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/kill-incapacitated.hbs',
@@ -900,7 +901,7 @@ export async function confirmAttackOutcome(message) {
   const { damage, consequence } = resolveAttackResolution(flags);
 
   if (damage) {
-    await targetActor.update({ 'system.health.value': targetActor.system.health.value - damage });
+    await targetActor.update({ 'system.health.value': targetActor.system.health.value - damage }, damageKindOption('weapon'));
   }
   if (consequence.type === 'prone') {
     await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.prone, { active: true });
@@ -917,7 +918,7 @@ export async function confirmAttackOutcome(message) {
   const actor = actorFromCard(flags.actorUuid, flags.actorId);
   // Огненный Щит: the attacker burns, a miss too (rules.md §11).
   if (actor && flags.fireShield?.damage) {
-    await actor.update({ 'system.health.value': actor.system.health.value - flags.fireShield.damage });
+    await actor.update({ 'system.health.value': actor.system.health.value - flags.fireShield.damage }, damageKindOption('fire'));
   }
   // confirmedAt lets a later card tell it was rolled while this one was
   // still pending (hadUnconfirmedAttackBefore, rolls.mjs).
@@ -1165,6 +1166,16 @@ export async function castSpell(actor, spell) {
   );
 
   return createActorVisibilityCard(actor, { content }, []);
+}
+
+/**
+ * Update options naming where a change of Health came from — the colour of
+ * the number over the token (health-popup.mjs, documents/actor.mjs).
+ * @param {string} kind   a HEALTH_POPUP_COLORS key
+ * @returns {object}
+ */
+function damageKindOption(kind) {
+  return { [FLAG_SCOPE]: { damageKind: kind } };
 }
 
 /** §6.4: the spell compendium, where a hero's spell item finds its effect. */
@@ -1843,7 +1854,8 @@ export async function confirmSpellOutcome(message) {
       await targetActor.toggleStatusEffect(CONFIG.HEROES_GLORY.statusEffects.incapacitated, { active: false });
       await targetActor.toggleStatusEffect(CONFIG.specialStatusEffects.DEFEATED, { active: true, overlay: true });
     } else if (result.damage) {
-      await targetActor.update({ 'system.health.value': targetActor.system.health.value - result.damage });
+      await targetActor.update({ 'system.health.value': targetActor.system.health.value - result.damage },
+        damageKindOption(spellDamageKind(flags)));
     }
   }
   const nextFlags = { ...flags, confirmed: true, confirmedAt: Date.now() };
@@ -4070,6 +4082,9 @@ async function confirmModifierSpell(message, flags) {
       origin: flags.actorUuid,
       description: flags.description,
       ...(untilCombatEnd ? {} : { duration: { value: flags.rounds, units: 'rounds', expiry: 'turnStart' } }),
+      // Core shows an effect's icon (token, tracker) only while it has a
+      // duration unless told «always» — Молитва has none.
+      showIcon: CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS,
       start: flags.castStart,
       statuses: flags.status ? [flags.status] : [],
       flags: {
