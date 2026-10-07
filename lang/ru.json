@@ -829,11 +829,33 @@
       "SpellChainSpecLine": "Специализация «Цепная Молния»: +1d6 = {total}",
       "SpellFireWallSpecLine": "Специализация «Стена Огня»: +{count}d6 = {total}",
       "SpellChainChosen": "выбрана",
+      "SpellChainHead": "Цепь: первая цель → {chain} по цепи, ½ урона",
+      "SpellChainHeadSpec": "Цепь: первая цель → {chosen} на выбор → {chain} по цепи",
+      "SpellChainDamage": "Урон: {total}, по цепи ½ — {half}",
+      "SpellChainDamageFull": "Урон: {total} — всем целям",
+      "SpellChainSpecVisible": "Специализация: +1d6, полный урон всем, 2 цели на выбор",
+      "SpellChainRoleFirst": "первая",
+      "SpellChainRoleChosen": "на выбор",
+      "SpellChainRoleChain": "цепь, ½",
+      "SpellChainRoleChainFull": "цепь, полный урон по специализации",
+      "SpellChainMoreOne": "{count} цель",
+      "SpellChainMoreFew": "{count} цели",
+      "SpellChainPickHint": "«{spell}»: выберите ещё {more} — клик по токену; Esc или правый клик — дальше без них",
+      "SpellChainPickLeft": "Ещё {more}",
+      "SpellChainPickNoToken": "«{spell}»: на этой клетке нет существа",
+      "SpellChainPickCaster": "«{spell}»: кастующий не может быть целью",
+      "SpellChainPickSame": "«{spell}»: эта цель уже выбрана",
       "SpellElement": {
         "none": "",
         "fire": "к огню",
         "ice": "ко льду",
         "lightning": "к молнии"
+      }
+    },
+    "Settings": {
+      "SpellAnimations": {
+        "Name": "Анимации заклинаний",
+        "Hint": "Показывать анимации заклинаний HOMM3 на поле, когда Ведущий подтверждает карточку. Только на этом устройстве."
       }
     },
     "Tooltip": {

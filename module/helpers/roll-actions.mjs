@@ -72,7 +72,7 @@ import {
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
-  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund,
+  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
@@ -1524,6 +1524,70 @@ async function areaSpellTargets(actor, spell, targeting) {
 }
 
 /**
+ * The Цепная Молния specialization's targets still to pick (rules.md §11):
+ * one cell at a time on the field, like a field spell's cells — a click on a
+ * token takes it, the hint says how many are left; Esc or a right click goes
+ * on without the rest. Not the caster, not one already chosen, within 24
+ * cells (p. 32); a large token by any of its cells.
+ * @param {Actor} actor
+ * @param {Item} spell
+ * @param {TokenDocument[]} selected   chosen before the click, the first one first
+ * @param {number} count   how many more may be picked
+ * @returns {Promise<TokenDocument[]>}
+ */
+async function pickChainTargetsOnField(actor, spell, selected, count) {
+  const i18n = game.i18n;
+  const first = selected[0];
+  const scene = first.parent;
+  const grid = canvas.grid;
+  if (scene !== canvas.scene || grid.isGridless) return [];
+  const casterToken = attackerTokenFor(actor, first);
+  const more = (left) => i18n.format(left === 1 ? 'HEROES_GLORY.Roll.SpellChainMoreOne' : 'HEROES_GLORY.Roll.SpellChainMoreFew', { count: left });
+  const tokenAt = (cell) => scene.tokens.find((doc) => doc.actor && doc.object?.visible
+    && doc.getOccupiedGridSpaceOffsets().some((o) => o.i === cell.i && o.j === cell.j)) ?? null;
+  const start = first.getOccupiedGridSpaceOffsets()[0];
+  const cellShape = () => ({ type: 'grid', offsets: [start], origin: grid.getCenterPoint(start) });
+  ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellChainPickHint', { spell: spell.name, more: more(count) }));
+  let region = null;
+  try {
+    region = await canvas.regions.placeRegion({
+      name: spell.name,
+      shapes: Array.from({ length: count }, cellShape),
+      levels: [first.level],
+      color: game.user.color,
+      highlightMode: 'coverage',
+      visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    }, {
+      create: false,
+      allowRotation: false,
+      preConfirm: ({ document, shape, shapeIndex }) => {
+        const warn = (key, data = {}) => {
+          ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${key}`, { spell: spell.name, ...data }));
+          return false;
+        };
+        const doc = tokenAt(grid.getOffset(shape.origin));
+        if (!doc) return warn('SpellChainPickNoToken');
+        if (doc === casterToken || doc.actor === actor) return warn('SpellChainPickCaster');
+        const before = document.shapes.slice(0, shapeIndex).map((s) => tokenAt(grid.getOffset(s.origin)));
+        if (selected.includes(doc) || before.includes(doc)) return warn('SpellChainPickSame');
+        const cells = tokenDistanceCells(casterToken, doc);
+        if (cells !== null && cells > SPELL_RANGE_CELLS) {
+          return warn('SpellOutOfRange', { target: doc.actor.name, cells, range: SPELL_RANGE_CELLS });
+        }
+        const left = count - shapeIndex - 1;
+        if (left > 0) ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellChainPickLeft', { more: more(left) }));
+        return true;
+      },
+    });
+  } catch (error) {
+    console.warn(`heroes-glory | «${spell.name}»: target pick failed`, error);
+    return [];
+  }
+  if (!region) return [];
+  return region.shapes.map((shape) => tokenAt(grid.getOffset(shape.origin))).filter(Boolean);
+}
+
+/**
  * §6.4, stage 1: a hero's damage spell. One target (or none) from the
  * user's targets; more than one, or a target past 24 cells (p. 32), refuses
  * the cast before any Mana is spent. Цепная Молния adds the nearest
@@ -1554,6 +1618,10 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     ui.notifications.warn(game.i18n.localize('HEROES_GLORY.Roll.SpellNoTarget'));
     return null;
   }
+  // The specialization's two targets not chosen yet — picked on the field
+  // now; Esc or a right click goes on without them (rules.md §11).
+  const toPick = visible ? 0 : chainTargetsToPick(selected.length, chainSpec.chosenTargets);
+  if (toPick) selected.push(...await pickChainTargetsOnField(actor, spell, selected, toPick));
   const maxSelected = 1 + chainSpec.chosenTargets;
   if (!visible && selected.length > maxSelected) {
     ui.notifications.warn(maxSelected === 1
@@ -1657,6 +1725,8 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     sorcerySkill,
     sorcerySpecialization,
     chainSpecialization,
+    // Цепная Молния: the card spells out who is first, picked, in the chain.
+    chain: targeting.mode === 'chain' ? { specialization: chainSpec.active } : null,
     total,
     visible,
     area: targeting.mode === 'area' ? found.area : null,
@@ -1738,12 +1808,37 @@ function buildSpellCardContext(flags) {
     })
     : null;
   context.targetRows = flags.targets.map((target, index) => ({ index, excluded: !!target.excluded }));
+  // Цепная Молния (rules.md §11): the chain at a glance, the damage and the
+  // specialization in the visible part; each target says what it is.
+  const chain = flags.chain ? chainLayout(flags.targets) : null;
+  if (chain) {
+    const spec = flags.chain.specialization;
+    context.chainLines = [
+      spec
+        ? i18n.format('HEROES_GLORY.Roll.SpellChainHeadSpec', { chosen: chain.chosen, chain: chain.chain })
+        : i18n.format('HEROES_GLORY.Roll.SpellChainHead', { chain: chain.chain }),
+      spec
+        ? i18n.format('HEROES_GLORY.Roll.SpellChainDamageFull', { total: flags.total })
+        : i18n.format('HEROES_GLORY.Roll.SpellChainDamage', { total: flags.total, half: Math.floor(flags.total * 0.5) }),
+      ...(spec ? [i18n.localize('HEROES_GLORY.Roll.SpellChainSpecVisible')] : []),
+    ];
+  }
+  const chainRoleKeys = {
+    first: 'HEROES_GLORY.Roll.SpellChainRoleFirst',
+    chosen: 'HEROES_GLORY.Roll.SpellChainRoleChosen',
+    chain: flags.chain?.specialization ? 'HEROES_GLORY.Roll.SpellChainRoleChainFull' : 'HEROES_GLORY.Roll.SpellChainRoleChain',
+  };
   context.targetLines = flags.targets.map((target, index) => {
     const result = results[index];
     const done = flags.confirmed;
     const notes = [];
-    if (target.factor < 1) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainHalf'));
-    if (target.chosen) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainChosen'));
+    if (chain) {
+      notes.push(i18n.localize(chainRoleKeys[chain.roles[index]]));
+    } else {
+      // Cards from before the chain layout.
+      if (target.factor < 1) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainHalf'));
+      if (target.chosen) notes.push(i18n.localize('HEROES_GLORY.Roll.SpellChainChosen'));
+    }
     if (target.resistDie != null) {
       notes.push(i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
         source: i18n.localize(SPELL_RESIST_LABELS[target.resistSource]),

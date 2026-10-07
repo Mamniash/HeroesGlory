@@ -12,7 +12,7 @@ import {
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
   fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
-  isLastingSpellCard, footprintAnchor, cancelledCardRefund,
+  isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -977,5 +977,30 @@ describe('cancelledCardRefund — Mana back for a card dropped before its confir
     assert.equal(cancelledCardRefund({ kind: 'spell', manaCost: 8, confirmed: true }), 0);
     assert.equal(cancelledCardRefund({ kind: 'spell', fieldTrigger: 'enter' }), 0);
     assert.equal(cancelledCardRefund({ kind: 'spell' }), 0);
+  });
+});
+
+describe('chainLayout — Цепная Молния card roles (rules.md §11)', () => {
+  test('first, picked, chain', () => {
+    assert.deepEqual(chainLayout([{}, { chosen: true }, { chosen: true }, {}, {}]), {
+      roles: ['first', 'chosen', 'chosen', 'chain', 'chain'], chosen: 2, chain: 2,
+    });
+  });
+  test('no specialization — first and the chain', () => {
+    assert.deepEqual(chainLayout([{}, {}, {}, {}]), { roles: ['first', 'chain', 'chain', 'chain'], chosen: 0, chain: 3 });
+  });
+});
+
+describe('chainTargetsToPick — the field pick after the click', () => {
+  test('one target chosen — two more to pick', () => {
+    assert.equal(chainTargetsToPick(1, 2), 2);
+  });
+  test('two chosen — one more; three — none', () => {
+    assert.equal(chainTargetsToPick(2, 2), 1);
+    assert.equal(chainTargetsToPick(3, 2), 0);
+  });
+  test('without the specialization or without a first target — none', () => {
+    assert.equal(chainTargetsToPick(1, 0), 0);
+    assert.equal(chainTargetsToPick(0, 2), 0);
   });
 });

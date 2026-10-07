@@ -732,3 +732,35 @@ export function cancelledCardRefund(flags) {
   if (!flags || flags.confirmed || flags.fieldTrigger) return 0;
   return Math.max(0, flags.manaCost ?? 0);
 }
+
+/**
+ * Цепная Молния's card, laid out (rules.md §11): who each target is — the
+ * first one, picked by the specialization («на выбор»), or the chain's —
+ * and how many of each, for the card's head line.
+ * @param {Array<{chosen?: boolean}>} targets   in card order: the first, the picked, the chain
+ * @returns {{roles: Array<'first'|'chosen'|'chain'>, chosen: number, chain: number}}
+ */
+export function chainLayout(targets) {
+  const roles = targets.map((target, index) => {
+    if (index === 0) return 'first';
+    return target.chosen ? 'chosen' : 'chain';
+  });
+  return {
+    roles,
+    chosen: roles.filter((role) => role === 'chosen').length,
+    chain: roles.filter((role) => role === 'chain').length,
+  };
+}
+
+/**
+ * How many more targets the Цепная Молния specialization still lets the
+ * player pick on the field after the click (rules.md §11): the first one
+ * and two more in all; none without a first one.
+ * @param {number} selected   targets already chosen before the click
+ * @param {number} chosenTargets   the specialization's (2), 0 without it
+ * @returns {number}
+ */
+export function chainTargetsToPick(selected, chosenTargets) {
+  if (!chosenTargets || selected < 1) return 0;
+  return Math.max(0, 1 + chosenTargets - selected);
+}

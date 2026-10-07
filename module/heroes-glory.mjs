@@ -21,6 +21,7 @@ import {
   expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat, excludeAmbushOrSurprise,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
+import { registerSpellFxSetting, playSpellFx } from './helpers/spell-fx.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
@@ -40,6 +41,9 @@ Hooks.once('init', function () {
 
   // Add custom constants for configuration.
   CONFIG.HEROES_GLORY = HEROES_GLORY;
+
+  // «Анимации заклинаний» — each client switches its own (spell-fx.mjs).
+  registerSpellFxSetting();
 
   /**
    * Set an initiative formula for the system
@@ -198,6 +202,12 @@ Handlebars.registerHelper('inc', function (value) {
 Hooks.on('renderChatMessageHTML', activateChatListeners);
 // §5.1 (p. 9): the Эльф's initiative reroll button.
 Hooks.on('renderChatMessageHTML', decorateInitiativeCard);
+// Spell animations (rules.md §11): the GM's confirm reaches every client as
+// the card's update — each one plays it over the tokens it sees.
+Hooks.on('updateChatMessage', (message, changed) => {
+  if (changed.flags?.['heroes-glory']?.spell?.confirmed !== true) return;
+  playSpellFx(message.getFlag('heroes-glory', 'spell'));
+});
 // §5.1: the tie coin, drawn once per combatant.
 // §5.1 (p. 25): who joins a battle under way — no Тактика, waits the round
 // out. Before the coin, whose recorded Скорость reads the mark.

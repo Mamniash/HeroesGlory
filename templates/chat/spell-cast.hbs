@@ -16,6 +16,10 @@
   {{#if fieldTriggerLine}}
     <p class="heroes-glory-chat-card__line">{{fieldTriggerLine}}</p>
   {{/if}}
+  {{!-- Цепная Молния: the chain, the damage, the specialization. --}}
+  {{#each chainLines}}
+    <p class="heroes-glory-chat-card__line">{{this}}</p>
+  {{/each}}
   {{#if targetSpell}}
     {{#if noTarget}}
       <p class="heroes-glory-chat-card__line heroes-glory-chat-card__line--muted">{{localize 'HEROES_GLORY.Roll.NoTarget'}}</p>
