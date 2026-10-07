@@ -8,6 +8,7 @@ import { KNOWLEDGE_BASE_PACK, CREATURE_ABILITIES_ENTRY } from '../../helpers/kno
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { moraleIconPath } from '../../helpers/skill-icons.mjs';
 import { summonedData } from '../../helpers/combat.mjs';
+import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
 
 let abilityPagesPromise = null;
 
@@ -152,8 +153,22 @@ export class HeroesGloryCreatureSheet extends HeroesGloryFramedSheetMixin(Heroes
   }
 
   /** @override */
+  async _preClose(options) {
+    await super._preClose(options);
+    hideTooltip();
+  }
+
+  /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
+    // Our tooltips (Здоровье, Защита, Боевой дух): held by the right button,
+    // centered on the sheet; the left click stays the element's action.
+    hideTooltip();
+    const sheetEl = this.element.querySelector('.hg-creature');
+    this.element.querySelectorAll('[data-tooltip-trigger]').forEach((triggerEl) => {
+      const template = this.element.querySelector(`template[data-tooltip-key="${triggerEl.dataset.tooltipTrigger}"]`);
+      if (template) attachTooltip(triggerEl, template, { boundsEl: sheetEl });
+    });
     // Quick Health: «12» sets, «−7» / «+3» change it, applied on Enter or
     // on leaving the field. Its own update, not the form's — the field
     // has no name, and its change stops here. The value goes through the

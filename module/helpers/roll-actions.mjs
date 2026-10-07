@@ -56,7 +56,7 @@ import {
 import { buildEffectChanges } from './modifiers.mjs';
 import {
   hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization, hasteSpecializationBonus,
-  resurrectionSpecialization, fireWallSpecialization, cloneSpecialization,
+  resurrectionSpecialization, fireWallSpecialization, cloneSpecialization, specializationSpellName,
 } from './specializations.mjs';
 import { highestSkillTier } from './skill-bonuses.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from './race-granted-items.mjs';
@@ -1104,7 +1104,7 @@ export async function castSpell(actor, spell) {
     ? elementSpellVariant(actor, spell, summonElement)
     : findSpellVariant(actor, spell);
 
-  const discount = specializationManaDiscount(actor.system.specialization, spell.name);
+  const discount = specializationManaDiscount(actor.system.specialization, specializationSpellName(spell));
   const manaCost = Math.max(0, variantData.manaCost - discount);
 
   if (!canAffordSpell(actor.system.mana.value, manaCost)) {
@@ -1220,7 +1220,7 @@ function elementSpellVariant(actor, spell, element) {
  */
 async function chooseSummonElement(actor, spell) {
   const i18n = game.i18n;
-  const discount = specializationManaDiscount(actor.system.specialization, spell.name);
+  const discount = specializationManaDiscount(actor.system.specialization, specializationSpellName(spell));
   const rows = Object.entries(SUMMON_ELEMENTALS).map(([element, creature], index) => {
     const { variant, variantData } = elementSpellVariant(actor, spell, element);
     const label = i18n.format('HEROES_GLORY.Roll.SummonElementRow', {
@@ -1604,7 +1604,7 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
   // p. 23 (rules.md §11): the specialization lets the player pick two more
   // targets — targeted after the first one, which the chain starts from.
   const chainSpec = targeting.mode === 'chain'
-    ? chainLightningSpecialization(actor.system.specialization, spell.name)
+    ? chainLightningSpecialization(actor.system.specialization, specializationSpellName(spell))
     : chainLightningSpecialization(null, '');
   // Step 4, «в поле зрения», and step 5, «Выберите клетку»: the spell finds
   // its own targets — the user's are ignored (rules.md §11).
@@ -2121,7 +2121,7 @@ async function castSupportSpell(actor, spell, { variant, variantData, resolvedSc
     total,
     healthFactor: effect.healthFactor ?? 1,
     untilCombatEnd: kind === 'resurrect' && !!effect.untilCombatEnd,
-    noWound: resurrectionSpecialization(actor.system.specialization, spell.name),
+    noWound: resurrectionSpecialization(actor.system.specialization, specializationSpellName(spell)),
     combatId: castStart?.combat ?? null,
     rangeUnknown,
     targets,
@@ -2578,7 +2578,7 @@ async function castFieldSpell(actor, spell, { variant, variantData, resolvedScho
     return null;
   }
   const specialization = field.type === 'fireWall'
-    ? fireWallSpecialization(actor.system.specialization, spell.name)
+    ? fireWallSpecialization(actor.system.specialization, specializationSpellName(spell))
     : fireWallSpecialization(null, '');
   const count = field.cells + specialization.extraCells;
   // Зыбучий Песок lasts to the end of the battle — not a lasting spell (rules.md §11).
@@ -3237,7 +3237,7 @@ async function confirmSummonSpell(message, flags) {
  * @returns {Promise<number|null>}   how many clones
  */
 async function chooseCloneCount(actor, spell, manaCost) {
-  const specialization = cloneSpecialization(actor.system.specialization, spell.name);
+  const specialization = cloneSpecialization(actor.system.specialization, specializationSpellName(spell));
   if (!specialization.active || !canAffordSpell(actor.system.mana.value, manaCost * specialization.manaFactor)) return 1;
   const i18n = game.i18n;
   const content = document.createElement('div');
@@ -3904,7 +3904,7 @@ function rangedSeriesOf(actor) {
  * @returns {Array<{stat: string, value: number, floorOne: boolean, floor: number|null}>}
  */
 function castModifiers(actor, spell, effect) {
-  const haste = hasteSpecializationBonus(actor.system.specialization, spell.name);
+  const haste = hasteSpecializationBonus(actor.system.specialization, specializationSpellName(spell));
   // Огненный Щит: «равный вашему СМ» (+3 / +6) — the caster's at the cast.
   const bonus = (stat) => (stat === 'speed' ? haste : 0) + (stat === 'fireShield' ? actor.system.magicPower : 0);
   return (effect.modifiers ?? []).map((m) => ({

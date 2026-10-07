@@ -2,8 +2,9 @@
  * §4.3 p.23: specialization from level 10 — pure data/logic, no Foundry
  * globals, so it's unit-testable (`node --test`) the same way as
  * race-granted-items.mjs. module/documents/actor.mjs's
- * `#syncSpecializationEffect` and module/sheets/actor/hero-sheet.mjs's
- * picker/context-prep are the Foundry-facing callers.
+ * `#syncSpecializationEffect`, module/apps/specialization-window.mjs (the
+ * sheet's cell and window) and roll-actions.mjs are the Foundry-facing
+ * callers.
  *
  * The 12 effect-text strings this file's SPECIALIZATION_EFFECT_TEXT_KEYS
  * point at live in lang/ru.json's HEROES_GLORY.Specialization.* block
@@ -129,24 +130,150 @@ export function specializationManaDiscount(specialization, spellName) {
   return 0;
 }
 
+/** §4.3 p. 23: «Достигнув 10-го уровня». */
+export const SPECIALIZATION_MIN_LEVEL = 10;
+
 /**
- * §4.3: which specializations `actor` currently qualifies for — Expert
- * tier in one of the 7 skills, or owning one of the 5 spells by exact
- * name. Pure: takes plain {skillKey, tier} shapes and a plain list of
- * owned spell names, not real Foundry Items — same "thread the data in"
- * pattern as `secondarySkillSlotCount` (rolls.mjs).
- * @param {Array<{skillKey: string, tier: string}>} ownedSkills
- * @param {string[]} ownedSpellNames
+ * The spell specializations' icons — frames of `assets/spells/` (the spell
+ * compendium's own, scripts/data/spell-compendium-data.mjs), fixed here so
+ * the sheet's cell never depends on the hero's copy of the spell.
+ * @type {Record<string, number>}
+ */
+export const SPECIALIZATION_SPELL_ICON_FRAMES = {
+  'Цепная Молния': 19,
+  'Воскрешение': 38,
+  'Ускорение': 53,
+  'Стена Огня': 13,
+  'Клон': 65,
+};
+
+/**
+ * Specializations with no automation — the GM applies them by hand
+ * (Некромантия: the system has no necromancy; Лечение: waits for the skill's
+ * own action, rules.md §11).
+ * @type {Set<string>}
+ */
+const MANUAL_SPECIALIZATIONS = new Set(['skill:necromancy', 'skill:healing']);
+
+/**
+ * All 12 specializations in the book's order (p. 23): skills, then spells.
  * @returns {Array<{type: 'skill'|'spell', key: string}>}
  */
-export function availableSpecializations(ownedSkills, ownedSpellNames) {
-  const skillOptions = SPECIALIZATION_SKILLS
-    .filter((key) => ownedSkills.some((s) => s.skillKey === key && s.tier === 'expert'))
-    .map((key) => ({ type: 'skill', key }));
-  const spellOptions = SPECIALIZATION_SPELLS
-    .filter((name) => ownedSpellNames.includes(name))
-    .map((name) => ({ type: 'spell', key: name }));
-  return [...skillOptions, ...spellOptions];
+export function specializationList() {
+  return [
+    ...SPECIALIZATION_SKILLS.map((key) => ({ type: 'skill', key })),
+    ...SPECIALIZATION_SPELLS.map((key) => ({ type: 'spell', key })),
+  ];
+}
+
+/**
+ * @param {string} type
+ * @param {string} key
+ * @returns {boolean}   whether `{type, key}` is one of the 12.
+ */
+export function isSpecialization(type, key) {
+  return type === 'skill' ? SPECIALIZATION_SKILLS.includes(key) : type === 'spell' && SPECIALIZATION_SPELLS.includes(key);
+}
+
+/**
+ * @param {string} type
+ * @param {string} key
+ * @returns {boolean}   no automation — «Применяет Ведущий вручную».
+ */
+export function isManualSpecialization(type, key) {
+  return MANUAL_SPECIALIZATIONS.has(`${type}:${key}`);
+}
+
+/**
+ * The tier order of a secondary skill, for "the highest one owned".
+ * @type {string[]}
+ */
+const TIER_ORDER = ['base', 'advanced', 'expert'];
+
+/**
+ * The highest tier owned of one skill, or null.
+ * @param {Array<{skillKey: string, tier: string}>} ownedSkills
+ * @param {string} key
+ * @returns {string|null}
+ */
+function ownedTier(ownedSkills, key) {
+  let best = -1;
+  for (const s of ownedSkills) {
+    if (s.skillKey === key) best = Math.max(best, TIER_ORDER.indexOf(s.tier));
+  }
+  return best >= 0 ? TIER_ORDER[best] : null;
+}
+
+/**
+ * §4.3 p. 23: what one specialization still needs for this hero — the level
+ * (10), and Expert in its skill or owning its spell (rules.md §11: «владеть
+ * заклинанием» — the spell is among the hero's items; whether it can be cast
+ * yet is a separate note, not a condition).
+ * @param {{type: string, key: string}} spec
+ * @param {object} hero
+ * @param {number} hero.level
+ * @param {Array<{skillKey: string, tier: string}>} hero.ownedSkills
+ * @param {string[]} hero.ownedSpellNames   by compendium origin, name as fallback
+ *   (`specializationSpellName`).
+ * @returns {{met: boolean, missingLevel: boolean, missingSkill: boolean, ownedTier: string|null, missingSpell: boolean}}
+ */
+export function specializationRequirement(spec, { level, ownedSkills, ownedSpellNames }) {
+  const missingLevel = level < SPECIALIZATION_MIN_LEVEL;
+  const tier = spec.type === 'skill' ? ownedTier(ownedSkills, spec.key) : null;
+  const missingSkill = spec.type === 'skill' && tier !== 'expert';
+  const missingSpell = spec.type === 'spell' && !ownedSpellNames.includes(spec.key);
+  return {
+    met: !missingLevel && !missingSkill && !missingSpell,
+    missingLevel,
+    missingSkill,
+    ownedTier: tier,
+    missingSpell,
+  };
+}
+
+/**
+ * §4.3 p. 23: why this hero can't take any specialization yet — for the
+ * cell's short hint («Не хватает: …»). `null` when one can be taken.
+ * @param {object} hero   same shape as `specializationRequirement`'s.
+ * @returns {{level: number|null, skills: Array<{key: string, tier: string}>|null, spells: boolean}|null}
+ *   `level` — the hero's level when below 10; `skills` — when no skill of the
+ *   7 is Expert: the ones owned below Expert (closest first); `spells` — when
+ *   none of the 5 spells is owned.
+ */
+export function specializationShortage(hero) {
+  const requirements = specializationList().map((spec) => ({ spec, req: specializationRequirement(spec, hero) }));
+  if (requirements.some(({ req }) => req.met)) return null;
+  const skillMet = requirements.some(({ spec, req }) => spec.type === 'skill' && !req.missingSkill);
+  const spellMet = requirements.some(({ spec, req }) => spec.type === 'spell' && !req.missingSpell);
+  const anyQualifies = skillMet || spellMet;
+  const closest = requirements
+    .filter(({ spec, req }) => spec.type === 'skill' && req.ownedTier && req.missingSkill)
+    .map(({ spec, req }) => ({ key: spec.key, tier: req.ownedTier }))
+    .sort((a, b) => TIER_ORDER.indexOf(b.tier) - TIER_ORDER.indexOf(a.tier));
+  return {
+    level: hero.level < SPECIALIZATION_MIN_LEVEL ? hero.level : null,
+    skills: anyQualifies ? null : closest,
+    spells: !anyQualifies,
+  };
+}
+
+/**
+ * Which name a spell item counts under for a specialization (rules.md §11):
+ * its compendium entry's (`_stats.compendiumSource` in the system's spell
+ * compendium), so a renamed copy still counts; its own name otherwise.
+ * @param {{name?: string, _stats?: {compendiumSource?: string|null}}|null} spell
+ * @param {object} [options]
+ * @param {(uuid: string, options: object) => ({name?: string}|null)} [options.lookup]
+ *   `fromUuidSync` by default (a compendium uuid resolves to its index entry).
+ * @returns {string}
+ */
+export function specializationSpellName(spell, { lookup = globalThis.fromUuidSync } = {}) {
+  const source = spell?._stats?.compendiumSource ?? '';
+  if (source.startsWith('Compendium.heroes-glory.spells.') && typeof lookup === 'function') {
+    const name = lookup(source, { strict: false })?.name;
+    if (name) return name;
+  }
+  return spell?.name ?? '';
 }
 
 /**

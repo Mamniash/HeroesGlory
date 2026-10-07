@@ -166,13 +166,13 @@
   {{!-- ==================== Primary skills: labels / icons / values ==================== --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--text_1 hero-paperdoll__primary-row">
     <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="attack"
-      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
+      role="button" tabindex="0">{{localize 'HEROES_GLORY.Hero.Attack'}}</span>
     <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="defense"
-      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
+      role="button" tabindex="0">{{localize 'HEROES_GLORY.Hero.Defense'}}</span>
     <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="magicPower"
-      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
+      role="button" tabindex="0">{{localize 'HEROES_GLORY.Hero.MagicPower'}}</span>
     <span class="hero-paperdoll__primary-cell" data-action="rollAbilityCheck" data-skill="knowledge"
-      role="button" tabindex="0" title="{{localize 'HEROES_GLORY.Roll.CheckHint'}}">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
+      role="button" tabindex="0">{{localize 'HEROES_GLORY.Hero.Knowledge'}}</span>
   </div>
 
   <img class="hero-paperdoll__slot hero-paperdoll__slot--attack" src="{{icons.attack}}" alt=""
@@ -245,11 +245,10 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--experience_name" src="{{icons.experience}}" alt=""
     data-tooltip-trigger="experience" {{#unless canLevelUp}}data-tooltip-click{{/unless}}
     {{#if canLevelUp}}data-action="openLevelUp" role="button" tabindex="0"
-    aria-label="{{localize 'HEROES_GLORY.Hero.Experience'}}"
-    data-tooltip="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
+    aria-label="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
   <div class="hero-paperdoll__slot hero-paperdoll__slot--experience_desc"
     {{#if canLevelUp}}data-action="openLevelUp" role="button" tabindex="0"
-    data-tooltip="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
+    aria-label="{{localize 'HEROES_GLORY.LevelUp.AvailableHint'}}"{{/if}}>
     <span class="hero-paperdoll__value-label">{{localize 'HEROES_GLORY.Hero.Experience'}}</span>
     <span class="hero-paperdoll__value-row"><span class="hero-paperdoll__value-wrap"><span class="hero-paperdoll__value-display" aria-hidden="true">{{system.experience}}</span><input class="hero-paperdoll__value-input" type="number" name="system.experience" value="{{system.experience}}" min="0" {{#unless editMode}}readonly{{/unless}}></span><span class="hero-paperdoll__value-sep">/</span><span class="hero-paperdoll__value-max">{{experienceForNextLevel}}</span></span>
   </div>
@@ -275,16 +274,26 @@
   {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6) and the amount.
     Everyone who sees the sheet sees it; the GM changes it with a quick
     field — no name, its own update (hero-sheet.mjs `_onRender`). --}}
-  <div class="hero-paperdoll__slot hero-paperdoll__slot--gold hero-paperdoll__gold" title="{{localize 'HEROES_GLORY.Hero.Gold'}}">
-    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="">
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--gold hero-paperdoll__gold">
+    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="{{localize 'HEROES_GLORY.Hero.Gold'}}"
+      {{#if isGM}}data-tooltip-trigger="gold" data-tooltip-click{{/if}}>
     {{#if isGM}}
       <input class="hero-paperdoll__gold-value hero-paperdoll__gold-input" type="text" inputmode="numeric"
         value="{{source.gold}}" data-gold-input
-        aria-label="{{localize 'HEROES_GLORY.Hero.GoldInputHint'}}" data-tooltip="HEROES_GLORY.Hero.GoldInputHint">
+        aria-label="{{localize 'HEROES_GLORY.Hero.GoldInputHint'}}">
     {{else}}
       <span class="hero-paperdoll__gold-value">{{system.gold}}</span>
     {{/if}}
   </div>
+  {{!-- The GM's click on the coins: «Золото» and how the field reads. The
+    player has no field — no tooltip. --}}
+  {{#if isGM}}
+    <template class="hg-tooltip-tpl" data-tooltip-key="gold">
+      <img class="hg-tooltip__icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="">
+      <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Gold'}}</p>
+      <p>{{localize 'HEROES_GLORY.Hero.GoldInputHow'}}</p>
+    </template>
+  {{/if}}
 
   {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
     see _hero-paperdoll.scss's own comment on
@@ -308,7 +317,7 @@
                   data-skill-sheet>
                 {{#if ../editMode}}
                   <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-                    title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+                    aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
                 {{/if}}
               {{/if}}
             </div>
@@ -328,7 +337,7 @@
             data-skill-sheet>
           {{#if ../editMode}}
             <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-              title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+              aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
           {{/if}}
         {{/if}}
       </div>
@@ -421,10 +430,18 @@
     <p>{{localize 'HEROES_GLORY.Tooltip.LuckHint'}}</p>
   </template>
 
+  {{!-- The empty book slot of a hero with race spells and no Книга Магии
+    (§6.1): a left click opens those spells, the right button holds this. --}}
+  {{#if raceSpellsWithoutBook}}
+    <template class="hg-tooltip-tpl" data-tooltip-key="race-spells">
+      <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}</p>
+    </template>
+  {{/if}}
   {{!-- ==================== Paperdoll (19 slots) ==================== --}}
   {{#each paperdollSlots}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}"
-      {{#if this.opensRaceSpells}}data-action="openSpellbook" title="{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}"{{/if}}>
+      {{#if this.opensRaceSpells}}data-action="openSpellbook" role="button" tabindex="0"
+      aria-label="{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}" data-tooltip-trigger="race-spells"{{/if}}>
       {{#if this.item}}
         {{!-- §5.3: a weapon only attacks on click while equipped (always
           true here — a paperdoll slot only ever holds an equipped item —
@@ -445,7 +462,7 @@
           data-tooltip-trigger="paperdoll-{{this.index}}">
         {{#if ../editMode}}
           <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
-            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+            aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
         {{/if}}
         <template class="hg-tooltip-tpl" data-tooltip-key="paperdoll-{{this.index}}">
           <p class="hg-tooltip__title">{{this.item.name}}</p>
@@ -465,7 +482,7 @@
           data-tooltip-trigger="backpack-{{inc @index}}">
         {{#if ../editMode}}
           <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
-            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+            aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
         {{/if}}
         <template class="hg-tooltip-tpl" data-tooltip-key="backpack-{{inc @index}}">
           <p class="hg-tooltip__title">{{this.name}}</p>
@@ -483,43 +500,61 @@
 
   {{!-- ==================== Free zone below the inventory (docs/paperdoll_grid.json's
        "edit_zone") ==================== --}}
-  {{!-- §4.3 p.23: Специализация — unlike edit_button_toggle below, shown
-    unconditionally (not `{{#if editMode}}`-gated): it's a permanent
-    character feature, not an edit-mode workflow control, so it has to be
-    visible at rest same as any other paperdoll slot. Reuses the
-    secondary-skill cell markup verbatim (same `.hero-paperdoll__skill-
-    cell`/`-icon`/`-desc` classes, same tooltip mechanism) — combined
-    with `.hero-paperdoll__slot--specialization` for its position (see
-    that $hg-named-slots entry's own comment in _hero-paperdoll.scss for
-    where this box came from). data-action lives on the outer cell, not
-    the (conditionally-rendered) icon inside it — unlike a secondary
-    skill slot, this one must stay clickable even empty, to open the
-    picker and choose one; #onPickSpecialization is what actually gates
-    whether clicking it does anything (level 10+, edit mode or first
-    pick — see that method's own comment), same silent-no-op convention
-    every other identity picker here already uses. --}}
+  {{!-- §4.3 p.23: Специализация — always shown (a character feature, not an
+    edit-mode control), on the secondary-skill cell markup, positioned by
+    `.hero-paperdoll__slot--specialization`. Chosen: its icon and name; a
+    click on the whole cell (outside edit mode) pins the full description,
+    the GM in edit mode reassigns or clears it. None chosen: a padlock or a
+    laurel crown; a click pins the rule, «Не хватает: …» and the «Все
+    специализации» button, which opens the window — to choose or to read
+    (hero-sheet.mjs's #onPickSpecialization, apps/specialization-window.mjs).
+    The GM in edit mode opens the window straight from the cell. --}}
+  {{#with specialization}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell"
-    {{#if specializationPickable}}data-action="pickSpecialization" role="button" tabindex="0"
-    aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}>
+    {{#if clickable}}data-action="pickSpecialization" role="button" tabindex="0"
+    aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}
+    data-tooltip-trigger="{{#if chosen}}specialization{{else}}specialization-info{{/if}}" data-tooltip-click>
     <div class="hero-paperdoll__skill-cell-icon">
-      {{#if specializationSlot}}
-        <img class="hero-paperdoll__icon-img" src="{{specializationSlot.icon}}" alt=""
-          data-tooltip-trigger="specialization" data-tooltip-click>
-        {{#if editMode}}
+      {{#if chosen}}
+        <img class="hero-paperdoll__icon-img" src="{{chosen.icon}}" alt="">
+        {{#if ../editMode}}
           <button type="button" class="hero-paperdoll__slot-delete" data-action="unsetSpecialization"
-            title="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
+            aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
         {{/if}}
-        <template class="hg-tooltip-tpl" data-tooltip-key="specialization">
-          <img class="hg-tooltip__icon" src="{{specializationSlot.iconLarge}}" width="82" height="93" alt="">
-          <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Specialization'}} — {{specializationSlot.label}}</p>
-          {{#if specializationSlot.effectTextKey}}<p>{{localize specializationSlot.effectTextKey}}</p>{{/if}}
-        </template>
+      {{else}}
+        <img class="hero-paperdoll__icon-img hero-paperdoll__spec-placeholder{{#unless available}} hero-paperdoll__spec-placeholder--locked{{/unless}}" src="{{icon}}" alt="">
       {{/if}}
     </div>
     <div class="hero-paperdoll__skill-cell-desc">
-      {{#if specializationSlot}}<span>{{localize 'HEROES_GLORY.Hero.Specialization'}}</span><span>{{specializationSlot.label}}</span>{{/if}}
+      {{#if chosen}}
+        <span>{{localize 'HEROES_GLORY.Hero.Specialization'}}</span><span>{{chosen.label}}</span>
+      {{else}}
+        <span>{{localize 'HEROES_GLORY.Hero.Specialization'}}</span><span class="hero-paperdoll__spec-state{{#unless available}} hero-paperdoll__spec-state--locked{{/unless}}">{{stateLabel}}</span>
+      {{/if}}
     </div>
   </div>
+  {{#unless chosen}}
+    <template class="hg-tooltip-tpl" data-tooltip-key="specialization-info">
+      <img class="hg-tooltip__icon" src="{{icon}}" width="82" height="93" alt="">
+      <p class="hg-tooltip__title">{{info.title}}</p>
+      <p>{{info.rule}}</p>
+      <p class="hg-spec__page">{{info.page}}</p>
+      {{#each info.lines}}<p class="{{#if ../available}}hg-spec__met{{else}}hg-spec__missing{{/if}}">{{this}}</p>{{/each}}
+      <button type="button" class="hg-spec__open" data-action="pickSpecialization">{{localize 'HEROES_GLORY.SpecializationUi.OpenAll'}}</button>
+    </template>
+  {{/unless}}
+  {{#if chosen}}
+    <template class="hg-tooltip-tpl" data-tooltip-key="specialization">
+      <img class="hg-tooltip__icon" src="{{chosen.iconLarge}}" width="82" height="93" alt="">
+      <p class="hg-tooltip__title">{{chosen.title}}</p>
+      {{#if chosen.effectTextKey}}<p>{{localize chosen.effectTextKey}}</p>{{/if}}
+      {{#if chosen.manual}}<p class="hg-spec__manual">{{localize 'HEROES_GLORY.SpecializationUi.Manual'}}</p>{{/if}}
+      <p class="hg-spec__page">{{localize 'HEROES_GLORY.SpecializationUi.PageRef'}}</p>
+      {{#if chosen.warning}}<p class="hg-spec__warn">{{chosen.warning}}</p><p class="hg-spec__missing">{{chosen.missing}}</p>{{/if}}
+      {{#if chosen.castNote}}<p class="hg-spec__warn">{{chosen.castNote}}</p>{{/if}}
+    </template>
+  {{/if}}
+  {{/with}}
   {{!-- Same highlight frame as Опыт's level-up (experience_highlight) — lit
     only while a pick is available and nothing is chosen yet. Comes AFTER
     the cell in the DOM (unlike experience_highlight, which comes before

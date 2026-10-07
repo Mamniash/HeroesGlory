@@ -375,7 +375,9 @@ export function pinOptionList(options, onPick, pinOptions = {}) {
 export function attachTooltip(triggerEl, templateEl, options = {}) {
   const boundsEl = options.boundsEl ?? triggerEl.closest('.hero-paperdoll, .hero-spellbook, .hg-lvlup');
   const mode = options.mode ?? 'tooltip';
-  const color = boundsEl?.dataset.panelColor ?? 'red';
+  // The hero sheet and level-up canvases carry `data-panel-color`, the
+  // framed sheets (creature) `data-color`.
+  const color = boundsEl?.dataset.panelColor ?? boundsEl?.dataset.color ?? 'red';
   const clickToPin = options.clickToPin ?? false;
   const showOptions = { boundsEl, mode, color };
 

@@ -12,7 +12,7 @@ import {
 import { CLASS_BASE_SKILL_FLAG, isHeroCreated } from '../../helpers/hero-creation.mjs';
 import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
-  speedIconPath, visionIconPath,
+  speedIconPath, visionIconPath, specializationPlaceholderIconPath,
 } from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
 import { highestSkillTier } from '../../helpers/skill-bonuses.mjs';
@@ -27,7 +27,10 @@ import {
   subchoiceOptionsFor, subchoiceModifiersFor,
 } from '../../helpers/race-stats.mjs';
 import { raceGrantedItemsAtPick, RACE_GRANTED_ITEM_FLAG } from '../../helpers/race-granted-items.mjs';
-import { availableSpecializations, specializationEffectTextKey } from '../../helpers/specializations.mjs';
+import {
+  specializationState, specializationCellHint, chosenSpecializationDetails, openSpecializationWindow,
+} from '../../apps/specialization-window.mjs';
+import { specializationRequirement } from '../../helpers/specializations.mjs';
 import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-icons.mjs';
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
@@ -406,11 +409,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       race: this.#canEdit || (isOwner && !system.race),
       faction: this.#canEdit || (isOwner && !system.faction),
       classType: (this.#canEdit || (isOwner && !system.classType)) && Boolean(system.faction),
-      // §4.3: level 10+ is an absolute gate, not a GM-in-edit-mode
-      // bypass like the other three above — the book ties the whole
-      // mechanic to reaching level 10, not to who's clicking (scenario 1:
-      // "недоступна" at level 9, even for the GM).
-      specialization: (this.#canEdit || (isOwner && !system.specialization.type)) && system.level >= 10,
     };
   }
 
@@ -603,6 +601,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       const item = equipable.find((it) => it.system.equipped && it.system.paperdollSlot === index) ?? null;
       return { index, item, opensRaceSpells: !item && index === SPELLBOOK_PAPERDOLL_SLOT && raceSpellsWithoutBook };
     });
+    context.raceSpellsWithoutBook = raceSpellsWithoutBook
+      && !context.paperdollSlots[SPELLBOOK_PAPERDOLL_SLOT - 1].item;
 
     // Backpack membership: everything NOT shown on the paperdoll above —
     // not simply `!equipped`. An item can be flipped to `equipped: true`
@@ -671,49 +671,32 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // of them, even though the cap itself already fell back to 8.
     context.secondarySkillsScrollable = secondarySkills.length > config.secondarySkillSlotCount;
 
-    // §4.3 p.23: the specialization cell — reuses secondarySkillSlots'
-    // own {icon, iconLarge, label, effectTextKey} shape as closely as
-    // possible (see the template's own comment for why it's the SAME
-    // `.hero-paperdoll__skill-cell` markup, not a lookalike) even though
-    // there's no `tierLabel` here (a specialization has no tier) — the
-    // template shows the fixed word "Специализация" in that slot instead.
-    // `null` (nothing chosen, OR chosen but the source skill/spell no
-    // longer resolves — e.g. the skill item was deleted outright, not
-    // just lowered a tier, which #syncSpecializationEffect's own "don't
-    // retroactively strip" policy never had to consider) renders as the
-    // same empty cell a never-owned secondary skill slot already does.
-    const specializationType = system.specialization.type;
-    const specializationKey = system.specialization.key;
-    context.specializationSlot = null;
-    if (specializationType === 'skill') {
-      context.specializationSlot = {
-        label: game.i18n.localize(config.secondarySkills[specializationKey] ?? ''),
-        icon: secondarySkillIconPath(specializationKey, 'expert'),
-        iconLarge: secondarySkillIconPath(specializationKey, 'expert', { large: true }),
-        effectTextKey: specializationEffectTextKey('skill', specializationKey),
+    // §4.3 p.23: the Специализация cell (apps/specialization-window.mjs).
+    // Chosen — its icon and name from the fixed list, never from the hero's
+    // copy of a spell, so the cell never empties; a click (outside edit
+    // mode) pins the full description. None chosen — a padlock or a laurel
+    // crown, a hover hint («Не хватает: …» / how many can be taken), and a
+    // click opens the window: to choose when this user may, to read
+    // otherwise. The GM in edit mode always chooses, bypassing the
+    // conditions (rules.md §11).
+    const specState = specializationState(this.actor, this.#canEdit);
+    if (specState.chosen) {
+      context.specialization = { chosen: chosenSpecializationDetails(this.actor, specState) };
+    } else {
+      context.specialization = {
+        chosen: null,
+        icon: specializationPlaceholderIconPath(specState.anyMet),
+        stateLabel: game.i18n.localize(specState.anyMet ? 'HEROES_GLORY.SpecializationUi.CellAvailable' : 'HEROES_GLORY.SpecializationUi.CellUnavailable'),
+        available: specState.anyMet,
+        info: specializationCellHint(specState),
       };
-    } else if (specializationType === 'spell') {
-      const spellItem = this.actor.items.find((i) => i.type === 'spell' && i.name === specializationKey);
-      if (spellItem) {
-        context.specializationSlot = {
-          label: spellItem.name,
-          icon: spellItem.img,
-          iconLarge: spellItem.img,
-          effectTextKey: specializationEffectTextKey('spell', specializationKey),
-        };
-      }
     }
-
-    // The cell is always drawn; it only becomes CLICKABLE (opens the
-    // picker) when there's actually something to pick, and only LIGHTS UP
-    // (same frame as Опыт's level-up highlight) while nothing is chosen
-    // yet — never opens the picker on its own.
-    const specializationOptions = availableSpecializations(
-      this.actor.items.filter((i) => i.type === 'skill').map((i) => i.system),
-      this.actor.items.filter((i) => i.type === 'spell').map((i) => i.name),
-    );
-    context.specializationPickable = this.#canPickIdentity.specialization && specializationOptions.length > 0;
-    context.specializationHighlight = context.specializationPickable && !specializationType;
+    // A click opens the window directly only for the GM in edit mode;
+    // otherwise it pins the cell's tooltip — the chosen one's description,
+    // or (none chosen) the rule, «Не хватает: …» and the «Все
+    // специализации» button, which opens the window.
+    context.specialization.clickable = this.#canEdit;
+    context.specializationHighlight = !specState.chosen && specState.anyMet && specState.canPick;
 
     // §6.1: possession is item-based — see the removed `hasSpellbook`
     // field's replacement note in docs/rules.md §8.2. Only the removed
@@ -1581,49 +1564,28 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   }
 
   /**
-   * §4.3 p.23: only offers specializations the hero actually qualifies
-   * for right now (Expert tier in one of the 7 skills, or owning one of
-   * the 5 spells by name — `helpers/specializations.mjs`'s
-   * `availableSpecializations`) — unavailable ones never appear in the
-   * list at all, rather than showing disabled. An empty result still
-   * opens the window, with `emptyMessage` explaining why (picker-app.mjs's
-   * own new field) instead of a silent blank list.
-   *
-   * Composite `"type:key"` option keys (e.g. `"skill:intellect"`,
-   * `"spell:Ускорение"`) — this picker's one list mixes two option
-   * namespaces at once, unlike every other `#buildListScreen` caller,
-   * which only ever offers one. `:` is safe as a separator: skill keys
-   * are plain lowercase identifiers and spell names are Cyrillic words —
-   * neither alphabet contains it.
+   * §4.3 p.23: the Специализация window (apps/specialization-window.mjs) —
+   * all 12, unavailable ones grey with the reason. The owner chooses once,
+   * while none is chosen and one can be taken; the GM in edit mode chooses
+   * or reassigns any, bypassing the conditions (rules.md §11). Anyone else
+   * — or the owner while none can be taken — gets the same window to read,
+   * without OK. OK writes the choice; there is no second confirmation.
    * @this {HeroesGloryHeroSheet}
    * @param {PointerEvent} event
    * @param {HTMLElement} target
    */
-  static #onPickSpecialization(event, target) {
-    if (!this.#canPickIdentity.specialization) return;
-    const config = CONFIG.HEROES_GLORY;
-    const system = this.actor.system;
-
-    const ownedSkills = this.actor.items.filter((i) => i.type === 'skill').map((i) => i.system);
-    const ownedSpellNames = this.actor.items.filter((i) => i.type === 'spell').map((i) => i.name);
-    const options = availableSpecializations(ownedSkills, ownedSpellNames);
-
-    const currentKey = system.specialization.type ? `${system.specialization.type}:${system.specialization.key}` : null;
-    const choices = Object.fromEntries(options.map((opt) => [
-      `${opt.type}:${opt.key}`,
-      opt.type === 'skill' ? game.i18n.localize(config.secondarySkills[opt.key]) : opt.key,
-    ]));
-
-    // No confirm step, immediate apply — same as panelColor/vision above.
-    const screen = options.length
-      ? this.#buildListScreen(choices, currentKey, async (compositeKey) => {
-        const [type, key] = compositeKey.split(':');
-        await this.actor.update({ 'system.specialization': { type, key } });
-        return null;
-      })
-      : { type: 'list', options: [], emptyMessage: game.i18n.localize('HEROES_GLORY.Hero.SpecializationEmptyHint') };
-
-    return this.#openPicker(game.i18n.localize('HEROES_GLORY.Hero.Specialization'), screen);
+  static async #onPickSpecialization(event, target) {
+    const gmEditing = this.#canEdit;
+    const state = specializationState(this.actor, gmEditing);
+    if (state.chosen && !gmEditing) return;
+    // Opened from the cell's pinned tooltip («Все специализации»).
+    hideTooltip();
+    const chosen = await openSpecializationWindow(this.actor, { select: state.canPick, gmEditing });
+    if (!chosen) return;
+    // Re-checked at write time: the sheet may have changed while it was open.
+    const now = specializationState(this.actor, gmEditing);
+    if (!now.canPick || (!gmEditing && !specializationRequirement(chosen, now.hero).met)) return;
+    await this.actor.update({ 'system.specialization': chosen });
   }
 
   /**
@@ -1635,11 +1597,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * secondarySkillSlotCount comment already established for a lapsed
    * Экспертная Обучаемость). This button is the only way to undo a wrong
    * pick. Edit-mode only, same gate as this sheet's other delete buttons
-   * (deleteItem) — not `#canPickIdentity.specialization`, which would
-   * also allow a non-GM owner to clear their own already-set
-   * specialization outside edit mode; that blank-field exception only
-   * ever meant "let the owner make the FIRST pick", not "let them undo
-   * it too".
+   * (deleteItem): the owner makes the first pick only, the GM changes it
+   * (rules.md §11).
    * @this {HeroesGloryHeroSheet}
    * @param {PointerEvent} event
    * @param {HTMLElement} target

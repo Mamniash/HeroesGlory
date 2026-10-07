@@ -5,10 +5,7 @@
  */
 export const preloadHandlebarsTemplates = async function () {
   return foundry.applications.handlebars.loadTemplates([
-    // Actor partials.
-    'systems/heroes-glory/templates/actor/parts/actor-effects.hbs',
     // Item partials
-    'systems/heroes-glory/templates/item/parts/item-effects.hbs',
     'systems/heroes-glory/templates/item/parts/hg-item-frame.hbs',
     'systems/heroes-glory/templates/item/parts/hg-select.hbs',
     'systems/heroes-glory/templates/item/parts/hg-weapon-fields.hbs',

@@ -23,7 +23,7 @@ https://opengameart.org/content/dungeon-crawl-32x32-tiles
 Исходный рисунок — OpenClipart, https://openclipart.org/detail/133459 .
 Лицензия — **CC0**. Файл без изменений.
 
-## Иконки Скорости и Зрения — `assets/game-icons/`
+## Иконки Скорости, Зрения и Специализации — `assets/game-icons/`
 
 Не оружие, но записаны здесь же, рядом с остальными сторонними иконками. Источник —
 **game-icons.net** (https://game-icons.net), лицензия **CC BY 3.0**
@@ -34,5 +34,6 @@ https://opengameart.org/content/dungeon-crawl-32x32-tiles
 имя иконки на сайте (`lorc-moon.svg` — https://game-icons.net/1x1/lorc/moon.html).
 
 Изменения: убран чёрный квадрат фона, заливка — золотой градиент листа, чёрная обводка, поля
-по краю (viewBox). Какая иконка где — `SPEED_ICON` и `VISION_ICONS` в
-`module/helpers/skill-icons.mjs`; остальные файлы папки — запасные кандидаты.
+по краю (viewBox). Какая иконка где — `SPEED_ICON`, `VISION_ICONS` и
+`specializationPlaceholderIconPath` (`lorc-padlock`, `lorc-laurel-crown` — пустая ячейка
+Специализации) в `module/helpers/skill-icons.mjs`; остальные файлы папки — запасные кандидаты.

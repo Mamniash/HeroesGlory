@@ -170,6 +170,35 @@ const VISION_ICONS = {
   blindsense: 'skoll-sight-disabled',
 };
 
+/**
+ * The Специализация cell while none is chosen: a padlock while none can be
+ * taken, a laurel crown once one can (same gold recolour, same folder).
+ * @param {boolean} available
+ * @returns {string}
+ */
+export function specializationPlaceholderIconPath(available) {
+  return GAME_ICON(available ? 'lorc-laurel-crown' : 'lorc-padlock');
+}
+
+/**
+ * §4.3 p. 23: a specialization's own icon — a skill's: that skill's Expert
+ * icon (the condition), a spell's: the spell's own icon from `assets/spells/`
+ * (one size only — `large` changes nothing for a spell).
+ * @param {{type: string, key: string}} spec
+ * @param {Record<string, number>} spellFrames   specializations.mjs's
+ *   SPECIALIZATION_SPELL_ICON_FRAMES (passed in: no import cycle).
+ * @param {object} [options]
+ * @param {boolean} [options.large]
+ * @returns {string|null}
+ */
+export function specializationIconPath(spec, spellFrames, { large = false } = {}) {
+  if (spec.type === 'skill' && SECONDARY_SKILL_FRAMES[spec.key]) return secondarySkillIconPath(spec.key, 'expert', { large });
+  if (spec.type === 'spell' && spellFrames[spec.key] !== undefined) {
+    return `systems/${SYSTEM_ID}/assets/spells/spells_g00_f${frame(spellFrames[spec.key])}.png`;
+  }
+  return null;
+}
+
 /** @returns {string} */
 export function speedIconPath() {
   return GAME_ICON(SPEED_ICON);
