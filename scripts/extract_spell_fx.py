@@ -65,6 +65,25 @@ SPELL_FX = {
     "dispel": "C05SPW.DEF",              # Развеивание Магии
     "cure": "C03SPW.DEF",                # Лечение
     "resurrection": "C01SPE0.def",       # Воскрешение
+    # Spells HOMM3 gives no cast animation (rules.md §11) — the nearest sprite:
+    "fly": "C09SPW0.def",                # Полет: the golden eagle (HOMM3's Mirth)
+    "teleport": "C18SPW0.def",           # Телепорт, out and in (HOMM3's Remove Obstacle burst)
+    "clone": "C12SPE0.def",              # Клон: the copy appears (an unused HOMM3 sphere)
+    # Призыв Элементаля: the elemental appears in its element's own HOMM3
+    # «Protection from …» sprite.
+    "summon-fire": "C11SPW0.def",
+    "summon-water": "C11SPF0.def",
+    "summon-air": "C11SPE0.def",
+    "summon-earth": "C13SPA0.def",
+    # Obstacles in a field spell's cells while it stands (VCMI's obstacle blocks):
+    "force-field-appear": "C15SPE0.def",
+    "force-field": "C15SPE1.def",
+    "force-field-remove": "C15SPE2.def",
+    "fire-wall-appear": "C07SPF60.def",
+    "fire-wall": "C07SPF61.def",
+    "fire-wall-remove": "C07SPF62.def",
+    "quicksand-appear": "C17SPE0.def",
+    "quicksand": "C17SPE1.def",
 }
 
 

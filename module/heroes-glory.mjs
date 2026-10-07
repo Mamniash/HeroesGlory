@@ -21,7 +21,7 @@ import {
   expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat, excludeAmbushOrSurprise,
 } from './helpers/combat.mjs';
 import { addMassRestButton } from './helpers/rest.mjs';
-import { registerSpellFxSetting, playSpellFx } from './helpers/spell-fx.mjs';
+import { registerSpellFxSetting, playSpellFx, syncFieldFx, resetFieldFx } from './helpers/spell-fx.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
@@ -208,6 +208,10 @@ Hooks.on('updateChatMessage', (message, changed) => {
   if (changed.flags?.['heroes-glory']?.spell?.confirmed !== true) return;
   playSpellFx(message.getFlag('heroes-glory', 'spell'));
 });
+// Field spells: their HOMM3 obstacles in the region's cells while it stands.
+Hooks.on('canvasTearDown', resetFieldFx);
+Hooks.on('canvasReady', syncFieldFx);
+for (const hook of ['createRegion', 'updateRegion', 'deleteRegion']) Hooks.on(hook, () => syncFieldFx());
 // §5.1: the tie coin, drawn once per combatant.
 // §5.1 (p. 25): who joins a battle under way — no Тактика, waits the round
 // out. Before the coin, whose recorded Скорость reads the mark.

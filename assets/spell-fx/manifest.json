@@ -34,6 +34,11 @@
     "height": 110,
     "width": 114
   },
+  "clone": {
+    "frames": 20,
+    "height": 95,
+    "width": 98
+  },
   "counterstrike": {
     "frames": 16,
     "height": 100,
@@ -79,10 +84,45 @@
     "height": 62,
     "width": 75
   },
+  "fire-wall": {
+    "frames": 10,
+    "height": 132,
+    "width": 44
+  },
+  "fire-wall-appear": {
+    "frames": 3,
+    "height": 132,
+    "width": 44
+  },
+  "fire-wall-remove": {
+    "frames": 3,
+    "height": 132,
+    "width": 44
+  },
   "fireball": {
     "frames": 13,
     "height": 155,
     "width": 142
+  },
+  "fly": {
+    "frames": 20,
+    "height": 127,
+    "width": 94
+  },
+  "force-field": {
+    "frames": 9,
+    "height": 136,
+    "width": 61
+  },
+  "force-field-appear": {
+    "frames": 3,
+    "height": 136,
+    "width": 61
+  },
+  "force-field-remove": {
+    "frames": 3,
+    "height": 136,
+    "width": 61
   },
   "forgetfulness": {
     "frames": 15,
@@ -164,6 +204,16 @@
     "height": 75,
     "width": 76
   },
+  "quicksand": {
+    "frames": 8,
+    "height": 41,
+    "width": 47
+  },
+  "quicksand-appear": {
+    "frames": 3,
+    "height": 41,
+    "width": 47
+  },
   "resurrection": {
     "frames": 20,
     "height": 95,
@@ -183,6 +233,31 @@
     "frames": 22,
     "height": 83,
     "width": 89
+  },
+  "summon-air": {
+    "frames": 16,
+    "height": 100,
+    "width": 82
+  },
+  "summon-earth": {
+    "frames": 16,
+    "height": 100,
+    "width": 80
+  },
+  "summon-fire": {
+    "frames": 16,
+    "height": 99,
+    "width": 76
+  },
+  "summon-water": {
+    "frames": 15,
+    "height": 100,
+    "width": 100
+  },
+  "teleport": {
+    "frames": 15,
+    "height": 93,
+    "width": 127
   },
   "weakness": {
     "frames": 20,

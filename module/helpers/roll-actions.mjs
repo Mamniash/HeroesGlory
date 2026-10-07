@@ -2362,7 +2362,7 @@ async function castDispelCellSpell(actor, spell, { variant, variantData, resolve
     description: variantData.description,
     manaCost,
     manaRemaining,
-    dispelCell: { sceneId: scene.id, ...sceneCellNumbers(scene, cell), regionIds, names },
+    dispelCell: { sceneId: scene.id, ...sceneCellNumbers(scene, cell), cell: { i: cell.i, j: cell.j }, regionIds, names },
     targets: [],
     confirmed: false,
   };
@@ -2783,16 +2783,19 @@ function buildPlacementSpellCardContext(flags, context) {
  */
 async function confirmTeleportSpell(message, flags) {
   const results = resolveSupportSpellResolution(flags);
-  for (const [index, target] of flags.targets.entries()) {
+  // Where each one left from — its animation plays there too (spell-fx.mjs).
+  const targets = flags.targets.map((target) => ({ ...target }));
+  for (const [index, target] of targets.entries()) {
     if (results[index].outcome !== 'applied') continue;
     const tokenDoc = target.tokenUuid ? fromUuidSync(target.tokenUuid) : null;
     if (!tokenDoc) {
       ui.notifications.error(game.i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: target.name }));
       continue;
     }
+    target.origin = { x: tokenDoc.x, y: tokenDoc.y };
     await displaceToken(tokenDoc, target.destination);
   }
-  return markSpellConfirmed(message, flags);
+  return markSpellConfirmed(message, { ...flags, targets });
 }
 
 /**
@@ -3084,6 +3087,9 @@ async function castSummonSpell(actor, spell, { variant, variantData, resolvedSch
       sceneId: scene.id,
       level: casterToken.level,
       destination: { x: topLeft.x, y: topLeft.y, ...sceneCellNumbers(scene, cell) },
+      // The token's size, for its appearance (spell-fx.mjs).
+      width,
+      height,
     },
     rounds: lastingSpellRounds(actor.system.magicPower,
       actor.items.filter((i) => i.type === 'artifact' && i.system.equipped).map((i) => i.name)),
