@@ -1527,7 +1527,8 @@ async function areaSpellTargets(actor, spell, targeting) {
  * The Цепная Молния specialization's targets still to pick (rules.md §11):
  * one cell at a time on the field, like a field spell's cells — a click on a
  * token takes it, the hint says how many are left; Esc or a right click goes
- * on without the rest. Not the caster, not one already chosen, within 24
+ * on without the rest — the ones picked stay (core drops the whole placement
+ * on Esc, so the picks are kept here as they are confirmed). Not the caster, not one already chosen, within 24
  * cells (p. 32); a large token by any of its cells.
  * @param {Actor} actor
  * @param {Item} spell
@@ -1548,9 +1549,10 @@ async function pickChainTargetsOnField(actor, spell, selected, count) {
   const start = first.getOccupiedGridSpaceOffsets()[0];
   const cellShape = () => ({ type: 'grid', offsets: [start], origin: grid.getCenterPoint(start) });
   ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellChainPickHint', { spell: spell.name, more: more(count) }));
-  let region = null;
+  /** @type {TokenDocument[]} */
+  const picked = [];
   try {
-    region = await canvas.regions.placeRegion({
+    await canvas.regions.placeRegion({
       name: spell.name,
       shapes: Array.from({ length: count }, cellShape),
       levels: [first.level],
@@ -1560,7 +1562,7 @@ async function pickChainTargetsOnField(actor, spell, selected, count) {
     }, {
       create: false,
       allowRotation: false,
-      preConfirm: ({ document, shape, shapeIndex }) => {
+      preConfirm: ({ shape }) => {
         const warn = (key, data = {}) => {
           ui.notifications.warn(i18n.format(`HEROES_GLORY.Roll.${key}`, { spell: spell.name, ...data }));
           return false;
@@ -1568,23 +1570,21 @@ async function pickChainTargetsOnField(actor, spell, selected, count) {
         const doc = tokenAt(grid.getOffset(shape.origin));
         if (!doc) return warn('SpellChainPickNoToken');
         if (doc === casterToken || doc.actor === actor) return warn('SpellChainPickCaster');
-        const before = document.shapes.slice(0, shapeIndex).map((s) => tokenAt(grid.getOffset(s.origin)));
-        if (selected.includes(doc) || before.includes(doc)) return warn('SpellChainPickSame');
+        if (selected.includes(doc) || picked.includes(doc)) return warn('SpellChainPickSame');
         const cells = tokenDistanceCells(casterToken, doc);
         if (cells !== null && cells > SPELL_RANGE_CELLS) {
           return warn('SpellOutOfRange', { target: doc.actor.name, cells, range: SPELL_RANGE_CELLS });
         }
-        const left = count - shapeIndex - 1;
+        picked.push(doc);
+        const left = count - picked.length;
         if (left > 0) ui.notifications.info(i18n.format('HEROES_GLORY.Roll.SpellChainPickLeft', { more: more(left) }));
         return true;
       },
     });
   } catch (error) {
     console.warn(`heroes-glory | «${spell.name}»: target pick failed`, error);
-    return [];
   }
-  if (!region) return [];
-  return region.shapes.map((shape) => tokenAt(grid.getOffset(shape.origin))).filter(Boolean);
+  return picked;
 }
 
 /**
