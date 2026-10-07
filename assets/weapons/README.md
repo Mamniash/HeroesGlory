@@ -22,3 +22,17 @@ https://opengameart.org/content/dungeon-crawl-32x32-tiles
 `firearm-ocal.zip`): https://opengameart.org/content/cc0-firearm-icons
 Исходный рисунок — OpenClipart, https://openclipart.org/detail/133459 .
 Лицензия — **CC0**. Файл без изменений.
+
+## Иконки Скорости и Зрения — `assets/game-icons/`
+
+Не оружие, но записаны здесь же, рядом с остальными сторонними иконками. Источник —
+**game-icons.net** (https://game-icons.net), лицензия **CC BY 3.0**
+(https://creativecommons.org/licenses/by/3.0/): использовать можно, указывая автора.
+
+Авторы: **Lorc** (https://lorcblog.blogspot.com) — `lorc-*.svg`; **Delapouite**
+(https://delapouite.com) — `delapouite-*.svg`; **Skoll** — `skoll-*.svg`. Имя файла — автор и
+имя иконки на сайте (`lorc-moon.svg` — https://game-icons.net/1x1/lorc/moon.html).
+
+Изменения: убран чёрный квадрат фона, заливка — золотой градиент листа, чёрная обводка, поля
+по краю (viewBox). Какая иконка где — `SPEED_ICON` и `VISION_ICONS` в
+`module/helpers/skill-icons.mjs`; остальные файлы папки — запасные кандидаты.

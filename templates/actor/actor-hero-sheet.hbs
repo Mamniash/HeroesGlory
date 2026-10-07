@@ -119,27 +119,48 @@
     decides stacking here) — so it paints under both blocks despite
     sharing their exact footprint. Decorative only, aria-hidden. --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--stat_backdrop hero-paperdoll__stat-backdrop" aria-hidden="true"></div>
-  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_speed hero-paperdoll__identity-block"
-    data-tooltip-trigger="stat-speed">
-    {{!-- Edit mode edits the race base (`source`); otherwise the derived
-      total is shown with no `name`, so submitOnChange never writes it
-      back into the base (see base-actor-sheet.mjs's `context.source`). --}}
-    {{#if editMode}}
-    <input class="hero-paperdoll__name-input" type="number" name="system.speed" value="{{source.speed}}" min="0">
-    {{else}}
-    <input class="hero-paperdoll__name-input" type="number" value="{{system.speed}}" readonly>
-    {{/if}}
+  {{!-- Скорость / Зрение — a pair: same-size icon in each
+    (helpers/skill-icons.mjs), centered; Скорость puts its number first,
+    Зрение's name lives only in the tooltip (long names don't fit the cell). --}}
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_speed hero-paperdoll__identity-block hero-paperdoll__stat-cell"
+    data-tooltip-trigger="stat-speed" data-tooltip-click>
+    {{!-- The derived total is shown in both modes, like the primary skills
+      below. In edit mode a click (editPrimaryStat) swaps in the race-base
+      input (`source`) — only that input has a `name`, so submitOnChange
+      never writes the total back into the base (see base-actor-sheet.mjs's
+      `context.source`). Both sit in one fixed-size box, the input laid
+      exactly over the number, so the swap moves nothing. --}}
+    {{!-- Number and icon share one line: the icon's bottom sits on the
+      digits' baseline, like a unit after the number. --}}
+    <span class="hero-paperdoll__speed-group">
+      <span class="hero-paperdoll__speed-value">
+        <span class="hero-paperdoll__speed-display"{{#if editMode}} data-action="editPrimaryStat"{{/if}}>{{system.speed}}</span>
+        {{#if editMode}}
+        <input class="hero-paperdoll__speed-input" type="number" name="system.speed" value="{{source.speed}}" min="0" hidden>
+        {{/if}}
+      </span>
+      <img class="hero-paperdoll__stat-icon" src="{{icons.speed}}" alt="{{localize 'HEROES_GLORY.Hero.Speed'}}">
+    </span>
   </span>
-  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_vision hero-paperdoll__identity-block{{#if editMode}} hero-paperdoll__name-pick{{/if}}"
+  <span class="hero-paperdoll__slot hero-paperdoll__slot--stat_vision hero-paperdoll__identity-block hero-paperdoll__stat-cell{{#if editMode}} hero-paperdoll__name-pick{{/if}}"
     {{#if editMode}}data-action="pickVision" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Hero.VisionPickHint'}}"{{/if}}
-    data-tooltip-trigger="stat-vision">{{localize visionLabel}}</span>
+    data-tooltip-trigger="stat-vision" data-tooltip-click>
+    <img class="hero-paperdoll__stat-icon" src="{{icons.vision}}" alt="{{visionTitle}}">
+  </span>
+  {{!-- Same layout as the Удача / Боевой дух tooltips: icon, title with the
+    total, then the lines. Left click pins it (outside edit mode). --}}
   <template class="hg-tooltip-tpl" data-tooltip-key="stat-speed">
-    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Speed'}}</p>
+    <img class="hg-tooltip__icon" src="{{icons.speed}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{speedTitle}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.SpeedMovement'}}</p>
+    <p>{{localize 'HEROES_GLORY.Tooltip.SpeedInitiative'}}</p>
     {{#each speedLines}}<p>{{this}}</p>{{/each}}
   </template>
   <template class="hg-tooltip-tpl" data-tooltip-key="stat-vision">
-    <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Vision'}}</p>
+    <img class="hg-tooltip__icon" src="{{icons.vision}}" width="82" height="93" alt="">
+    <p class="hg-tooltip__title">{{visionTitle}}</p>
+    {{#each visionNoteKeys}}<p>{{localize this}}</p>{{/each}}
   </template>
 
   {{!-- ==================== Primary skills: labels / icons / values ==================== --}}

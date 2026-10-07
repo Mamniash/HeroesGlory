@@ -156,6 +156,34 @@ export function luckIconPath(value, { large = false } = {}) {
 }
 
 /**
+ * Скорость / Зрение cells on the hero sheet: game-icons.net icons recoloured
+ * to the sheet's gold (assets/game-icons/, authors and licence in
+ * assets/weapons/README.md). The other candidates lie in the same folder —
+ * swap the file name here to switch.
+ */
+const GAME_ICON = (name) => `systems/${SYSTEM_ID}/assets/game-icons/${name}.svg`;
+const SPEED_ICON = 'lorc-wingfoot';
+const VISION_ICONS = {
+  normal: 'lorc-semi-closed-eye',
+  darkvision: 'lorc-beast-eye',
+  nightvision: 'lorc-moon',
+  blindsense: 'skoll-sight-disabled',
+};
+
+/** @returns {string} */
+export function speedIconPath() {
+  return GAME_ICON(SPEED_ICON);
+}
+
+/**
+ * @param {string} vision   A CONFIG.HEROES_GLORY.visionTypes key.
+ * @returns {string}
+ */
+export function visionIconPath(vision) {
+  return GAME_ICON(VISION_ICONS[vision] ?? VISION_ICONS.normal);
+}
+
+/**
  * §6.3: the spellbook overlay's corner-ornament frame overlaid on a
  * spell's icon, one 4-frame set per school (assets/spellbook/<set>/) —
  * confirmed by direct visual inspection: f000 is a single corner

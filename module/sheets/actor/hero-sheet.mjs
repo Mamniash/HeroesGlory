@@ -12,6 +12,7 @@ import {
 import { CLASS_BASE_SKILL_FLAG, isHeroCreated } from '../../helpers/hero-creation.mjs';
 import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
+  speedIconPath, visionIconPath,
 } from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
 import { highestSkillTier } from '../../helpers/skill-bonuses.mjs';
@@ -34,6 +35,18 @@ import { grantSecondarySkill } from '../../helpers/skill-grant.mjs';
 import { restHero } from '../../helpers/rest.mjs';
 import { openManualExperience } from '../../helpers/experience-award.mjs';
 import { HeroesGloryDialog } from '../../apps/dialog.mjs';
+
+/**
+ * Зрение tooltip lines (lang keys): what the type gives by the book — the
+ * race profiles (pp. 8–13) and the one general rule on darkness, p. 26
+ * (moving blind, in darkness or fog, costs double). rules.md §11.
+ */
+const VISION_NOTE_KEYS = {
+  normal: ['HEROES_GLORY.Vision.NormalNote', 'HEROES_GLORY.Vision.NormalBlindNote'],
+  darkvision: ['HEROES_GLORY.Vision.DarkvisionNote', 'HEROES_GLORY.Vision.DarkvisionBlindNote'],
+  nightvision: ['HEROES_GLORY.Vision.NightvisionNote', 'HEROES_GLORY.Vision.NightvisionBlindNote'],
+  blindsense: ['HEROES_GLORY.Vision.BlindsenseNote', 'HEROES_GLORY.Vision.BlindsenseBlindNote'],
+};
 
 /** rules.md: the hero sheet's paperdoll has this many equip positions. */
 const PAPERDOLL_SLOT_COUNT = 19;
@@ -473,6 +486,11 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // never genuinely blank (schema.vision's own `initial: "normal"`), so
     // no `--empty` fallback needed the way Раса/Фракция/Класс have one.
     context.visionLabel = config.visionTypes[system.vision] ?? '';
+    context.visionTitle = game.i18n.format('HEROES_GLORY.Tooltip.VisionTitle', {
+      label: game.i18n.localize(context.visionLabel),
+    });
+    context.visionNoteKeys = VISION_NOTE_KEYS[system.vision] ?? [];
+    context.speedTitle = game.i18n.format('HEROES_GLORY.Tooltip.SpeedTitle', { total: system.speed });
 
     // Primary-skill/Experience/Mana icons are static per slot. Health has
     // no dedicated icon — reusing the Experience frame is a deliberate
@@ -499,6 +517,8 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       manaLarge: primarySkillIconPath('mana', { large: true }),
       moraleLarge: moraleIconPath(system.morale, { large: true }),
       luckLarge: luckIconPath(system.luck, { large: true }),
+      speed: speedIconPath(),
+      vision: visionIconPath(system.vision),
     };
 
     // §2.1/§3: the Mана formula shown in the Mana tooltip — same tier
@@ -855,8 +875,9 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const speed = system.speedParts;
     const speedLines = [i18n.format('HEROES_GLORY.Tooltip.SpeedBasePart', { value: speed.base })];
     if (speed.pathfinding) speedLines.push(skillLine('pathfinding', speed.pathfinding));
-    if (speed.effects) speedLines.push(effectsLine(speed.effects));
+    if (speed.artifacts) speedLines.push(i18n.format('HEROES_GLORY.Tooltip.ArtifactsPart', { value: signed(speed.artifacts) }));
     if (speed.spells) speedLines.push(spellsLine(speed.spells));
+    if (speed.effects) speedLines.push(effectsLine(speed.effects));
     speedLines.push(totalLine(speed.total));
     if (speed.tactics) {
       speedLines.push(i18n.format('HEROES_GLORY.Tooltip.FirstRoundPart', {
@@ -980,11 +1001,24 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // and a full re-render is already in flight, making this toggle-back
     // redundant but harmless; if nothing changed, this is the only thing
     // that puts the display back.
-    this.element.querySelectorAll('.hero-paperdoll__primary-value').forEach((input) => {
+    // Скорость's base input works the same way.
+    // On `change` the display gets the NEW total at once, computed on a
+    // throwaway clone with the typed base (same prepareData as the real
+    // actor — effects, skills, spells, floors): otherwise it would show the
+    // old total (or the typed base) until the update's re-render lands.
+    this.element.querySelectorAll('.hero-paperdoll__primary-value, .hero-paperdoll__speed-input').forEach((input) => {
+      input.addEventListener('change', () => {
+        const display = input.previousElementSibling;
+        if (display?.dataset.action !== 'editPrimaryStat' || input.value === '') return;
+        const preview = this.actor.clone({ [input.name]: Number(input.value) });
+        display.textContent = String(foundry.utils.getProperty(preview, input.name));
+        input.hidden = true;
+        display.hidden = false;
+      });
       input.addEventListener('blur', () => {
         input.hidden = true;
         const display = input.previousElementSibling;
-        if (display?.classList.contains('hero-paperdoll__primary-value-display')) display.hidden = false;
+        if (display?.dataset.action === 'editPrimaryStat') display.hidden = false;
       });
     });
 
@@ -1327,14 +1361,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * base-value input beneath it for editing. Pure DOM toggle, no
    * `this.render()`: the blur handler in `_onRender` (or a submitOnChange
    * re-render, if the value actually changes) is what puts the display
-   * back.
+   * back. Скорость's display/input pair uses the same action.
    * @this {HeroesGloryHeroSheet}
    * @param {PointerEvent} event
-   * @param {HTMLElement} target   The `.hero-paperdoll__primary-value-display` clicked.
+   * @param {HTMLElement} target   The `.hero-paperdoll__primary-value-display`
+   *   or `.hero-paperdoll__speed-display` clicked.
    */
   static #onEditPrimaryStat(event, target) {
     const input = target.nextElementSibling;
-    if (!input?.classList.contains('hero-paperdoll__primary-value')) return;
+    if (!input?.matches('.hero-paperdoll__primary-value, .hero-paperdoll__speed-input')) return;
     target.hidden = true;
     input.hidden = false;
     input.focus();

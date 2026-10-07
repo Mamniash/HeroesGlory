@@ -7,6 +7,7 @@ import {
   luckSkillBase, leadershipMoraleBase, raceMoraleBonus, resolveLuckTotal,
 } from "../helpers/skill-bonuses.mjs";
 import { actorSpellModifiers, applySpellStatModifiers } from "../helpers/spell-effects.mjs";
+import { effectsDeltaForKey } from "../helpers/modifiers.mjs";
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -292,6 +293,14 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
    * are not schema fields — they exist only for the sheet's tooltips and
    * for spending Удача.
    */
+  /** Active effects of equipped artifacts (rules.md §8.2). */
+  #artifactEffects() {
+    const actor = this.parent;
+    if (!actor?.allApplicableEffects) return [];
+    return [...actor.allApplicableEffects()]
+      .filter((e) => e.active && e.flags?.["heroes-glory"]?.artifactModifiers);
+  }
+
   #prepareSkillDerivedStats(spellModifiers = []) {
     const source = this._source;
     const owned = (this.parent?.items ?? [])
@@ -301,10 +310,15 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
 
     const pathfinding = pathfindingSpeedBonus(tier("pathfinding"));
     this.tactics = tacticsSpeedBonus(tier("tactics"));
+    // Effects split for the tooltip: equipped artifacts' modifiers
+    // (documents/item.mjs's flagged effect) apart from the rest (рана в ногу).
+    const effectsTotal = this.speed - source.speed;
+    const artifacts = effectsDeltaForKey(this.#artifactEffects(), "system.speed");
     this.speedParts = {
       base: source.speed,
       pathfinding,
-      effects: this.speed - source.speed,
+      artifacts,
+      effects: effectsTotal - artifacts,
       tactics: this.tactics,
     };
     this.speed += pathfinding;

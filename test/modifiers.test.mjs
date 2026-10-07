@@ -6,6 +6,7 @@ import {
   buildEffectChanges,
   applyModifiers,
   applyModifiersForStat,
+  effectsDeltaForKey,
 } from '../module/helpers/modifiers.mjs';
 
 describe('phaseForStat — §8.2/§10 phase routing', () => {
@@ -117,5 +118,20 @@ describe('applyModifiersForStat — filters to one stat before summing', () => {
   test('a stat with no modifiers returns the base value', () => {
     const modifiers = [{ stat: 'attack', mode: 'add', value: 4 }];
     assert.equal(applyModifiersForStat(5, modifiers, 'speed'), 5);
+  });
+});
+
+describe('effectsDeltaForKey — net add/subtract on one field', () => {
+  const effect = (...changes) => ({ system: { changes } });
+  test('sums add and subtract across effects, only for the key', () => {
+    const effects = [
+      effect({ key: 'system.speed', type: 'add', value: 2 }, { key: 'system.attack', type: 'add', value: 5 }),
+      effect({ key: 'system.speed', type: 'subtract', value: '1' }),
+    ];
+    assert.equal(effectsDeltaForKey(effects, 'system.speed'), 1);
+  });
+  test('no effects — 0', () => {
+    assert.equal(effectsDeltaForKey([], 'system.speed'), 0);
+    assert.equal(effectsDeltaForKey(undefined, 'system.speed'), 0);
   });
 });

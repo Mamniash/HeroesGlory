@@ -96,3 +96,26 @@ export function applyModifiers(baseValue, modifiers) {
 export function applyModifiersForStat(baseValue, modifiers, stat) {
   return applyModifiers(baseValue, modifiers.filter((m) => m.stat === stat));
 }
+
+/**
+ * Net add/subtract a set of ActiveEffects makes to one field — for the hero
+ * sheet's tooltip breakdowns ("Артефакты: +2" apart from other effects).
+ * The caller passes only the effects it wants counted (e.g. the active
+ * artifact-modifier effects); other change types aren't produced by
+ * artifact modifiers (rules.md §8.2: all are «+N» / «−N») and are ignored.
+ * @param {Iterable<{system?: {changes?: Array<{key: string, type: string, value: *}>}}>} effects
+ * @param {string} key   Field path, e.g. "system.speed".
+ * @returns {number}
+ */
+export function effectsDeltaForKey(effects, key) {
+  let sum = 0;
+  for (const effect of effects ?? []) {
+    for (const change of effect?.system?.changes ?? []) {
+      if (change.key !== key) continue;
+      const value = Number(change.value) || 0;
+      if (change.type === 'add') sum += value;
+      else if (change.type === 'subtract') sum -= value;
+    }
+  }
+  return sum;
+}

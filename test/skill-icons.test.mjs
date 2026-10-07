@@ -7,6 +7,8 @@ import {
   moraleIconPath,
   luckIconPath,
   schoolFramePath,
+  speedIconPath,
+  visionIconPath,
 } from '../module/helpers/skill-icons.mjs';
 
 describe('primarySkillIconPath — static per-slot frames', () => {
@@ -103,5 +105,21 @@ describe('schoolFramePath — §6.3 spellbook corner-ornament frame, one set per
 
   test('universal school has no frame set — returns null', () => {
     assert.equal(schoolFramePath('universal', 'none'), null);
+  });
+});
+
+describe('speedIconPath / visionIconPath', () => {
+  test('Скорость — winged foot', () => {
+    assert.equal(speedIconPath(), 'systems/heroes-glory/assets/game-icons/lorc-wingfoot.svg');
+  });
+  test('each vision type has its own icon', () => {
+    const v = (n) => `systems/heroes-glory/assets/game-icons/${n}.svg`;
+    assert.equal(visionIconPath('normal'), v('lorc-semi-closed-eye'));
+    assert.equal(visionIconPath('darkvision'), v('lorc-beast-eye'));
+    assert.equal(visionIconPath('nightvision'), v('lorc-moon'));
+    assert.equal(visionIconPath('blindsense'), v('skoll-sight-disabled'));
+  });
+  test('unknown vision falls back to normal', () => {
+    assert.equal(visionIconPath('nope'), 'systems/heroes-glory/assets/game-icons/lorc-semi-closed-eye.svg');
   });
 });
