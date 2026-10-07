@@ -72,7 +72,19 @@
       title="{{localize confirmHintKey}}">
       {{localize 'HEROES_GLORY.Roll.ConfirmButton'}}
     </button>
+    {{!-- «Отменить» — the GM only (chat.mjs); the Mana goes back. --}}
+    <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-cancel-card"
+      title="{{localize 'HEROES_GLORY.Roll.CancelSpellHint'}}">
+      {{localize 'HEROES_GLORY.Roll.CancelButton'}}
+    </button>
   {{else if confirmed}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">{{localize 'HEROES_GLORY.Roll.Applied'}}</p>
+  {{else if cancelled}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">
+      {{#if cancelledByGm}}{{localize 'HEROES_GLORY.Roll.CancelledByGm'}}{{else}}{{localize 'HEROES_GLORY.Roll.SpellCancelledByLimit'}}{{/if}}
+    </p>
+    {{#if refunded}}
+      <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Roll.ManaRefunded' cost=refunded}}</p>
+    {{/if}}
   {{/if}}
 </div>

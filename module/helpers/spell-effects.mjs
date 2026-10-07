@@ -226,7 +226,7 @@ export function canConfirmSpell(flags) {
   // Развеивание's cell, and a summon (group Д) its own cell.
   const hasSomething = (flags?.targets?.length ?? 0) > 0 || flags?.effectKind === 'field' || !!flags?.dispelCell
     || flags?.effectKind === 'summon' || flags?.effectKind === 'clone';
-  return !!flags && flags.kind === 'spell' && !flags.confirmed && hasSomething;
+  return !!flags && flags.kind === 'spell' && !flags.confirmed && !flags.cancelled && hasSomething;
 }
 
 /**
@@ -692,4 +692,43 @@ export function dispelCellRegionIds(regions, cell) {
   return regions
     .filter((region) => region.visible && region.cells.some((c) => c.i === cell.i && c.j === cell.j))
     .map((region) => region.id);
+}
+
+/**
+ * Does this spell card make a lasting spell (the limit of three, p. 32)?
+ * Слепота, Зыбучий Песок and the instant spells don't — a card still
+ * waiting for its confirm counts too (rules.md §11).
+ * @param {object} flags   the card's
+ * @returns {boolean}
+ */
+export function isLastingSpellCard(flags) {
+  if (flags?.effectKind === 'modifier') return !flags.skipsTurn;
+  if (flags?.effectKind === 'field') return flags.field?.type !== 'quicksand';
+  return flags?.effectKind === 'summon' || flags?.effectKind === 'clone';
+}
+
+/**
+ * Where a token-sized footprint is moved to so that the cursor is its
+ * middle, not its top-left cell (rules.md §11): core moves a grid shape by
+ * the cell under the point, so the point goes back by half the footprint.
+ * @param {{x: number, y: number}} position   the cursor
+ * @param {number} width    in cells
+ * @param {number} height   in cells
+ * @param {number} size     the grid's cell, in pixels
+ * @returns {{x: number, y: number}}
+ */
+export function footprintAnchor(position, width, height, size) {
+  return { x: position.x - ((width - 1) * size) / 2, y: position.y - ((height - 1) * size) / 2 };
+}
+
+/**
+ * The Mana a spell card dropped before its confirm gives back (rules.md
+ * §11) — by the GM's «Отменить» or ended under the limit of three: all it
+ * cost. A Стена Огня's burn card cost nothing; a confirmed card keeps it.
+ * @param {object} flags   the card's
+ * @returns {number}
+ */
+export function cancelledCardRefund(flags) {
+  if (!flags || flags.confirmed || flags.fieldTrigger) return 0;
+  return Math.max(0, flags.manaCost ?? 0);
 }

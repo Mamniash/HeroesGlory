@@ -1,7 +1,7 @@
 import { canRerollWithLuck, hadUnconfirmedAttackBefore } from './rolls.mjs';
 import {
   rerollLuckDie, confirmAttackOutcome, rollNextAttack, confirmSpellOutcome, counterAttackState, rollCounterAttack,
-  toggleSpellTargetExcluded,
+  toggleSpellTargetExcluded, cancelCardByGm,
 } from './roll-actions.mjs';
 
 const FLAG_SCOPE = 'heroes-glory';
@@ -40,7 +40,7 @@ const expandedMessages = new Set();
  */
 export function activateChatListeners(message, html) {
   const flags = message.getFlag(FLAG_SCOPE, 'reroll');
-  const confirmed = !!flags?.confirmed;
+  const confirmed = !!flags?.confirmed || !!flags?.cancelled;
 
   // An unlinked token's attack card names its own actor by uuid.
   const cardActor = flags?.actorUuid ? cardActorFromUuid(flags.actorUuid) : null;
@@ -75,6 +75,19 @@ export function activateChatListeners(message, html) {
       spellConfirmButton.addEventListener('click', () => {
         spellConfirmButton.disabled = true;
         confirmSpellOutcome(message);
+      });
+    }
+  }
+
+  // «Отменить» (rules.md §11): the GM drops a forgotten or mistaken card
+  // before its confirm — a spell's Mana goes back.
+  const cancelButton = html.querySelector('[data-action="hg-cancel-card"]');
+  if (cancelButton) {
+    cancelButton.hidden = !game.user.isGM;
+    if (game.user.isGM) {
+      cancelButton.addEventListener('click', () => {
+        cancelButton.disabled = true;
+        cancelCardByGm(message);
       });
     }
   }
@@ -155,7 +168,7 @@ function cardActorFromUuid(uuid) {
 /**
  * @param {ChatMessage} message
  * @param {object} flags   The message's `reroll` flags (kind 'attack').
- * @returns {{id: string, targetActorId: string|null, timestamp: number, confirmed: boolean, confirmedAt: number|null}}
+ * @returns {{id: string, targetActorId: string|null, timestamp: number, confirmed: boolean, confirmedAt: number|null, cancelled: boolean, combatRound: object|null}}
  */
 function attackCardSummary(message, flags) {
   return {
@@ -164,6 +177,8 @@ function attackCardSummary(message, flags) {
     timestamp: message.timestamp,
     confirmed: !!flags.confirmed,
     confirmedAt: flags.confirmedAt ?? null,
+    cancelled: !!flags.cancelled,
+    combatRound: flags.combatRound ?? null,
   };
 }
 

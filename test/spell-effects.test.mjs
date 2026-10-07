@@ -12,6 +12,7 @@ import {
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
   fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
+  isLastingSpellCard, footprintAnchor, cancelledCardRefund,
 } from '../module/helpers/spell-effects.mjs';
 
 const damage = (dice, extra = {}) => ({ description: '', manaCost: 1, effect: { kind: 'damage', dice, ...extra } });
@@ -931,5 +932,50 @@ describe('summonOwnership — «контролируется вами» (rules.m
   test('the caster\'s players own it; none — the GM alone', () => {
     assert.deepEqual(summonOwnership(['u1']), { default: 0, u1: 3 });
     assert.deepEqual(summonOwnership([]), { default: 0 });
+  });
+});
+
+describe('isLastingSpellCard — what counts in the limit of three, waiting cards too (rules.md §11)', () => {
+  test('modifiers, Силовое Поле, Стена Огня, Призыв, Клон count', () => {
+    assert.equal(isLastingSpellCard({ effectKind: 'modifier' }), true);
+    assert.equal(isLastingSpellCard({ effectKind: 'field', field: { type: 'forceField' } }), true);
+    assert.equal(isLastingSpellCard({ effectKind: 'field', field: { type: 'fireWall' } }), true);
+    assert.equal(isLastingSpellCard({ effectKind: 'summon' }), true);
+    assert.equal(isLastingSpellCard({ effectKind: 'clone' }), true);
+  });
+  test('Слепота, Зыбучий Песок and instant spells don\'t', () => {
+    assert.equal(isLastingSpellCard({ effectKind: 'modifier', skipsTurn: true }), false);
+    assert.equal(isLastingSpellCard({ effectKind: 'field', field: { type: 'quicksand' } }), false);
+    assert.equal(isLastingSpellCard({ effectKind: 'heal' }), false);
+    assert.equal(isLastingSpellCard({ kind: 'spell' }), false);
+  });
+});
+
+describe('footprintAnchor — a footprint by its middle (rules.md §11)', () => {
+  test('1×1 — the cursor itself', () => {
+    assert.deepEqual(footprintAnchor({ x: 450, y: 650 }, 1, 1, 100), { x: 450, y: 650 });
+  });
+  test('2×2 — half a cell up and left, so the cursor sits at the middle', () => {
+    assert.deepEqual(footprintAnchor({ x: 500, y: 700 }, 2, 2, 100), { x: 450, y: 650 });
+  });
+  test('3×3 — a whole cell up and left', () => {
+    assert.deepEqual(footprintAnchor({ x: 450, y: 650 }, 3, 3, 100), { x: 350, y: 550 });
+  });
+});
+
+describe('canConfirmSpell — a card ended under the limit of three can\'t be confirmed', () => {
+  test('cancelled', () => {
+    assert.equal(canConfirmSpell({ kind: 'spell', effectKind: 'modifier', targets: [{}], cancelled: true }), false);
+  });
+});
+
+describe('cancelledCardRefund — Mana back for a card dropped before its confirm (rules.md §11)', () => {
+  test('all it cost', () => {
+    assert.equal(cancelledCardRefund({ kind: 'spell', manaCost: 8 }), 8);
+  });
+  test('a confirmed card, a Стена Огня burn, a card without cost — nothing', () => {
+    assert.equal(cancelledCardRefund({ kind: 'spell', manaCost: 8, confirmed: true }), 0);
+    assert.equal(cancelledCardRefund({ kind: 'spell', fieldTrigger: 'enter' }), 0);
+    assert.equal(cancelledCardRefund({ kind: 'spell' }), 0);
   });
 });

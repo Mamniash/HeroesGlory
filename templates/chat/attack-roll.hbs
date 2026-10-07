@@ -184,8 +184,15 @@
       title="{{localize 'HEROES_GLORY.Roll.ConfirmHint'}}">
       {{localize 'HEROES_GLORY.Roll.ConfirmButton'}}
     </button>
+    {{!-- «Отменить» — the GM only (chat.mjs). --}}
+    <button type="button" class="heroes-glory-chat-card__confirm-btn" data-action="hg-cancel-card"
+      title="{{localize 'HEROES_GLORY.Roll.CancelAttackHint'}}">
+      {{localize 'HEROES_GLORY.Roll.CancelButton'}}
+    </button>
   {{else if confirmed}}
     <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">{{localize 'HEROES_GLORY.Roll.Applied'}}</p>
+  {{else if cancelled}}
+    <p class="heroes-glory-chat-card__line heroes-glory-chat-card__applied">{{localize 'HEROES_GLORY.Roll.CancelledByGm'}}</p>
   {{/if}}
 
   {{!-- §11 attack series: shown to the attacker's owners and the GM only

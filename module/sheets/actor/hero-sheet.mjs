@@ -3,7 +3,7 @@ import {
   moraleAttemptsRemaining, moraleCheckVariant, secondarySkillSlotCount, parseGoldInput, parseCorrectionInput,
 } from '../../helpers/rolls.mjs';
 import { isMaxDepleted, applyWoundPenalty } from '../../helpers/wounds.mjs';
-import { findSpellVariant, castSpell, spellChoosesElement } from '../../helpers/roll-actions.mjs';
+import { findSpellVariant } from '../../helpers/roll-actions.mjs';
 import { HeroesGloryLevelUpApp } from '../../apps/level-up-app.mjs';
 import { HeroesGloryPickerApp } from '../../apps/picker-app.mjs';
 import {
@@ -147,7 +147,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
   static DEFAULT_OPTIONS = {
     actions: {
       backpackScroll: this.#onBackpackScroll,
-      castSpell: this.#onCastSpell,
       openSpellbook: this.#onOpenSpellbook,
       closeSpellbook: this.#onCloseSpellbook,
       spellbookPage: this.#onSpellbookPage,
@@ -736,23 +735,19 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // hero's current tier in the spell's school — same resolution
       // castSpell uses to actually cast it, see roll-actions.mjs. For a
       // Универсальные spell tied between two-or-more elemental schools,
-      // `resolvedSchool` is only a PREVIEW (candidateSchools[0], first by
-      // SCHOOL_ORDER) — `ambiguous` flags that casting will still ask the
-      // player which school to credit; variant/variantData themselves are
-      // already correct either way (tier — and so cost/description — is
-      // identical across every tied candidate by construction).
-      const { variant, variantData, resolvedSchool } = findSpellVariant(this.actor, spell);
+      // `resolvedSchool` is `universal` (rules.md §11, nobody is asked);
+      // the frame shows the first tied school (candidateSchools[0], by
+      // SCHOOL_ORDER) — the tier, and so the frame, is the same for each.
+      const { variant, variantData, resolvedSchool, candidateSchools } = findSpellVariant(this.actor, spell);
       const iconSrc = (!spell.img || spell.img === defaultSpellIcon) ? config.unknownSpellIcon : spell.img;
       return {
         item: spell,
         iconSrc,
         variantData,
         // null when no school is owned at all — see skill-icons.mjs's
-        // schoolFramePath. For the ambiguous case this is the PREVIEW
-        // school's frame (Сеня: showing no frame at all would read as
-        // "untrained", which is a different, worse-lying state than
-        // "trained, but pick which school when you actually cast").
-        frame: schoolFramePath(resolvedSchool, variant),
+        // schoolFramePath. On a tie, the first tied school's frame (Сеня:
+        // no frame at all would read as "untrained").
+        frame: schoolFramePath(resolvedSchool === 'universal' ? candidateSchools[0] : resolvedSchool, variant),
       };
     });
     // Padded to a fixed length, like paperdollSlots/backpackVisibleItems/
@@ -1401,44 +1396,6 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       windowTitle,
       initialScreen,
     );
-  }
-
-  /**
-   * §6.3/§11: cast the owned spell identified by `data-item-id` — an
-   * override of `HeroesGloryActorSheet`'s own base `castSpell` action
-   * (creature sheets keep that simpler version: creatures never own an
-   * earthMagic/airMagic/waterMagic/fireMagic skill item, so
-   * findSpellVariant can never come back ambiguous for one — nothing here
-   * would ever fire for a creature anyway). For an ordinary spell, or a
-   * Универсальные spell with 0-or-1 candidate schools, this is exactly
-   * the base behavior: cast immediately. Only a 2+-way tie detours
-   * through the same picker mechanism Раса/Фракция/Цвет панели already
-   * use — `onPick` casts with the chosen school and closes (no confirm
-   * step, same "pick -> apply -> close" shape as Цвет панели/Зрение).
-   * @this {HeroesGloryHeroSheet}
-   * @param {PointerEvent} event
-   * @param {HTMLElement} target
-   */
-  static async #onCastSpell(event, target) {
-    const spell = this.actor.items.get(target.dataset.itemId);
-    if (!spell) return;
-    // Group Д: Призыв Элементаля asks for the element instead — its school
-    // decides the variant (castSpell's own dialog, rules.md §11).
-    if (await spellChoosesElement(spell)) return castSpell(this.actor, spell);
-
-    const { ambiguous, candidateSchools } = findSpellVariant(this.actor, spell);
-    if (!ambiguous) return castSpell(this.actor, spell);
-
-    const config = CONFIG.HEROES_GLORY;
-    const choices = Object.fromEntries(candidateSchools.map((key) => [key, game.i18n.localize(config.schools[key])]));
-    // No `current` value — nothing is picked yet, that's the whole point
-    // of asking. #buildListScreen still works fine with a currentValue
-    // that matches none of the choices (every option's `current` is false).
-    const screen = this.#buildListScreen(choices, null, async (schoolKey) => {
-      await castSpell(this.actor, spell, schoolKey);
-      return null;
-    });
-    return this.#openPicker(game.i18n.localize('HEROES_GLORY.Spellbook.SchoolPickTitle'), screen);
   }
 
   /**

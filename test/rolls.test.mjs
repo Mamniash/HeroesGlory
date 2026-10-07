@@ -1070,33 +1070,48 @@ describe('ownersAndGmRecipients — whisper list for "the player and the GM"', (
 });
 
 describe('hadUnconfirmedAttackBefore — the "another attack on this target is pending" warning', () => {
-  const card = { id: 'b', targetActorId: 't', timestamp: 200 };
+  const round = { combat: 'c1', round: 2 };
+  const card = { id: 'b', targetActorId: 't', timestamp: 200, combatRound: round };
 
   test('an earlier, still-unconfirmed attack on the same target', () => {
-    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false }]), true);
+    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, combatRound: round, confirmed: false }]), true);
   });
 
   test('stays true after that earlier card is confirmed later', () => {
-    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true, confirmedAt: 300 }];
+    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, combatRound: round, confirmed: true, confirmedAt: 300 }];
     assert.equal(hadUnconfirmedAttackBefore(card, others), true);
   });
 
   test('false when the earlier card was confirmed before this one was rolled', () => {
-    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true, confirmedAt: 150 }];
+    const others = [{ id: 'a', targetActorId: 't', timestamp: 100, combatRound: round, confirmed: true, confirmedAt: 150 }];
     assert.equal(hadUnconfirmedAttackBefore(card, others), false);
   });
 
   test('a card confirmed before confirmedAt existed counts as confirmed long ago', () => {
-    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: true }]), false);
+    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, combatRound: round, confirmed: true }]), false);
   });
 
   test('ignores later cards, other targets, and the card itself', () => {
     const others = [
       card,
-      { id: 'c', targetActorId: 't', timestamp: 300, confirmed: false },
-      { id: 'd', targetActorId: 'other', timestamp: 100, confirmed: false },
+      { id: 'c', targetActorId: 't', timestamp: 300, combatRound: round, confirmed: false },
+      { id: 'd', targetActorId: 'other', timestamp: 100, combatRound: round, confirmed: false },
     ];
     assert.equal(hadUnconfirmedAttackBefore(card, others), false);
+  });
+
+  test('only the same battle and round (rules.md §11)', () => {
+    const earlierRound = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false, combatRound: { combat: 'c1', round: 1 } }];
+    const otherCombat = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false, combatRound: { combat: 'c2', round: 2 } }];
+    const outOfCombat = [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false, combatRound: null }];
+    assert.equal(hadUnconfirmedAttackBefore(card, earlierRound), false);
+    assert.equal(hadUnconfirmedAttackBefore(card, otherCombat), false);
+    assert.equal(hadUnconfirmedAttackBefore(card, outOfCombat), false);
+    assert.equal(hadUnconfirmedAttackBefore({ ...card, combatRound: null }, outOfCombat), false);
+  });
+
+  test('a card the GM cancelled never warns', () => {
+    assert.equal(hadUnconfirmedAttackBefore(card, [{ id: 'a', targetActorId: 't', timestamp: 100, confirmed: false, cancelled: true, combatRound: round }]), false);
   });
 
   test('no target: never warns', () => {

@@ -71,7 +71,7 @@ import {
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
-  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds,
+  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
@@ -420,6 +420,7 @@ function buildAttackContext(actor, flags) {
     targetActorId: flags.targetActorId,
     confirmed,
     canConfirm: canConfirmAttack(flags),
+    cancelled: !!flags.cancelled,
     headlineOutcome: resolveAttackHeadlineOutcome(hit, defeat),
     // §5.2/§5.3/§5.7: hit modifiers, adjacency the grid couldn't measure,
     // the legendary contested defeat test.
@@ -667,8 +668,12 @@ export async function rollAttack(actor, weapon = null, { ranged = false, series 
   const hit = resolveHit(hitDie, hitModifier);
   const epicCascade = await rollEpicCascade(hit, epicTable, legendary);
 
+  // The battle and round the attack is rolled in — the pending-attack
+  // warning compares only these (rules.md §11).
+  const attackCombat = actorCombat(actor)?.combat ?? null;
   const flags = {
     kind: 'attack',
+    combatRound: attackCombat ? { combat: attackCombat.id, round: attackCombat.round } : null,
     actorId: actor.id,
     actorUuid: actor.uuid,
     targetActorId: targetActor?.id ?? null,
@@ -797,7 +802,8 @@ export async function rerollAttackDie(message, slot) {
   if (!flags || flags.kind !== 'attack') return;
   // §task: "Реролл после подтверждения запрещаем" — belt-and-suspenders
   // alongside the button being hidden/removed once confirmed (chat.mjs).
-  if (flags.confirmed) return;
+  // A card the GM cancelled is done too.
+  if (flags.confirmed || flags.cancelled) return;
 
   const actor = actorFromCard(flags.actorUuid, flags.actorId);
   if (!actor) return;
@@ -972,38 +978,31 @@ export async function rollNextAttack(message) {
  * is highest-tier (resolveUniversalSchool, rolls.mjs) — Сеня's ruling for
  * the open book question, docs/rules.md §11.
  *
- * A tie between two-or-more schools at that max tier is `ambiguous: true`
- * unless the caller already resolved it via `chosenSchool` (the school
- * the player picked in the picker triggered by the ambiguous case —
- * module/sheets/actor/hero-sheet.mjs's castSpell action override).
- * `variant`/`variantData` are still fully resolved even while ambiguous —
- * the tier (and so the mana cost/description) is identical across every
- * tied candidate by construction, only WHICH school gets credit is
- * unresolved — so a preview using `candidateSchools[0]` never shows a
- * wrong number, only a provisional school.
+ * A tie between two-or-more schools at that max tier isn't asked about
+ * (rules.md §11): the tier — and so the variant and its cost — is the same
+ * whichever tied school it is, and nothing else depends on the school (an
+ * immunity goes by the effect's own element). The school is then
+ * `universal` itself — the card says «Школа: Универсальные»;
+ * `candidateSchools[0]` is still there for the spellbook's frame.
  *
  * Shared by castSpell (the cast/charge flow below) and the hero sheet's
  * spellbook overlay (tooltip/frame content, hero-sheet.mjs) so the
  * school→skill→tier→variant chain lives in exactly one place.
  * @param {Actor} actor
  * @param {Item} spell
- * @param {string|null} [chosenSchool]   An elemental school the player
- *   already picked for this specific cast (only meaningful when `spell`'s
- *   own school is `universal`); ignored otherwise.
  * @returns {{
  *   variant: string,
  *   variantData: {description: string, manaCost: number},
  *   resolvedSchool: string|null,
- *   ambiguous: boolean,
  *   candidateSchools: string[],
  * }}
  *   `resolvedSchool` is `null` only when nothing is owned at all (no
- *   elemental school for a universal spell). `candidateSchools` is always
- *   `[school]` for an ordinary spell; for universal it's every
- *   tied-for-highest elemental school (length 0/1/2+ — see
- *   resolveUniversalSchool).
+ *   elemental school for a universal spell), `universal` on a tie.
+ *   `candidateSchools` is always `[school]` for an ordinary spell; for
+ *   universal it's every tied-for-highest elemental school (length 0/1/2+ —
+ *   see resolveUniversalSchool).
  */
-export function findSpellVariant(actor, spell, chosenSchool = null) {
+export function findSpellVariant(actor, spell) {
   const school = spell.system.school;
 
   if (school === 'universal') {
@@ -1012,10 +1011,9 @@ export function findSpellVariant(actor, spell, chosenSchool = null) {
       actor.items.find((i) => i.type === 'skill' && i.system.skillKey === SCHOOL_SKILL_KEYS[s])?.system.tier ?? null,
     ]));
     const { candidateSchools, tier } = resolveUniversalSchool(schoolTiers);
-    const ambiguous = !chosenSchool && candidateSchools.length > 1;
-    const resolvedSchool = chosenSchool ?? candidateSchools[0] ?? null;
+    const resolvedSchool = candidateSchools.length > 1 ? 'universal' : candidateSchools[0] ?? null;
     const variant = resolveSpellVariant(tier);
-    return { variant, variantData: spell.system.variants[variant], resolvedSchool, ambiguous, candidateSchools };
+    return { variant, variantData: spell.system.variants[variant], resolvedSchool, candidateSchools };
   }
 
   const skillKey = SCHOOL_SKILL_KEYS[school];
@@ -1025,7 +1023,6 @@ export function findSpellVariant(actor, spell, chosenSchool = null) {
     variant,
     variantData: spell.system.variants[variant],
     resolvedSchool: school || null,
-    ambiguous: false,
     candidateSchools: [school],
   };
 }
@@ -1069,21 +1066,11 @@ export function spellLevelGate(actor, spell) {
  * already reads/spends `variantData.manaCost` — not a second cost
  * computation living somewhere else.
  *
- * `chosenSchool` threads straight through to findSpellVariant — for an
- * ambiguous Универсальные spell, the caller (hero-sheet.mjs's castSpell
- * action override) must resolve the ambiguity via its school-picker
- * BEFORE calling this, then pass the pick here. Called with an
- * unresolved ambiguity, this refuses to cast at all (no Mana spent, no
- * chat message) rather than silently guessing a school — the picker path
- * is the only supported way through that case, this is just a defensive
- * backstop against a caller that forgot to check.
  * @param {Actor} actor   The casting hero.
  * @param {Item} spell    The spell item.
- * @param {string|null} [chosenSchool]   See findSpellVariant.
- * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana, or the
- *   school is still ambiguous — nothing is cast either way.
+ * @returns {Promise<ChatMessage|null>}   `null` if not enough Mana — nothing is cast.
  */
-export async function castSpell(actor, spell, chosenSchool = null) {
+export async function castSpell(actor, spell) {
   // §6.1 (p. 32): no Книга Магии → only race-granted spells; no Mana spent.
   if (actor.type === 'hero' && !canCastWithoutSpellbook({
     hasSpellbook: actor.items.some((i) => i.type === 'spellbook'),
@@ -1109,13 +1096,12 @@ export async function castSpell(actor, spell, chosenSchool = null) {
   let summonElement = null;
   if (actor.type === 'hero' && await spellChoosesElement(spell)) {
     if (!summonCanStart(actor, spell)) return null;
-    summonElement = chosenSchool ?? await chooseSummonElement(actor, spell);
+    summonElement = await chooseSummonElement(actor, spell);
     if (!summonElement) return null;
   }
-  const { variant, variantData, resolvedSchool, ambiguous } = summonElement
+  const { variant, variantData, resolvedSchool } = summonElement
     ? elementSpellVariant(actor, spell, summonElement)
-    : findSpellVariant(actor, spell, chosenSchool);
-  if (ambiguous) return null;
+    : findSpellVariant(actor, spell);
 
   const discount = specializationManaDiscount(actor.system.specialization, spell.name);
   const manaCost = Math.max(0, variantData.manaCost - discount);
@@ -1188,12 +1174,12 @@ const SPELLS_PACK = 'heroes-glory.spells';
 const CREATURES_PACK = 'heroes-glory.creatures';
 
 /**
- * Group Д: does this spell summon an elemental (`summon`)? The hero sheet
- * asks before its school picker — the element is chosen instead.
+ * Group Д: does this spell summon an elemental (`summon`)? The element is
+ * chosen instead of a school.
  * @param {Item} spell
  * @returns {Promise<boolean>}
  */
-export async function spellChoosesElement(spell) {
+async function spellChoosesElement(spell) {
   if (spell?.system?.school !== 'universal') return false;
   const variants = await spellEffectVariants(spell);
   return variants?.none?.effect?.kind === 'summon';
@@ -1205,12 +1191,12 @@ export async function spellChoosesElement(spell) {
  * @param {Actor} actor
  * @param {Item} spell
  * @param {string} element   a school key
- * @returns {{variant: string, variantData: object, resolvedSchool: string, ambiguous: boolean}}
+ * @returns {{variant: string, variantData: object, resolvedSchool: string}}
  */
 function elementSpellVariant(actor, spell, element) {
   const tier = actor.items.find((i) => i.type === 'skill' && i.system.skillKey === SCHOOL_SKILL_KEYS[element])?.system.tier;
   const variant = resolveSpellVariant(tier);
-  return { variant, variantData: spell.system.variants[variant], resolvedSchool: element, ambiguous: false };
+  return { variant, variantData: spell.system.variants[variant], resolvedSchool: element };
 }
 
 /**
@@ -1378,6 +1364,30 @@ function antimagicRefuses(spell, selected) {
   const target = selected[0].actor;
   if (!target || !antimagicBlocks({ modifiers: spellModifierEffects(target), spellLevel: spell.system.level, spellName: spell.name })) return false;
   ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellAntimagicRefused', { spell: spell.name, target: target.name }));
+  return true;
+}
+
+/**
+ * One chosen target the spell can't touch is refused before any Mana, as
+ * Антимагия is (rules.md §11): Антимагия, or a creature's immunity by its
+ * tags — to the spell's element, to mind magic, to every spell, to this
+ * spell. With more targets the card says it per target.
+ * @param {Item} spell
+ * @param {object} effect   the variant's effect
+ * @param {TokenDocument[]} selected
+ * @returns {boolean}   refused (and told)
+ */
+function soleTargetRefuses(spell, effect, selected) {
+  if (antimagicRefuses(spell, selected)) return true;
+  if (selected.length !== 1) return false;
+  const target = selected[0].actor;
+  if (target?.type !== 'creature') return false;
+  const immunity = spellImmunity(creatureSpellProfile(target.system.specialSkills ?? []),
+    { element: effect.element, spellName: spell.name, mind: !!effect.mindEffect });
+  if (!immunity) return false;
+  const i18n = game.i18n;
+  const reason = i18n.format(SPELL_IMMUNITY_LABELS[immunity], { element: i18n.localize(`HEROES_GLORY.Roll.SpellElement.${effect.element || 'none'}`) });
+  ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellImmuneRefused', { spell: spell.name, target: target.name, reason }));
   return true;
 }
 
@@ -1555,9 +1565,9 @@ async function castDamageSpell(actor, spell, { variant, variantData, resolvedSch
     }
   }
 
-  // Антимагия: one chosen target is refused; «в поле зрения» checks each
-  // target on the card instead (rules.md §11).
-  if (!visible && antimagicRefuses(spell, selected)) return null;
+  // Антимагия or an immunity: one chosen target is refused; «в поле
+  // зрения» and a chain check each target on the card instead (rules.md §11).
+  if (!visible && (targeting.mode === 'chain' ? antimagicRefuses(spell, selected) : soleTargetRefuses(spell, effect, selected))) return null;
 
   // Цепная Молния: the chain's extra targets aren't limited by range; the
   // targets picked by the specialization are left out of it.
@@ -1684,6 +1694,11 @@ function buildSpellCardContext(flags) {
     description: flags.description,
     manaCost: flags.manaCost,
     manaRemaining: flags.manaRemaining,
+    // Ended for another cast under the limit of three before its confirm,
+    // or dropped by the GM («Отменить», rules.md §11).
+    cancelled: !!flags.cancelled,
+    cancelledByGm: !!flags.cancelledByGm,
+    refunded: flags.manaRefunded || null,
   };
   if (flags.effectKind === 'modifier') return buildModifierSpellCardContext(flags, context);
   if (['heal', 'dispel', 'resurrect'].includes(flags.effectKind)) return buildSupportSpellCardContext(flags, context);
@@ -1945,7 +1960,7 @@ async function castSupportSpell(actor, spell, { variant, variantData, resolvedSc
     }
   }
 
-  if (antimagicRefuses(spell, selected)) return null;
+  if (soleTargetRefuses(spell, effect, selected)) return null;
 
   const manaRemaining = actor.system.mana.value - manaCost;
   await actor.update({ 'system.mana.value': manaRemaining });
@@ -2355,7 +2370,7 @@ async function castTeleportSpell(actor, spell, { variant, variantData, resolvedS
     ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellTeleportNotFriendly', { spell: spell.name, target: targetDoc.actor.name }));
     return null;
   }
-  if (antimagicRefuses(spell, selected)) return null;
+  if (soleTargetRefuses(spell, effect, selected)) return null;
 
   const scene = casterToken.parent;
   const grid = canvas.grid;
@@ -2375,6 +2390,7 @@ async function castTeleportSpell(actor, spell, { variant, variantData, resolvedS
     }, {
       create: false,
       allowRotation: false,
+      onMove: footprintByMiddle(targetDoc.width, targetDoc.height),
       preConfirm: ({ shape }) => {
         const cells = shape.offsets;
         let refusal = null;
@@ -2460,7 +2476,7 @@ async function castFieldSpell(actor, spell, { variant, variantData, resolvedScho
   const count = field.cells + specialization.extraCells;
   // Зыбучий Песок lasts to the end of the battle — not a lasting spell (rules.md §11).
   const quicksand = field.type === 'quicksand';
-  const endCast = quicksand ? null : await chooseLastingSpellToEnd(actor, spell, []);
+  const endCast = quicksand ? null : await chooseLastingSpellToEnd(actor, spell.name, []);
   if (endCast === false) return null;
 
   const scene = casterToken.parent;
@@ -2690,6 +2706,7 @@ async function confirmFieldSpell(message, flags) {
   }
   const scene = game.scenes.get(flags.field.sceneId);
   if (!scene) return;
+  if (!(await confirmWithinLimit(flags))) return;
   await endLastingCast(flags);
   if (flags.field.type === 'quicksand') {
     await createQuicksandTraps(scene, flags);
@@ -2808,6 +2825,22 @@ export async function springQuicksand(region, tokenDoc) {
 }
 
 /**
+ * A token-sized footprint follows the cursor by its middle, not its top-left
+ * cell (rules.md §11): core moves a grid shape by the cell under the point,
+ * so the point is moved back by half the footprint first. 1×1 is unchanged.
+ * @param {number} width    in cells
+ * @param {number} height   in cells
+ * @returns {(args: {position: Point, shape: object}) => false}   placeRegion's onMove
+ */
+function footprintByMiddle(width, height) {
+  const size = canvas.grid.size;
+  return ({ position, shape }) => {
+    shape.move(footprintAnchor(position, width, height, size), { snap: true });
+    return false;
+  };
+}
+
+/**
  * The cells a token-sized footprint takes with `cell` as its top-left.
  * @param {{i: number, j: number}} cell
  * @param {number} width   in cells
@@ -2878,7 +2911,7 @@ async function castSummonSpell(actor, spell, { variant, variantData, resolvedSch
     ui.notifications.error(i18n.format('HEROES_GLORY.Roll.SummonNoCreature', { creature: SUMMON_ELEMENTALS[element] }));
     return null;
   }
-  const endCast = await chooseLastingSpellToEnd(actor, spell, []);
+  const endCast = await chooseLastingSpellToEnd(actor, spell.name, []);
   if (endCast === false) return null;
 
   const scene = casterToken.parent;
@@ -2900,6 +2933,7 @@ async function castSummonSpell(actor, spell, { variant, variantData, resolvedSch
     }, {
       create: false,
       allowRotation: false,
+      onMove: footprintByMiddle(width, height),
       preConfirm: ({ shape }) => {
         const cells = shape.offsets;
         const distance = Math.min(...cells.map((cell) => tokenCellDistance(casterToken, cell)));
@@ -3047,10 +3081,13 @@ async function confirmSummonSpell(message, flags) {
     ui.notifications.error(i18n.format('HEROES_GLORY.Roll.SummonNoCreature', { creature: flags.summon.creatureName }));
     return;
   }
+  if (!(await confirmWithinLimit(flags))) return;
   await endLastingCast(flags);
   const caster = actorFromCard(flags.actorUuid, flags.actorId);
   const casterToken = scene.tokens.find((t) => t.actor === caster || t.actorId === caster?.id) ?? null;
   const tokenData = (await base.getTokenDocument({
+    // Told apart from the bestiary's own in the tracker and on the scene.
+    name: i18n.format('HEROES_GLORY.Roll.SummonTokenName', { name: flags.summon.creatureName }),
     x: flags.summon.destination.x,
     y: flags.summon.destination.y,
     level: flags.summon.level,
@@ -3121,7 +3158,7 @@ async function chooseCloneCount(actor, spell, manaCost) {
  * @param {object} cast   variant, variantData, resolvedSchool, manaCost
  * @returns {Promise<ChatMessage|null>}
  */
-async function castCloneSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost: oneCost }) {
+async function castCloneSpell(actor, spell, { variant, variantData, resolvedSchool, manaCost: oneCost, effect }) {
   const i18n = game.i18n;
   const castStart = casterCombatStart(actor);
   if (!castStart) {
@@ -3159,7 +3196,7 @@ async function castCloneSpell(actor, spell, { variant, variantData, resolvedScho
     }));
     return null;
   }
-  if (antimagicRefuses(spell, [targetDoc])) return null;
+  if (soleTargetRefuses(spell, effect, [targetDoc])) return null;
   const grid = canvas.grid;
   if (grid.isGridless) {
     ui.notifications.warn(i18n.format('HEROES_GLORY.Roll.SpellAreaNoGrid', { spell: spell.name }));
@@ -3168,7 +3205,7 @@ async function castCloneSpell(actor, spell, { variant, variantData, resolvedScho
   const count = await chooseCloneCount(actor, spell, oneCost);
   if (!count) return null;
   const manaCost = oneCost * count;
-  const endCast = await chooseLastingSpellToEnd(actor, spell, []);
+  const endCast = await chooseLastingSpellToEnd(actor, spell.name, []);
   if (endCast === false) return null;
 
   const scene = casterToken.parent;
@@ -3190,6 +3227,7 @@ async function castCloneSpell(actor, spell, { variant, variantData, resolvedScho
     }, {
       create: false,
       allowRotation: false,
+      onMove: footprintByMiddle(width, height),
       preConfirm: ({ document, shape, shapeIndex }) => {
         const cells = shape.offsets;
         const taken = new Set(document.shapes.slice(0, shapeIndex).flatMap((s) => s.offsets ?? []).map(cellKey));
@@ -3282,6 +3320,7 @@ async function confirmCloneSpell(message, flags) {
     ui.notifications.error(i18n.format('HEROES_GLORY.Roll.ConfirmTargetMissing', { target: flags.clone.name }));
     return;
   }
+  if (!(await confirmWithinLimit(flags))) return;
   await endLastingCast(flags);
   const caster = actorFromCard(flags.actorUuid, flags.actorId);
   const casterToken = scene.tokens.find((t) => t.actor === caster || t.actorId === caster?.id) ?? null;
@@ -3297,7 +3336,8 @@ async function confirmCloneSpell(message, flags) {
   };
   for (const destination of flags.clone.destinations) {
     const tokenData = (await base.getTokenDocument({
-      name: flags.clone.name,
+      // «Неотличима от оригинала» in play; the GM's tracker still tells them apart.
+      name: i18n.format('HEROES_GLORY.Roll.CloneTokenName', { name: flags.clone.name }),
       x: destination.x,
       y: destination.y,
       width: flags.clone.width,
@@ -3334,10 +3374,75 @@ async function endLastingCast(flags) {
   for (const effect of ending?.effects ?? []) await effect.delete();
   for (const region of ending?.regions ?? []) await region.delete();
   for (const token of ending?.tokens ?? []) await dismissSummoned(token);
+  if (ending?.pendingMessage) await cancelPendingCard(ending.pendingMessage);
 }
 
 /**
- * The spell card after its confirm: `confirmed`, redrawn.
+ * A lasting cast still waiting for its confirm, ended for another under the
+ * limit of three: its card can't be confirmed any more and says so, and its
+ * Mana goes back — nothing was applied (rules.md §11).
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage>}
+ */
+async function cancelPendingCard(message) {
+  const flags = message.getFlag(FLAG_SCOPE, 'spell');
+  const nextFlags = { ...flags, cancelled: true, manaRefunded: await refundCardMana(flags) };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/**
+ * A spell card dropped before its confirm gives its caster the Mana back
+ * (cancelledCardRefund, spell-effects.mjs).
+ * @param {object} flags   the card's
+ * @returns {Promise<number>}   how much went back
+ */
+async function refundCardMana(flags) {
+  const refund = cancelledCardRefund(flags);
+  const caster = actorFromCard(flags.actorUuid, flags.actorId);
+  if (!refund || !(caster instanceof Actor)) return 0;
+  await caster.update({ 'system.mana.value': caster.system.mana.value + refund });
+  return refund;
+}
+
+/**
+ * «Отменить» (rules.md §11): the GM drops an attack or spell card still
+ * waiting for its confirm — a forgotten or a mistaken one. Nothing was
+ * applied, so nothing is undone on the targets; a spell's Mana goes back to
+ * its caster (not the Стена Огня's burn, which cost none). The card says
+ * «Отменено Ведущим» and keeps no buttons; a lasting cast stops counting in
+ * the limit of three.
+ * @param {ChatMessage} message
+ * @returns {Promise<ChatMessage|void>}
+ */
+export async function cancelCardByGm(message) {
+  if (!game.user.isGM) return;
+  const attack = message.getFlag(FLAG_SCOPE, 'reroll');
+  if (attack?.kind === 'attack') {
+    if (!canConfirmAttack(attack)) return;
+    const actor = actorFromCard(attack.actorUuid, attack.actorId);
+    const nextFlags = { ...attack, cancelled: true, cancelledByGm: true };
+    const content = await foundry.applications.handlebars.renderTemplate(
+      'systems/heroes-glory/templates/chat/attack-roll.hbs',
+      buildAttackContext(actor ?? { name: '', id: attack.actorId }, nextFlags),
+    );
+    return message.update({ content, flags: { [FLAG_SCOPE]: { reroll: nextFlags } } });
+  }
+  const flags = message.getFlag(FLAG_SCOPE, 'spell');
+  if (!canConfirmSpell(flags)) return;
+  const nextFlags = { ...flags, cancelled: true, cancelledByGm: true, manaRefunded: await refundCardMana(flags) };
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/spell-cast.hbs',
+    buildSpellCardContext(nextFlags),
+  );
+  return message.update({ content, flags: { [FLAG_SCOPE]: { spell: nextFlags } } });
+}
+
+/**
+ * The GM's confirm of a lasting spell: `confirmed`, redrawn.
  * @param {ChatMessage} message
  * @param {object} flags
  * @returns {Promise<ChatMessage>}
@@ -3476,8 +3581,13 @@ function spellStatText(modifier) {
  * @param {object} flags   the spell card's flags
  * @returns {string}
  */
-function lastingSpellEffectText(flags) {
-  const modifiers = flags.modifiers ?? (flags.modifier ? [flags.modifier] : []);
+function lastingSpellEffectText(flags, target = null) {
+  let modifiers = flags.modifiers ?? (flags.modifier ? [flags.modifier] : []);
+  // Забывчивость on a target whose shots it takes all: «стрелять не может».
+  if (Number.isFinite(target?.rangedSeries) && modifiers.some((m) => m.stat === 'rangedAttacks')
+    && rangedSeriesAfterSpells(target.rangedSeries, modifiers) === 0) {
+    modifiers = modifiers.map((m) => (m.stat === 'rangedAttacks' ? { ...m, stat: 'noRangedAttacks' } : m));
+  }
   const damageOnly = modifiers.length === 1
     && ['damageDealt', 'meleeDamageTaken', 'rangedDamageTaken'].includes(modifiers[0].stat);
   if (damageOnly && !flags.status) return spellModifierText({ spellName: flags.spellName, value: modifiers[0].value });
@@ -3584,12 +3694,13 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     }
   }
 
-  if (antimagicRefuses(spell, selected)) return null;
+  if (soleTargetRefuses(spell, effect, selected)) return null;
 
   // p. 32: a fourth lasting spell ends one of the three — the player picks
   // which; cancelling cancels the cast, no Mana spent.
   // Слепота isn't a lasting spell (rules.md §11) — no limit for it.
-  const endCast = effect.skipsTurn ? null : await chooseLastingSpellToEnd(actor, spell, selected);
+  const endCast = effect.skipsTurn ? null
+    : await chooseLastingSpellToEnd(actor, spell.name, selected.map((doc) => doc.actor?.uuid).filter(Boolean));
   if (endCast === false) return null;
 
   const manaRemaining = actor.system.mana.value - manaCost;
@@ -3602,6 +3713,8 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
     if (roll) rolls.push(roll);
     // Слепота: «Бросьте 1d6» — for a target it can still reach.
     const resisted = entry.resistDie != null && entry.resistDie >= entry.resistThreshold;
+    // Забывчивость: the target's shots now, to say whether any are left.
+    if ((effect.modifiers ?? []).some((m) => m.stat === 'rangedAttacks') && doc.actor) entry.rangedSeries = rangedSeriesOf(doc.actor);
     if (effect.triggerThreshold && !entry.immunity && !resisted) {
       const trigger = new Roll('1d6');
       await trigger.evaluate();
@@ -3647,6 +3760,29 @@ async function castModifierSpell(actor, spell, { variant, variantData, resolvedS
 }
 
 /**
+ * How many ranged attacks an actor makes in a round now (attackSeriesCount)
+ * — a creature's statblock, a hero's with a ranged weapon worn (0 without).
+ * @param {Actor} actor
+ * @returns {number}
+ */
+function rangedSeriesOf(actor) {
+  if (actor.type === 'creature') {
+    return attackSeriesCount({
+      creatureAttacks: actor.system.attacksCount ?? 1,
+      vengeanceHurt: (actor.system.specialSkills ?? []).some((tag) => /^месть(\s|$)/i.test(String(tag).trim()))
+        && actor.system.health.value < actor.system.health.max,
+    });
+  }
+  if (!actor.items.some((i) => i.type === 'weapon' && i.system.equipped && i.system.weaponType === 'ranged')) return 0;
+  const owned = actor.items.filter((i) => i.type === 'skill').map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier }));
+  return attackSeriesCount({
+    ranged: true,
+    archeryTier: highestSkillTier(owned, 'archery'),
+    specializationSkill: actor.system.specialization?.type === 'skill' ? actor.system.specialization.key : null,
+  });
+}
+
+/**
  * A lasting spell's modifiers as cast: the variant's, with the «Ускорение»
  * specialization's +3 Скорость (p. 23) added to that spell's own.
  * @param {Actor} actor
@@ -3672,10 +3808,14 @@ function castModifiers(actor, spell, effect) {
  * of targets. Effects from before `castId` existed group by spell and round.
  * @param {Actor} caster
  * Field spells (group Г) come as their regions.
- * Summoned elementals and clones (group Д) come as their tokens.
- * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[], tokens?: TokenDocument[]}>}
+ * Summoned elementals and clones (group Д) come as their tokens. With
+ * `pending`, the caster's lasting casts still waiting for the GM's confirm
+ * in a battle under way count too (rules.md §11) — as their cards.
+ * @param {object} [options]
+ * @param {boolean} [options.pending]
+ * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[], tokens?: TokenDocument[], pendingMessage?: ChatMessage}>}
  */
-function lastingSpellCasts(caster) {
+function lastingSpellCasts(caster, { pending = true } = {}) {
   const actors = new Set(game.actors);
   for (const scene of game.scenes) {
     for (const token of scene.tokens) if (token.actor && !token.actorLink) actors.add(token.actor);
@@ -3731,7 +3871,55 @@ function lastingSpellCasts(caster) {
     cast.tokens.push(token);
     casts.set(data.castId, cast);
   }
+  if (pending) {
+    for (const message of game.messages) {
+      const flags = message.getFlag(FLAG_SCOPE, 'spell');
+      if (!flags || flags.confirmed || flags.cancelled || flags.actorUuid !== caster.uuid || !flags.castId) continue;
+      if (casts.has(flags.castId) || !isLastingSpellCard(flags) || !game.combats.get(flags.castStart?.combat)) continue;
+      casts.set(flags.castId, {
+        castId: flags.castId,
+        spellName: flags.spellName,
+        targetIds: (flags.targets ?? []).map((t) => actorFromCard(t.tokenUuid, t.actorId)?.uuid).filter(Boolean),
+        targetNames: lastingCardTargetNames(flags),
+        remaining: flags.rounds ?? null,
+        effects: [],
+        pendingMessage: message,
+      });
+    }
+  }
   return [...casts.values()];
+}
+
+/**
+ * Who or what a lasting card is on, for the limit's dialog.
+ * @param {object} flags
+ * @returns {string[]}
+ */
+function lastingCardTargetNames(flags) {
+  if (flags.effectKind === 'field') return [game.i18n.localize('HEROES_GLORY.Roll.SpellFieldOnScene')];
+  if (flags.effectKind === 'summon') return [flags.summon?.creatureName ?? ''];
+  if (flags.effectKind === 'clone') return (flags.clone?.destinations ?? []).map(() => flags.clone.name);
+  return (flags.targets ?? []).map((t) => t.name);
+}
+
+/**
+ * The GM's confirm of a lasting spell (rules.md §11): if the casts applied
+ * by now would make more than three with this one, the GM picks one to end
+ * first — in the same dialog as at the cast. `false` — cancelled, nothing
+ * applied, the card stays.
+ * @param {object} flags   the card's
+ * @returns {Promise<boolean>}
+ */
+async function confirmWithinLimit(flags) {
+  const caster = actorFromCard(flags.actorUuid, flags.actorId);
+  if (!(caster instanceof Actor) || !isLastingSpellCard(flags)) return true;
+  const casts = lastingSpellCasts(caster, { pending: false })
+    .filter((cast) => cast.castId !== flags.castId && cast.castId !== flags.endCast?.castId);
+  const targetIds = (flags.targets ?? []).map((t) => actorFromCard(t.tokenUuid, t.actorId)?.uuid).filter(Boolean);
+  const chosen = await chooseLastingSpellToEnd(caster, flags.spellName, targetIds, casts);
+  if (chosen === false) return false;
+  if (chosen) await endLastingCast({ ...flags, endCast: chosen });
+  return true;
 }
 
 /**
@@ -3739,23 +3927,26 @@ function lastingSpellCasts(caster) {
  * picks one to end before a fourth goes on — in a dialog in the system's
  * style. `null` — no choice needed; `false` — cancelled (the cast is off);
  * otherwise the cast to end, applied by the GM's confirm with the new one.
+ * The caster's casts waiting for a confirm count too (lastingSpellCasts).
  * @param {Actor} actor
- * @param {Item} spell
- * @param {TokenDocument[]} targetDocs
+ * @param {string} spellName
+ * @param {string[]} targetIds   the new cast's targets' actor uuids
+ * @param {object[]} [casts]     the casts to count
  * @returns {Promise<{castId: string, label: string}|null|false>}
  */
-async function chooseLastingSpellToEnd(actor, spell, targetDocs) {
-  const casts = lastingSpellCasts(actor);
+async function chooseLastingSpellToEnd(actor, spellName, targetIds, casts = lastingSpellCasts(actor)) {
+  const spell = { name: spellName };
   const { needsChoice, candidates } = resolveLastingSpellLimit({
     casts,
-    newSpellName: spell.name,
-    newTargetIds: targetDocs.map((doc) => doc.actor?.uuid).filter(Boolean),
+    newSpellName: spellName,
+    newTargetIds: targetIds,
   });
   if (!needsChoice) return null;
   const i18n = game.i18n;
-  const labelOf = (cast) => i18n.format(cast.remaining === null ? 'HEROES_GLORY.Roll.SpellLimitRowCombat' : 'HEROES_GLORY.Roll.SpellLimitRow', {
+  const rowOf = (cast) => i18n.format(cast.remaining === null ? 'HEROES_GLORY.Roll.SpellLimitRowCombat' : 'HEROES_GLORY.Roll.SpellLimitRow', {
     spell: cast.spellName, targets: cast.targetNames.join(', '), rounds: cast.remaining,
   });
+  const labelOf = (cast) => (cast.pendingMessage ? i18n.format('HEROES_GLORY.Roll.SpellLimitPending', { row: rowOf(cast) }) : rowOf(cast));
   const content = document.createElement('div');
   content.innerHTML = `<p>${foundry.utils.escapeHTML(i18n.format('HEROES_GLORY.Roll.SpellLimitText', { caster: actor.name, spell: spell.name }))}</p>
     <div class="hg-dialog__checklist">${candidates.map((cast, index) => radioRow('cast', cast.castId, labelOf(cast), index === 0)).join('')}</div>`;
@@ -3776,7 +3967,9 @@ async function chooseLastingSpellToEnd(actor, spell, targetDocs) {
   });
   const chosen = candidates.find((cast) => cast.castId === castId);
   if (!chosen) return false;
-  return { castId: chosen.castId, label: labelOf(chosen) };
+  // The card's «Закончится / Закончено» line keeps no «ждёт подтверждения»:
+  // that card may be confirmed before this one and then ended as applied.
+  return { castId: chosen.castId, label: rowOf(chosen) };
 }
 
 /**
@@ -3819,7 +4012,7 @@ function buildModifierSpellCardContext(flags, context) {
       const key = untilCombatEnd
         ? (done ? 'HEROES_GLORY.Roll.SpellModifierAppliedCombat' : 'HEROES_GLORY.Roll.SpellModifierPendingCombat')
         : (done ? 'HEROES_GLORY.Roll.SpellModifierApplied' : 'HEROES_GLORY.Roll.SpellModifierPending');
-      text = i18n.format(key, { target: target.name, effect: effectText, rounds: flags.rounds });
+      text = i18n.format(key, { target: target.name, effect: lastingSpellEffectText(flags, target) ?? effectText, rounds: flags.rounds });
     }
     if (target.resistDie != null) {
       text += ` (${i18n.format('HEROES_GLORY.Roll.SpellResistRoll', {
@@ -3853,6 +4046,7 @@ async function confirmModifierSpell(message, flags) {
     ui.notifications.warn(game.i18n.format('HEROES_GLORY.Roll.SpellCombatOver', { spell: flags.spellName }));
     return;
   }
+  if (!(await confirmWithinLimit(flags))) return;
   await endLastingCast(flags);
   const results = resolveModifierSpellResolution(flags);
   for (const [index, target] of flags.targets.entries()) {

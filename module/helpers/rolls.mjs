@@ -385,15 +385,12 @@ export const ELEMENTAL_SCHOOLS = SCHOOL_ORDER.filter((school) => school !== 'uni
  * the "Универсальные" table's own page and the page after — no
  * surrounding text, docs/rules.md §11); this is Сеня's own ruling: the
  * hero's single highest-tier elemental school. A tie between two or more
- * schools at the same max tier is deliberately NOT broken here — silently
- * picking one was explicitly rejected as its own silent error (a hero
- * with two Experts would always cast from the same school forever without
- * ever being told there was a choice). The caller must ask the player.
+ * schools at the same max tier is not broken here: the tier is the same
+ * either way, and nobody is asked — the cast's school is then Универсальные
+ * itself (findSpellVariant, rules.md §11).
  *
  * `candidateSchools[0]` is always the first tied school in SCHOOL_ORDER —
- * usable as a non-binding PREVIEW (spellbook frame/tooltip) before that
- * ask happens, never as the actual cast resolution when candidateSchools
- * has more than one entry.
+ * the spellbook frame on a tie.
  * @param {Record<string, string|null|undefined>} schoolTiers   earth/air/water/fire -> tier ("base"|"advanced"|"expert") or null/undefined if unowned.
  * @returns {{candidateSchools: string[], tier: string|null}}
  *   Empty `candidateSchools` (`tier: null`) means no elemental school is
@@ -876,7 +873,7 @@ export function resolveAttackResolution(flags) {
  * @returns {boolean}
  */
 export function canConfirmAttack(flags) {
-  return !!flags && flags.kind === 'attack' && !flags.confirmed && flags.targetActorId != null;
+  return !!flags && flags.kind === 'attack' && !flags.confirmed && !flags.cancelled && flags.targetActorId != null;
 }
 
 /**
@@ -926,16 +923,22 @@ export function ownersAndGmRecipients(users) {
  * earlier card gets confirmed later (its `confirmedAt` is then after this
  * card's `timestamp`), since this card's numbers are still stale. A card
  * confirmed before this build of the feature has no `confirmedAt` at all —
- * treated as confirmed long ago, not as a pending one.
- * @param {{id: string, targetActorId: string|null, timestamp: number}} card
- * @param {Array<{id: string, targetActorId: string|null, timestamp: number, confirmed?: boolean, confirmedAt?: number|null}>} others
+ * treated as confirmed long ago, not as a pending one. Only cards of the
+ * same battle and round count (rules.md §11) — a forgotten card from an
+ * earlier round, or out of combat, warns nobody; a card the GM cancelled
+ * never applied anything.
+ * @param {{id: string, targetActorId: string|null, timestamp: number, combatRound?: {combat: string, round: number}|null}} card
+ * @param {Array<{id: string, targetActorId: string|null, timestamp: number, confirmed?: boolean, confirmedAt?: number|null, cancelled?: boolean, combatRound?: {combat: string, round: number}|null}>} others
  *   Every attack card the viewing client knows about (may include `card`).
  * @returns {boolean}
  */
 export function hadUnconfirmedAttackBefore(card, others) {
-  if (!card.targetActorId) return false;
+  if (!card.targetActorId || !card.combatRound) return false;
   return others.some((other) => other.id !== card.id
     && other.targetActorId === card.targetActorId
+    && other.combatRound?.combat === card.combatRound.combat
+    && other.combatRound?.round === card.combatRound.round
+    && !other.cancelled
     && other.timestamp < card.timestamp
     && (!other.confirmed || (other.confirmedAt != null && other.confirmedAt > card.timestamp)));
 }
