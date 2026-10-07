@@ -1,0 +1,192 @@
+{
+  "air-shield": {
+    "frames": 15,
+    "height": 81,
+    "width": 88
+  },
+  "anti-magic": {
+    "frames": 16,
+    "height": 126,
+    "width": 94
+  },
+  "armageddon": {
+    "frames": 20,
+    "height": 200,
+    "width": 200
+  },
+  "bless": {
+    "frames": 20,
+    "height": 123,
+    "width": 43
+  },
+  "blind": {
+    "frames": 15,
+    "height": 123,
+    "width": 125
+  },
+  "chain-lightning": {
+    "frames": 1,
+    "height": 494,
+    "width": 106
+  },
+  "chain-lightning-alt": {
+    "frames": 12,
+    "height": 110,
+    "width": 114
+  },
+  "counterstrike": {
+    "frames": 16,
+    "height": 100,
+    "width": 84
+  },
+  "cure": {
+    "frames": 15,
+    "height": 119,
+    "width": 94
+  },
+  "curse": {
+    "frames": 21,
+    "height": 111,
+    "width": 85
+  },
+  "death-ripple": {
+    "frames": 15,
+    "height": 134,
+    "width": 134
+  },
+  "destroy-undead": {
+    "frames": 15,
+    "height": 89,
+    "width": 84
+  },
+  "dispel": {
+    "frames": 15,
+    "height": 201,
+    "width": 199
+  },
+  "disrupting-ray": {
+    "frames": 8,
+    "height": 43,
+    "width": 79
+  },
+  "disrupting-ray-hit": {
+    "frames": 16,
+    "height": 148,
+    "width": 176
+  },
+  "fire-shield": {
+    "frames": 10,
+    "height": 62,
+    "width": 75
+  },
+  "fireball": {
+    "frames": 13,
+    "height": 155,
+    "width": 142
+  },
+  "forgetfulness": {
+    "frames": 15,
+    "height": 75,
+    "width": 119
+  },
+  "fortune": {
+    "frames": 15,
+    "height": 97,
+    "width": 50
+  },
+  "frost-ring": {
+    "frames": 15,
+    "height": 130,
+    "width": 135
+  },
+  "haste": {
+    "frames": 15,
+    "height": 106,
+    "width": 113
+  },
+  "ice-bolt": {
+    "frames": 9,
+    "height": 33,
+    "width": 128
+  },
+  "ice-bolt-hit": {
+    "frames": 16,
+    "height": 154,
+    "width": 146
+  },
+  "implosion": {
+    "frames": 19,
+    "height": 147,
+    "width": 90
+  },
+  "inferno": {
+    "frames": 16,
+    "height": 217,
+    "width": 207
+  },
+  "lightning": {
+    "frames": 1,
+    "height": 494,
+    "width": 106
+  },
+  "lightning-alt": {
+    "frames": 12,
+    "height": 110,
+    "width": 114
+  },
+  "magic-arrow": {
+    "frames": 14,
+    "height": 47,
+    "width": 123
+  },
+  "magic-arrow-hit": {
+    "frames": 14,
+    "height": 116,
+    "width": 133
+  },
+  "meteor-shower": {
+    "frames": 18,
+    "height": 144,
+    "width": 144
+  },
+  "misfortune": {
+    "frames": 15,
+    "height": 96,
+    "width": 51
+  },
+  "prayer": {
+    "frames": 20,
+    "height": 556,
+    "width": 54
+  },
+  "precision": {
+    "frames": 20,
+    "height": 75,
+    "width": 76
+  },
+  "resurrection": {
+    "frames": 20,
+    "height": 95,
+    "width": 98
+  },
+  "shield": {
+    "frames": 16,
+    "height": 73,
+    "width": 56
+  },
+  "slow": {
+    "frames": 20,
+    "height": 54,
+    "width": 74
+  },
+  "stone-skin": {
+    "frames": 22,
+    "height": 83,
+    "width": 89
+  },
+  "weakness": {
+    "frames": 20,
+    "height": 114,
+    "width": 97
+  }
+}
