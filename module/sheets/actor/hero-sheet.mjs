@@ -12,7 +12,7 @@ import {
 import { CLASS_BASE_SKILL_FLAG, isHeroCreated } from '../../helpers/hero-creation.mjs';
 import {
   primarySkillIconPath, secondarySkillIconPath, moraleIconPath, luckIconPath, schoolFramePath,
-  speedIconPath, visionIconPath, specializationPlaceholderIconPath,
+  speedIconPath, visionIconPath, healthIconPath, specializationPlaceholderIconPath,
 } from '../../helpers/skill-icons.mjs';
 import { manaMultiplier } from '../../helpers/mana.mjs';
 import { highestSkillTier } from '../../helpers/skill-bonuses.mjs';
@@ -491,27 +491,26 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     context.visionNoteKeys = VISION_NOTE_KEYS[system.vision] ?? [];
     context.speedTitle = game.i18n.format('HEROES_GLORY.Tooltip.SpeedTitle', { total: system.speed });
 
-    // Primary-skill/Experience/Mana icons are static per slot. Health has
-    // no dedicated icon — reusing the Experience frame is a deliberate
-    // placeholder per the design doc, not a bug.
+    // Primary-skill/Experience/Mana icons are static per slot; Здоровье is
+    // a game-icons heart, drawn like Скорость / Зрение.
     context.icons = {
       attack: primarySkillIconPath('attack'),
       defense: primarySkillIconPath('defense'),
       magicPower: primarySkillIconPath('magicPower'),
       knowledge: primarySkillIconPath('knowledge'),
-      health: primarySkillIconPath('experience'),
+      health: healthIconPath(),
       experience: primarySkillIconPath('experience'),
       mana: primarySkillIconPath('mana'),
       morale: moraleIconPath(system.morale),
       luck: luckIconPath(system.luck),
-      // Large (82×93) variants for the new hover tooltips — same frame
-      // numbering as the small icons above, health keeps reusing the
-      // Experience frame as the same documented placeholder.
+      // Large (82×93) variants for the tooltips — same frame numbering as the
+      // small icons above; Здоровье's heart is one SVG for both sizes, the
+      // tooltip's 82×93 box scales it like Скорость / Зрение's.
       attackLarge: primarySkillIconPath('attack', { large: true }),
       defenseLarge: primarySkillIconPath('defense', { large: true }),
       magicPowerLarge: primarySkillIconPath('magicPower', { large: true }),
       knowledgeLarge: primarySkillIconPath('knowledge', { large: true }),
-      healthLarge: primarySkillIconPath('experience', { large: true }),
+      healthLarge: healthIconPath(),
       experienceLarge: primarySkillIconPath('experience', { large: true }),
       manaLarge: primarySkillIconPath('mana', { large: true }),
       moraleLarge: moraleIconPath(system.morale, { large: true }),

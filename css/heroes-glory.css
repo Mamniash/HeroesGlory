@@ -1550,6 +1550,9 @@
 .heroes-glory .hero-paperdoll__slot--mana_name {
   object-fit: contain;
 }
+.heroes-glory .hero-paperdoll__slot--health_name {
+  padding: 0.3333333333%;
+}
 .heroes-glory .hero-paperdoll__slot--health_desc,
 .heroes-glory .hero-paperdoll__slot--experience_desc,
 .heroes-glory .hero-paperdoll__slot--mana_desc {

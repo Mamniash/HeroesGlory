@@ -1148,6 +1148,14 @@ $hg-speed-icon-offset-y: 0px;
   // below.
 }
 
+// Здоровье shows the game-icons heart (skill-icons.mjs healthIconPath), the
+// gold SVG of Скорость / Зрение, which sit inside their block's frame: here
+// the cell keeps 2 art px of its own leather around the drawing. Padding
+// percentages resolve against the canvas width, so 2 / 600 is 2 art px.
+.hero-paperdoll__slot--health_name {
+  padding: percentage(2 / 600);
+}
+
 // Shared by every two-line `_desc` box on the sheet (Health/Experience/Mana
 // below, the secondary-skill boxes further down) — the label-to-value-or-
 // skill-name top-to-top rhythm. 40/28 ≈ 1.4286, measured off a same-scale

@@ -57,10 +57,8 @@ function smallIconPath(set, n) {
 
 /**
  * Primary-skill/Experience/Mana icons (assets/pskil42) are one static
- * frame each, not value-driven. Health has no dedicated icon — the design
- * doc calls for reusing the Experience frame as a deliberate placeholder;
- * callers do that by passing 'experience' for a health icon rather than
- * this table gaining a redundant 'health' entry.
+ * frame each, not value-driven. HOMM3 has no Health frame among them —
+ * Здоровье has its own game-icons heart (healthIconPath below).
  * @type {Record<string, number>}
  */
 const PRIMARY_SKILL_FRAMES = {
@@ -183,6 +181,7 @@ export function luckIconPath(value, { large = false } = {}) {
  */
 const GAME_ICON = (name) => `systems/${SYSTEM_ID}/assets/game-icons/${name}.svg`;
 const SPEED_ICON = 'lorc-wingfoot';
+const HEALTH_ICON = 'lorc-glass-heart';
 const VISION_ICONS = {
   normal: 'lorc-semi-closed-eye',
   darkvision: 'lorc-beast-eye',
@@ -222,6 +221,15 @@ export function specializationIconPath(spec, spellFrames, { large = false } = {}
 /** @returns {string} */
 export function speedIconPath() {
   return GAME_ICON(SPEED_ICON);
+}
+
+/**
+ * Здоровье: the same gold game-icons drawing as Скорость / Зрение, one SVG
+ * for the sheet cell and the tooltip alike.
+ * @returns {string}
+ */
+export function healthIconPath() {
+  return GAME_ICON(HEALTH_ICON);
 }
 
 /**

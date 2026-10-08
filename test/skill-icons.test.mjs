@@ -12,6 +12,7 @@ import {
   schoolFramePath,
   speedIconPath,
   visionIconPath,
+  healthIconPath,
 } from '../module/helpers/skill-icons.mjs';
 
 describe('primarySkillIconPath — static per-slot frames', () => {
@@ -145,6 +146,23 @@ describe('every path the icon helpers return exists in assets/', () => {
       for (const opts of [{}, { large: true }, { small: true }]) assert.ok(exists(moraleIconPath(v, opts)), `morale ${v} ${JSON.stringify(opts)}`);
       for (const opts of [{}, { large: true }]) assert.ok(exists(luckIconPath(v, opts)), `luck ${v} ${JSON.stringify(opts)}`);
     }
+  });
+});
+
+describe('healthIconPath — Здоровье has its own icon', () => {
+  const onDisk = (p) => existsSync(fileURLToPath(new URL(`../${p.replace('systems/heroes-glory/', '')}`, import.meta.url)));
+
+  test('the game-icons glass heart, next to Скорость / Зрение', () => {
+    assert.equal(healthIconPath(), 'systems/heroes-glory/assets/game-icons/lorc-glass-heart.svg');
+  });
+
+  test('not the Опыт icon any more, small or large', () => {
+    assert.notEqual(healthIconPath(), primarySkillIconPath('experience'));
+    assert.notEqual(healthIconPath(), primarySkillIconPath('experience', { large: true }));
+  });
+
+  test('the file exists', () => {
+    assert.ok(onDisk(healthIconPath()));
   });
 });
 
