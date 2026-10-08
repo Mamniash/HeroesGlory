@@ -39,7 +39,8 @@
       "spell": {},
       "artifact": {},
       "skill": {},
-      "spellbook": {}
+      "spellbook": {},
+      "specialization": {}
     },
     "RegionBehavior": {
       "heroes-glory.fireWall": {},
@@ -99,6 +100,17 @@
       "name": "spells",
       "label": "HEROES_GLORY.Compendium.Spells",
       "path": "packs/spells",
+      "type": "Item",
+      "system": "heroes-glory",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "specializations",
+      "label": "HEROES_GLORY.Compendium.Specializations",
+      "path": "packs/specializations",
       "type": "Item",
       "system": "heroes-glory",
       "ownership": {

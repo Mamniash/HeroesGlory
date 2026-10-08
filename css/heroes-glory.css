@@ -1936,6 +1936,9 @@
 .heroes-glory .hero-paperdoll__spec-state--locked {
   opacity: 0.6;
 }
+.heroes-glory .hero-paperdoll__slot--spec-duplicate .hero-paperdoll__skill-cell-desc {
+  color: #ff9a7a;
+}
 .heroes-glory .hero-paperdoll__slot--specialization[data-tooltip-click],
 .heroes-glory .hero-paperdoll__slot[data-tooltip-trigger=race-spells] {
   cursor: pointer;

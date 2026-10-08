@@ -8,6 +8,15 @@ import {
 } from "../helpers/skill-bonuses.mjs";
 import { actorSpellModifiers, applySpellStatModifiers } from "../helpers/spell-effects.mjs";
 import { effectsDeltaForKey } from "../helpers/modifiers.mjs";
+import { pickSpecialization } from "../helpers/specializations.mjs";
+
+/**
+ * Heroes already warned about a specialization item with no valid key —
+ * `prepareDerivedData` runs on every change, the console gets it once per
+ * hero and key.
+ * @type {Set<string>}
+ */
+const warnedUnresolvedSpecializations = new Set();
 
 /**
  * Data model for a player hero (rules.md §2).
@@ -134,21 +143,19 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       })),
     });
 
-    // §4.3 p.23: specialization from level 10 (requires Expert tier in a
-    // skill, or owning a spell — helpers/specializations.mjs has the full
-    // book list). A structured reference, not free text — this used to be
-    // a plain StringField before the full list was transcribed; never
-    // exposed through the UI (see hero-sheet.mjs's own history), so
-    // repurposing it isn't a breaking change for anyone. `type`/`key` both
-    // blank together means "none chosen"; `type` picks which of `key`'s
-    // two independent namespaces applies (a secondarySkills key, or an
-    // exact spell name — spells have no stable key elsewhere in this
-    // project either, see race-granted-items.mjs's own comment on the
-    // same asymmetry).
+    // §4.3 p.23: the specialization is an item now (item-specialization.mjs).
+    // This is the old stored field, kept in the schema only so the world
+    // migration (helpers/specialization-migration.mjs) can read it and then
+    // delete it from the database — a deletion of a key outside the schema
+    // never reaches the database, and writing `system` whole would run it
+    // through the schema's cleaning (both checked live). In memory
+    // prepareDerivedData puts the derived {type, key} over it, as it does for
+    // `mana.max`; `_source` keeps what is stored, and nothing writes the
+    // derived value back. Not required: once deleted it stays absent.
     schema.specialization = new fields.SchemaField({
       type: new fields.StringField({ required: true, blank: true, initial: "" }),
       key: new fields.StringField({ required: true, blank: true, initial: "" }),
-    });
+    }, { required: false });
 
     schema.gold = new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 });
 
@@ -238,6 +245,7 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     // artifacts can still grant bonus Health/Mana beyond this computed
     // cap, so `max` is informational rather than a hard ceiling; only the
     // Ранения floor at 0 is enforced here.
+    this.#prepareSpecialization();
     this.#prepareUnrested();
     this.health.max = applyWoundPenalty(this.health.base, this.wounds);
     this.mana.max = applyWoundPenalty(this.knowledge * this.#getManaMultiplier(), this.wounds);
@@ -250,6 +258,32 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
       defense: this.#applySpells("defense", spellModifiers),
     };
     this.#prepareSkillDerivedStats(spellModifiers);
+  }
+
+  /**
+   * §4.3: `specialization` ({type, key}, or both blank) from the hero's
+   * specialization item — the first by sort, then id, if somehow there are
+   * two (pickSpecialization); `specializationCount` — how many there are,
+   * for the sheet's warning. `specialization` overrides the old stored field
+   * in memory only (`_source` keeps it); the other two are no schema
+   * fields. An item whose key is
+   * none of the 12 doesn't count, and says so in the console.
+   */
+  #prepareSpecialization() {
+    const items = (this.parent?.items ?? []).filter((i) => i.type === "specialization")
+      .map((i) => ({ id: i.id, sort: i.sort, key: i.system.key, name: i.name }));
+    const picked = pickSpecialization(items);
+    this.specialization = picked.spec ?? { type: "", key: "" };
+    this.specializationItemId = picked.itemId;
+    this.specializationCount = picked.count;
+    if (!picked.spec) {
+      for (const { id, key } of picked.unresolved) {
+        const tag = `${this.parent?.name}:${id}:${key}`;
+        if (warnedUnresolvedSpecializations.has(tag)) continue;
+        warnedUnresolvedSpecializations.add(tag);
+        console.warn(`heroes-glory | hero "${this.parent?.name}" has a specialization item with key "${key}", which is none of the 12 — the hero has no specialization`);
+      }
+    }
   }
 
   /**

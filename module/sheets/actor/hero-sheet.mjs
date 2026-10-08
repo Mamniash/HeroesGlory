@@ -29,6 +29,7 @@ import {
 import { raceGrantedItemsAtPick, RACE_GRANTED_ITEM_FLAG } from '../../helpers/race-granted-items.mjs';
 import {
   specializationState, specializationCellHint, chosenSpecializationDetails, openSpecializationWindow,
+  assignSpecialization, clearSpecialization, dropSpecialization,
 } from '../../apps/specialization-window.mjs';
 import { specializationRequirement } from '../../helpers/specializations.mjs';
 import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-icons.mjs';
@@ -949,7 +950,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       // no-op there, not a tooltip, so it stays free for a future drag/
       // interact feature without this fighting it.
       const clickToPin = triggerEl.hasAttribute('data-tooltip-click') && !this.#editMode;
-      attachTooltip(triggerEl, template, { boundsEl, clickToPin });
+      // The chosen specialization's right click opens its sheet (below), not
+      // the held tooltip.
+      const holdRight = !triggerEl.hasAttribute('data-spec-sheet');
+      attachTooltip(triggerEl, template, { boundsEl, clickToPin, holdRight });
     });
 
     // Spellbook: a right click on a spell opens its own sheet (the left
@@ -967,6 +971,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       };
       icon.addEventListener('contextmenu', open);
       if (!icon.dataset.action) icon.addEventListener('click', open);
+    });
+    // Специализация (§4.3): a right click on the chosen one opens its item's
+    // sheet — editable for the GM, read-only for players (the left click
+    // keeps pinning the cell's own description).
+    this.element.querySelectorAll('[data-spec-sheet]').forEach((cell) => {
+      cell.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        this.actor.items.get(cell.dataset.itemId)?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+      });
     });
     this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
       icon.addEventListener('contextmenu', (event) => {
@@ -1222,6 +1235,11 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    */
   async _onDropItem(event, item) {
     if (!this.actor.isOwner) return null;
+    // §4.3: a specialization has its own rules and confirmation
+    // (apps/specialization-window.mjs); a re-drag on the same hero does nothing.
+    if (item.type === 'specialization') {
+      return this.actor.uuid === item.parent?.uuid ? null : dropSpecialization(this.actor, item);
+    }
     const isPlaceable = EQUIPABLE_TYPES.includes(item.type);
     const slotEl = event.target.closest('[data-slot]');
     const targetSlot = !slotEl ? undefined : slotEl.dataset.slot === 'backpack' ? null : Number(slotEl.dataset.slot);
@@ -1585,7 +1603,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // Re-checked at write time: the sheet may have changed while it was open.
     const now = specializationState(this.actor, gmEditing);
     if (!now.canPick || (!gmEditing && !specializationRequirement(chosen, now.hero).met)) return;
-    await this.actor.update({ 'system.specialization': chosen });
+    await assignSpecialization(this.actor, chosen);
   }
 
   /**
@@ -1605,7 +1623,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    */
   static #onUnsetSpecialization(event, target) {
     if (!this.#canEdit) return;
-    return this.actor.update({ 'system.specialization': { type: '', key: '' } });
+    return clearSpecialization(this.actor);
   }
 
   /**

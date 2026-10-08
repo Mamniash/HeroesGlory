@@ -2,31 +2,131 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationEffectTextKey, specializationModifiers,
+  SPECIALIZATION_SKILLS, SPECIALIZATION_SPELLS, specializationModifiers,
   hasArmorSpecialization, specializationManaDiscount, chainLightningSpecialization,
   hasteSpecializationBonus, resurrectionSpecialization, fireWallSpecialization, cloneSpecialization,
   SPECIALIZATION_SPELL_ICON_FRAMES, specializationList, isSpecialization, isManualSpecialization,
   specializationRequirement, specializationShortage, specializationSpellName,
+  specializationTypeOf, specializationFromKey, specializationLabel, specializationLabelKeys, pickSpecialization,
+  specializationCreateRefusal, specializationDropDecision, legacySpecializationPlan, specializationHero,
 } from '../module/helpers/specializations.mjs';
 import { specializationIconPath, specializationPlaceholderIconPath } from '../module/helpers/skill-icons.mjs';
 
-describe('specializationEffectTextKey — §4.3 p.23 lookup', () => {
-  test('resolves every one of the 7 skill-based specializations', () => {
-    for (const key of SPECIALIZATION_SKILLS) {
-      assert.ok(specializationEffectTextKey('skill', key), `${key} should resolve to a loc key`);
-    }
+describe('specializationTypeOf / specializationFromKey / names — the key says the group', () => {
+  test('skill keys, spell names, anything else', () => {
+    assert.equal(specializationTypeOf('armor'), 'skill');
+    assert.equal(specializationTypeOf('Клон'), 'spell');
+    assert.equal(specializationTypeOf('luck'), null);
+    assert.equal(specializationTypeOf(''), null);
+    assert.deepEqual(specializationFromKey('Стена Огня'), { type: 'spell', key: 'Стена Огня' });
+    assert.equal(specializationFromKey('Молния'), null);
   });
-
-  test('resolves every one of the 5 spell-based specializations', () => {
-    for (const key of SPECIALIZATION_SPELLS) {
-      assert.ok(specializationEffectTextKey('spell', key), `${key} should resolve to a loc key`);
-    }
+  test('label: a skill\'s through its lang key, a spell\'s is the key', () => {
+    const localize = (k) => `<${k}>`;
+    assert.equal(specializationLabel({ type: 'skill', key: 'sorcery' }, localize), '<HEROES_GLORY.SecondarySkill.Sorcery>');
+    assert.equal(specializationLabel({ type: 'spell', key: 'Ускорение' }, localize), 'Ускорение');
+    assert.equal(specializationLabelKeys().intellect, 'HEROES_GLORY.SecondarySkill.Intellect');
+    assert.equal(specializationLabelKeys()['Клон'], 'Клон');
   });
+});
 
-  test('unknown/blank type or key resolves to null', () => {
-    assert.equal(specializationEffectTextKey('', ''), null);
-    assert.equal(specializationEffectTextKey('skill', 'not-a-skill'), null);
-    assert.equal(specializationEffectTextKey('spell', 'Не заклинание'), null);
+describe('pickSpecialization — one per hero; two: the first by sort, then id', () => {
+  test('none', () => {
+    assert.deepEqual(pickSpecialization([]), { spec: null, itemId: null, count: 0, unresolved: [] });
+  });
+  test('one', () => {
+    const r = pickSpecialization([{ id: 'a', sort: 0, key: 'Клон' }]);
+    assert.deepEqual(r.spec, { type: 'spell', key: 'Клон' });
+    assert.equal(r.itemId, 'a');
+    assert.equal(r.count, 1);
+  });
+  test('two: lower sort wins, equal sort — lower id', () => {
+    assert.equal(pickSpecialization([{ id: 'b', sort: 200, key: 'armor' }, { id: 'a', sort: 100, key: 'Клон' }]).itemId, 'a');
+    const tie = pickSpecialization([{ id: 'zz', sort: 0, key: 'armor' }, { id: 'aa', sort: 0, key: 'Клон' }]);
+    assert.equal(tie.itemId, 'aa');
+    assert.equal(tie.count, 2);
+  });
+  test('a key not among the 12 never counts and is reported', () => {
+    const r = pickSpecialization([{ id: 'a', sort: 0, key: '' }, { id: 'b', sort: 1, key: 'armor' }]);
+    assert.deepEqual(r.spec, { type: 'skill', key: 'armor' });
+    assert.deepEqual(r.unresolved, [{ id: 'a', key: '' }]);
+    assert.equal(pickSpecialization([{ id: 'a', sort: 0, key: 'Молния' }]).spec, null);
+  });
+});
+
+describe('specializationCreateRefusal — the rules for every creation', () => {
+  const base = { parentType: 'hero', isGM: false, existingCount: 0, valid: true, met: true };
+  test('a world or compendium item: always', () => {
+    assert.equal(specializationCreateRefusal({ ...base, parentType: null, valid: false }), null);
+  });
+  test('only a hero', () => {
+    assert.equal(specializationCreateRefusal({ ...base, parentType: 'creature' }), 'notHero');
+  });
+  test('never a second one — the GM too', () => {
+    assert.equal(specializationCreateRefusal({ ...base, existingCount: 1 }), 'already');
+    assert.equal(specializationCreateRefusal({ ...base, existingCount: 1, isGM: true }), 'already');
+  });
+  test('one of the 12', () => {
+    assert.equal(specializationCreateRefusal({ ...base, valid: false, isGM: true }), 'invalid');
+  });
+  test('a player: the condition met; the GM: any', () => {
+    assert.equal(specializationCreateRefusal({ ...base, met: false }), 'unmet');
+    assert.equal(specializationCreateRefusal({ ...base, met: false, isGM: true }), null);
+    assert.equal(specializationCreateRefusal(base), null);
+  });
+});
+
+describe('specializationDropDecision — a drop on the hero sheet', () => {
+  const base = { isGM: false, existingKey: null, existingCount: 0, key: 'armor', met: true };
+  test('a player, none yet, met: confirm', () => {
+    assert.deepEqual(specializationDropDecision(base), { action: 'confirm', replace: false, unmet: false });
+  });
+  test('a player: not met, already one, not one of the 12 — refused', () => {
+    assert.deepEqual(specializationDropDecision({ ...base, met: false }), { action: 'refuse', reason: 'unmet' });
+    assert.deepEqual(specializationDropDecision({ ...base, existingKey: 'Клон', existingCount: 1 }), { action: 'refuse', reason: 'already' });
+    assert.deepEqual(specializationDropDecision({ ...base, key: 'luck' }), { action: 'refuse', reason: 'invalid' });
+  });
+  test('the GM: confirm, replacing, with the unmet warning', () => {
+    assert.deepEqual(specializationDropDecision({ ...base, isGM: true, existingKey: 'Клон', existingCount: 1, met: false }),
+      { action: 'confirm', replace: true, unmet: true });
+    assert.deepEqual(specializationDropDecision({ ...base, isGM: true }), { action: 'confirm', replace: false, unmet: false });
+  });
+  test('the GM, the very one already there: nothing', () => {
+    assert.deepEqual(specializationDropDecision({ ...base, isGM: true, existingKey: 'armor', existingCount: 1 }), { action: 'refuse', reason: 'same' });
+  });
+  test('the GM, two on the hero and the same one dropped: a replace that leaves one', () => {
+    assert.deepEqual(specializationDropDecision({ ...base, isGM: true, existingKey: 'armor', existingCount: 2 }),
+      { action: 'confirm', replace: true, unmet: false });
+  });
+});
+
+describe('legacySpecializationPlan — the old field to an item', () => {
+  test('a filled old field, no item, not migrated: create it', () => {
+    assert.deepEqual(legacySpecializationPlan({ legacy: { type: 'spell', key: 'Клон' }, migrated: false, itemCount: 0 }), { create: 'Клон' });
+  });
+  test('migrated, an item there already, blank, or not one of the 12: nothing', () => {
+    const legacy = { type: 'spell', key: 'Клон' };
+    assert.deepEqual(legacySpecializationPlan({ legacy, migrated: true, itemCount: 0 }), { create: null });
+    assert.deepEqual(legacySpecializationPlan({ legacy, migrated: false, itemCount: 1 }), { create: null });
+    assert.deepEqual(legacySpecializationPlan({ legacy: { type: '', key: '' }, migrated: false, itemCount: 0 }), { create: null });
+    assert.deepEqual(legacySpecializationPlan({ legacy: { type: 'skill', key: 'Клон' }, migrated: false, itemCount: 0 }), { create: null });
+    assert.deepEqual(legacySpecializationPlan({ legacy: null, migrated: false, itemCount: 0 }), { create: null });
+  });
+});
+
+describe('specializationHero — what the conditions read off an actor', () => {
+  test('level, skills, spells by name', () => {
+    const actor = {
+      system: { level: 10 },
+      items: [
+        { type: 'skill', system: { skillKey: 'armor', tier: 'expert' } },
+        { type: 'spell', name: 'Клон', _stats: { compendiumSource: null } },
+        { type: 'specialization', system: { key: 'armor' } },
+      ],
+    };
+    assert.deepEqual(specializationHero(actor, { lookup: undefined }), {
+      level: 10, ownedSkills: [{ skillKey: 'armor', tier: 'expert' }], ownedSpellNames: ['Клон'],
+    });
   });
 });
 

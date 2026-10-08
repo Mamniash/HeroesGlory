@@ -9,6 +9,7 @@ import { HeroesGlorySpellSheet } from './sheets/item/spell-sheet.mjs';
 import { HeroesGloryArtifactSheet } from './sheets/item/artifact-sheet.mjs';
 import { HeroesGlorySkillSheet } from './sheets/item/skill-sheet.mjs';
 import { HeroesGlorySpellbookSheet } from './sheets/item/spellbook-sheet.mjs';
+import { HeroesGlorySpecializationSheet } from './sheets/item/specialization-sheet.mjs';
 // Import helper/utility classes and constants.
 import { preloadHandlebarsTemplates } from './helpers/templates.mjs';
 import { HEROES_GLORY } from './helpers/config.mjs';
@@ -23,6 +24,7 @@ import {
 import { addMassRestButton } from './helpers/rest.mjs';
 import { registerSpellFxSetting, playSpellFx, syncFieldFx, resetFieldFx } from './helpers/spell-fx.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
+import { registerMigrationSetting, runMigrations } from './helpers/specialization-migration.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -44,6 +46,7 @@ Hooks.once('init', function () {
 
   // «Анимации заклинаний» — each client switches its own (spell-fx.mjs).
   registerSpellFxSetting();
+  registerMigrationSetting();
 
   /**
    * Set an initiative formula for the system
@@ -72,7 +75,8 @@ Hooks.once('init', function () {
     spell: models.HeroesGlorySpell,
     artifact: models.HeroesGloryArtifact,
     skill: models.HeroesGlorySkill,
-    spellbook: models.HeroesGlorySpellbook
+    spellbook: models.HeroesGlorySpellbook,
+    specialization: models.HeroesGlorySpecialization,
   }
   // §6.4, group Г: the region behavior of a Стена Огня — a system type is
   // named with the system's prefix, as in system.json.
@@ -171,6 +175,11 @@ Hooks.once('init', function () {
     makeDefault: true,
     label: 'HEROES_GLORY.SheetLabels.Spellbook',
   });
+  DocumentSheetConfig.registerSheet(Item, 'heroes-glory', HeroesGlorySpecializationSheet, {
+    types: ['specialization'],
+    makeDefault: true,
+    label: 'HEROES_GLORY.SheetLabels.Specialization',
+  });
 
   // Preload Handlebars templates.
   return preloadHandlebarsTemplates();
@@ -261,6 +270,8 @@ Hooks.on('renderActorDirectory', addMassRestButton);
 Hooks.once('ready', function () {
   // Wait to register hotbar drop hook on ready so that modules could register earlier if they want to
   Hooks.on('hotbarDrop', (bar, data, slot) => createItemMacro(data, slot));
+  // World migrations not run yet (§4.3: specializations became items).
+  runMigrations();
 });
 
 /* -------------------------------------------- */

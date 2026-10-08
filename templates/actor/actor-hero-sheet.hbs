@@ -510,9 +510,10 @@
     (hero-sheet.mjs's #onPickSpecialization, apps/specialization-window.mjs).
     The GM in edit mode opens the window straight from the cell. --}}
   {{#with specialization}}
-  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell"
+  <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell{{#if chosen.duplicate}} hero-paperdoll__slot--spec-duplicate{{/if}}"
     {{#if clickable}}data-action="pickSpecialization" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}
+    {{#if chosen.itemId}}data-spec-sheet data-item-id="{{chosen.itemId}}"{{/if}}
     data-tooltip-trigger="{{#if chosen}}specialization{{else}}specialization-info{{/if}}" data-tooltip-click>
     <div class="hero-paperdoll__skill-cell-icon">
       {{#if chosen}}
@@ -547,11 +548,12 @@
     <template class="hg-tooltip-tpl" data-tooltip-key="specialization">
       <img class="hg-tooltip__icon" src="{{chosen.iconLarge}}" width="82" height="93" alt="">
       <p class="hg-tooltip__title">{{chosen.title}}</p>
-      {{#if chosen.effectTextKey}}<p>{{localize chosen.effectTextKey}}</p>{{/if}}
+      {{#if chosen.text}}<p>{{chosen.text}}</p>{{/if}}
       {{#if chosen.manual}}<p class="hg-spec__manual">{{localize 'HEROES_GLORY.SpecializationUi.Manual'}}</p>{{/if}}
       <p class="hg-spec__page">{{localize 'HEROES_GLORY.SpecializationUi.PageRef'}}</p>
       {{#if chosen.warning}}<p class="hg-spec__warn">{{chosen.warning}}</p><p class="hg-spec__missing">{{chosen.missing}}</p>{{/if}}
       {{#if chosen.castNote}}<p class="hg-spec__warn">{{chosen.castNote}}</p>{{/if}}
+      {{#if chosen.duplicate}}<p class="hg-spec__warn">{{chosen.duplicate}}</p>{{/if}}
     </template>
   {{/if}}
   {{/with}}

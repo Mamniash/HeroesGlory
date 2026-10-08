@@ -379,6 +379,9 @@ export function attachTooltip(triggerEl, templateEl, options = {}) {
   // framed sheets (creature) `data-color`.
   const color = boundsEl?.dataset.panelColor ?? boundsEl?.dataset.color ?? 'red';
   const clickToPin = options.clickToPin ?? false;
+  // Off where the trigger's right click does something else (the hero
+  // sheet's chosen specialization opens its item sheet).
+  const holdRight = options.holdRight ?? true;
   const showOptions = { boundsEl, mode, color };
 
   const onContextMenu = (event) => event.preventDefault();
@@ -398,8 +401,10 @@ export function attachTooltip(triggerEl, templateEl, options = {}) {
     ? () => pinTooltip(templateEl.content.cloneNode(true), showOptions)
     : null;
 
-  triggerEl.addEventListener('contextmenu', onContextMenu);
-  triggerEl.addEventListener('mousedown', onMouseDown);
+  if (holdRight) {
+    triggerEl.addEventListener('contextmenu', onContextMenu);
+    triggerEl.addEventListener('mousedown', onMouseDown);
+  }
   if (onClick) triggerEl.addEventListener('click', onClick);
 
   return () => {

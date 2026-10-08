@@ -1,0 +1,25 @@
+{{#> "systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}
+<section class="hg-item__body">
+  {{!-- §4.3: one of the 12 is chosen in the header (headerSelect); the name
+    and image follow it (documents/item.mjs). The book text is the item's
+    own; the requirement, «Применяет Ведущий вручную» and, on a hero, the
+    condition come from the code by the key (specialization-sheet.mjs). --}}
+  {{#if notSpecialization}}<div class="hg-item__note">{{notSpecialization}}</div>{{/if}}
+  {{#if notCounted}}<div class="hg-item__note">{{notCounted}}</div>{{/if}}
+  <textarea class="hg-item__input hg-item__textarea" name="system.description" rows="3"
+    aria-label="{{localize 'HEROES_GLORY.SpecializationUi.Text'}}">{{system.description}}</textarea>
+  {{#if requirement}}
+    <p class="hg-spec__req">{{requirement}}</p>
+    {{#if manual}}<p class="hg-spec__manual">{{localize 'HEROES_GLORY.SpecializationUi.Manual'}}</p>{{/if}}
+    <p class="hg-spec__page">{{localize 'HEROES_GLORY.SpecializationUi.PageRef'}}</p>
+  {{/if}}
+  {{#if status}}
+    {{#if status.ok}}
+      <p class="hg-spec__met">{{status.text}}</p>
+    {{else}}
+      <p class="hg-spec__warn">{{status.warning}}</p>
+      <p class="hg-spec__missing">{{status.text}}</p>
+    {{/if}}
+  {{/if}}
+</section>
+{{/"systems/heroes-glory/templates/item/parts/hg-item-frame.hbs"}}

@@ -4,47 +4,55 @@ import { canCastWithoutSpellbook } from '../helpers/rolls.mjs';
 import { RACE_GRANTED_ITEM_FLAG } from '../helpers/race-granted-items.mjs';
 import { specializationIconPath, specializationPlaceholderIconPath } from '../helpers/skill-icons.mjs';
 import {
-  SPECIALIZATION_SPELL_ICON_FRAMES, specializationList, isSpecialization,
-  isManualSpecialization, specializationEffectTextKey, specializationRequirement, specializationShortage,
-  specializationSpellName,
+  SPECIALIZATIONS_PACK, SPECIALIZATION_SPELL_ICON_FRAMES, specializationList, specializationFromKey,
+  isManualSpecialization, specializationLabel, specializationRequirement, specializationShortage,
+  specializationHero, specializationDropDecision, specializationSpellName,
 } from '../helpers/specializations.mjs';
 
 /**
- * §4.3 p. 23: the hero sheet's Специализация — the cell's text and hints and
- * the window that lists all 12 (rules.md §4.3). The conditions themselves are
- * pure (helpers/specializations.mjs); this only reads the actor and words them.
+ * §4.3 p. 23: the hero sheet's Специализация — the cell's text and hints, the
+ * window that lists all 12, and assigning one (the window, a drop on the
+ * sheet; rules.md §4.3). The conditions themselves are pure
+ * (helpers/specializations.mjs); this reads the actor and words them. The
+ * hero's specialization is an item (module/data/item-specialization.mjs).
  */
 
 /**
- * What the conditions read off a hero.
- * @param {Actor} actor
- * @returns {{level: number, ownedSkills: Array<{skillKey: string, tier: string}>, ownedSpellNames: string[]}}
+ * Name, icons and «применяет Ведущий» of one specialization — by its key
+ * (helpers/specializations.mjs), never from an item, so the cell never empties
+ * and a renamed item changes nothing.
+ * @param {{type: string, key: string}} spec
+ * @returns {{label: string, icon: string|null, iconLarge: string|null, manual: boolean}}
  */
-export function specializationHero(actor) {
+export function specializationView(spec) {
   return {
-    level: actor.system.level,
-    ownedSkills: actor.items.filter((i) => i.type === 'skill').map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier })),
-    ownedSpellNames: actor.items.filter((i) => i.type === 'spell').map((i) => specializationSpellName(i)),
+    label: specializationLabel(spec, (k) => game.i18n.localize(k)),
+    icon: specializationIconPath(spec, SPECIALIZATION_SPELL_ICON_FRAMES),
+    iconLarge: specializationIconPath(spec, SPECIALIZATION_SPELL_ICON_FRAMES, { large: true }),
+    manual: isManualSpecialization(spec.type, spec.key),
   };
 }
 
 /**
- * Name, icons and book text of one specialization — from the fixed list, never
- * from the hero's copy of a spell, so the cell never empties (rules.md §11).
- * @param {{type: string, key: string}} spec
- * @returns {{label: string, icon: string|null, iconLarge: string|null, effectTextKey: string|null, manual: boolean}}
+ * The book texts of the 12, by key — from the compendium «Специализации»'s
+ * index (the text is asked for explicitly). A key missing there has none.
+ * @returns {Promise<Map<string, string>>}
  */
-export function specializationView(spec) {
-  const label = spec.type === 'skill'
-    ? game.i18n.localize(CONFIG.HEROES_GLORY.secondarySkills[spec.key] ?? spec.key)
-    : spec.key;
-  return {
-    label,
-    icon: specializationIconPath(spec, SPECIALIZATION_SPELL_ICON_FRAMES),
-    iconLarge: specializationIconPath(spec, SPECIALIZATION_SPELL_ICON_FRAMES, { large: true }),
-    effectTextKey: specializationEffectTextKey(spec.type, spec.key),
-    manual: isManualSpecialization(spec.type, spec.key),
-  };
+async function compendiumTexts() {
+  const pack = game.packs.get(SPECIALIZATIONS_PACK);
+  if (!pack) return new Map();
+  const index = await pack.getIndex({ fields: ['system.key', 'system.description'] });
+  return new Map(index.filter((e) => e.system?.key).map((e) => [e.system.key, e.system.description ?? '']));
+}
+
+/**
+ * «Не хватает: …» for one specialization on this hero, or null when met.
+ * @param {{type: string, key: string}} spec
+ * @param {Actor} actor
+ * @returns {string|null}
+ */
+export function specializationMissingLine(spec, actor) {
+  return missingLine(spec, specializationHero(actor));
 }
 
 /**
@@ -104,8 +112,7 @@ function castNote(actor, spec) {
  * @returns {{chosen: {type: string, key: string}|null, anyMet: boolean, canPick: boolean, hero: object}}
  */
 export function specializationState(actor, gmEditing) {
-  const { type, key } = actor.system.specialization;
-  const chosen = isSpecialization(type, key) ? { type, key } : null;
+  const chosen = specializationFromKey(actor.system.specialization?.key ?? '');
   const hero = specializationHero(actor);
   const anyMet = specializationShortage(hero) === null;
   const canPick = gmEditing || (actor.isOwner && !chosen && anyMet);
@@ -155,21 +162,30 @@ export function specializationCellHint(state) {
 
 /**
  * The chosen specialization's full description, for the cell's tooltip:
- * book text, «Применяет Ведущий вручную», the page, and the warning when its
- * condition isn't met (any more, or never was — assigned by the GM).
+ * the book text of the hero's specialization item, «Применяет Ведущий
+ * вручную», the page, the warning when its condition isn't met (any more, or
+ * never was — assigned by the GM), and — should the hero have two — which
+ * one counts.
  * @param {Actor} actor
  * @param {object} state   `specializationState`, with `chosen`
- * @returns {{label: string, iconLarge: string|null, effectTextKey: string|null, manual: boolean, warning: string|null, missing: string|null}}
+ * @returns {object}
  */
 export function chosenSpecializationDetails(actor, state) {
+  const i18n = game.i18n;
   const view = specializationView(state.chosen);
   const missing = missingLine(state.chosen, state.hero);
+  const item = actor.items.get(actor.system.specializationItemId);
   return {
     ...view,
-    title: game.i18n.format('HEROES_GLORY.SpecializationUi.TooltipTitle', { name: view.label }),
-    warning: missing ? game.i18n.localize('HEROES_GLORY.SpecializationUi.NoLongerMet') : null,
+    itemId: item?.id ?? null,
+    text: item?.system.description ?? '',
+    title: i18n.format('HEROES_GLORY.SpecializationUi.TooltipTitle', { name: view.label }),
+    warning: missing ? i18n.localize('HEROES_GLORY.SpecializationUi.NoLongerMet') : null,
     missing,
     castNote: castNote(actor, state.chosen),
+    duplicate: actor.system.specializationCount > 1
+      ? i18n.format('HEROES_GLORY.SpecializationUi.Duplicate', { count: actor.system.specializationCount, name: view.label })
+      : null,
   };
 }
 
@@ -181,7 +197,7 @@ export function chosenSpecializationDetails(actor, state) {
  * @param {boolean} select   the window lets this user choose
  * @returns {{cell: string, detail: string}}
  */
-function optionMarkup(actor, spec, state, select) {
+function optionMarkup(actor, spec, state, select, text) {
   const i18n = game.i18n;
   const esc = foundry.utils.escapeHTML;
   const id = `${spec.type}:${spec.key}`;
@@ -202,7 +218,7 @@ function optionMarkup(actor, spec, state, select) {
     ? i18n.format('HEROES_GLORY.SpecializationUi.RequirementSkill', { skill: view.label })
     : i18n.format('HEROES_GLORY.SpecializationUi.RequirementSpell', { spell: spec.key });
   const lines = [];
-  if (view.effectTextKey) lines.push(`<p class="hg-spec__text">${esc(i18n.localize(view.effectTextKey))}</p>`);
+  if (text) lines.push(`<p class="hg-spec__text">${esc(text)}</p>`);
   if (view.manual) lines.push(`<p class="hg-spec__manual">${esc(i18n.localize('HEROES_GLORY.SpecializationUi.Manual'))}</p>`);
   lines.push(`<p class="hg-spec__page">${esc(i18n.localize('HEROES_GLORY.SpecializationUi.PageRef'))}</p>`);
   lines.push(`<p class="hg-spec__req">${esc(requirement)}</p>`);
@@ -237,7 +253,8 @@ export async function openSpecializationWindow(actor, { select, gmEditing }) {
   const i18n = game.i18n;
   const esc = foundry.utils.escapeHTML;
   const state = { ...specializationState(actor, gmEditing), gmEditing };
-  const options = specializationList().map((spec) => ({ spec, ...optionMarkup(actor, spec, state, select) }));
+  const texts = await compendiumTexts();
+  const options = specializationList().map((spec) => ({ spec, ...optionMarkup(actor, spec, state, select, texts.get(spec.key)) }));
   const group = (type, titleKey) => `<div class="hg-spec__group">
       <p class="hg-confirm__block-title">${esc(i18n.localize(titleKey))}</p>
       <div class="hg-spec__grid">${options.filter((o) => o.spec.type === type).map((o) => o.cell).join('')}</div>
@@ -300,7 +317,128 @@ export async function openSpecializationWindow(actor, { select, gmEditing }) {
   });
   if (!select || typeof value !== 'string' || !value) return null;
   const [type, ...rest] = value.split(':');
-  const key = rest.join(':');
-  return isSpecialization(type, key) ? { type, key } : null;
+  const spec = specializationFromKey(rest.join(':'));
+  return spec?.type === type ? spec : null;
 }
+
+/**
+ * The data of a new specialization item for one key: its compendium entry's
+ * (with `_stats.compendiumSource`, as a drop from the compendium gives) — or,
+ * if the compendium has none, built from the key without the book text, with
+ * a console warning (as skill-grant.mjs does for a missing skill).
+ * @param {string} key
+ * @returns {Promise<object>}
+ */
+export async function specializationItemData(key) {
+  const pack = game.packs.get(SPECIALIZATIONS_PACK);
+  const index = pack ? await pack.getIndex({ fields: ['system.key'] }) : [];
+  const entry = index.find((e) => e.system?.key === key);
+  const doc = entry ? await pack.getDocument(entry._id) : null;
+  if (doc) return game.items.fromCompendium(doc, { clearFolder: true });
+  console.warn(`heroes-glory | specialization "${key}" not found in ${SPECIALIZATIONS_PACK}; assigned without its text`);
+  const spec = specializationFromKey(key);
+  return {
+    name: specializationView(spec).label,
+    type: 'specialization',
+    img: specializationView(spec).iconLarge,
+    system: { key, description: '' },
+  };
+}
+
+/**
+ * Give the hero this specialization (rules.md §4.3): the old one (if any) is
+ * deleted first, then the new one created — no exception to «never two». If
+ * creating fails after the delete, the GM is told.
+ * @param {Actor} actor
+ * @param {object} data   the new item's data (`specializationItemData`, or a dropped item's)
+ * @returns {Promise<Item|null>}
+ */
+async function replaceSpecialization(actor, data) {
+  const old = actor.items.filter((i) => i.type === 'specialization');
+  const oldSpec = old.length ? specializationFromKey(actor.system.specialization?.key ?? '') : null;
+  const oldName = oldSpec ? specializationView(oldSpec).label : old[0]?.name;
+  if (old.length) await actor.deleteEmbeddedDocuments('Item', old.map((i) => i.id));
+  let created = null;
+  try {
+    [created = null] = await actor.createEmbeddedDocuments('Item', [data], { keepId: !!data._id });
+  } catch (err) {
+    console.error(err);
+  }
+  if (!created && old.length) {
+    ui.notifications.error(game.i18n.format('HEROES_GLORY.SpecializationUi.ReplaceFailed', { old: oldName, name: data.name }));
+  }
+  return created;
+}
+
+/**
+ * The window's OK: give the hero the chosen one (the GM's choice replaces).
+ * @param {Actor} actor
+ * @param {{type: string, key: string}} spec
+ * @returns {Promise<Item|null>}
+ */
+export async function assignSpecialization(actor, spec) {
+  return replaceSpecialization(actor, await specializationItemData(spec.key));
+}
+
+/**
+ * Remove the hero's specialization (the GM's «×» in edit mode).
+ * @param {Actor} actor
+ * @returns {Promise<void>}
+ */
+export async function clearSpecialization(actor) {
+  const ids = actor.items.filter((i) => i.type === 'specialization').map((i) => i.id);
+  if (ids.length) await actor.deleteEmbeddedDocuments('Item', ids);
+}
+
+/**
+ * A specialization item dropped on the hero sheet (rules.md §4.3): refused
+ * with a notification, or — after a confirmation — given to the hero. A
+ * player: one of the 12, none on the hero yet, the condition met; the GM, in
+ * any mode: any of the 12, replacing the one there (`specializationDropDecision`).
+ * @param {Actor} actor
+ * @param {Item} item   the dropped item
+ * @returns {Promise<Item|null>}
+ */
+export async function dropSpecialization(actor, item) {
+  const i18n = game.i18n;
+  const esc = foundry.utils.escapeHTML;
+  const spec = specializationFromKey(item.system.key);
+  const hero = specializationHero(actor);
+  const current = specializationFromKey(actor.system.specialization?.key ?? '');
+  const decision = specializationDropDecision({
+    isGM: game.user.isGM,
+    existingKey: current?.key ?? null,
+    existingCount: actor.items.filter((i) => i.type === 'specialization').length,
+    key: item.system.key,
+    met: !!spec && specializationRequirement(spec, hero).met,
+  });
+  const name = spec ? specializationView(spec).label : item.name;
+  if (decision.action === 'refuse') {
+    if (decision.reason === 'unmet') {
+      ui.notifications.warn(i18n.format('HEROES_GLORY.SpecializationUi.Refuse.unmetDrop', { name, missing: missingLine(spec, hero) }));
+    } else if (decision.reason !== 'same') {
+      ui.notifications.warn(i18n.format(`HEROES_GLORY.SpecializationUi.Refuse.${decision.reason === 'already' ? 'alreadyDrop' : decision.reason}`, { name }));
+    }
+    return null;
+  }
+  const lines = [esc(decision.replace && current
+    ? i18n.format('HEROES_GLORY.SpecializationUi.ConfirmReplace', { old: specializationView(current).label, name })
+    : i18n.format('HEROES_GLORY.SpecializationUi.ConfirmAssign', { name }))];
+  if (decision.unmet) {
+    lines.push(`<span class="hg-spec__warn">${esc(i18n.localize('HEROES_GLORY.SpecializationUi.NoLongerMet'))}</span>`);
+    lines.push(`<span class="hg-spec__missing">${esc(missingLine(spec, hero) ?? '')}</span>`);
+  }
+  if (!game.user.isGM) lines.push(`<span class="hg-spec__notice">${esc(i18n.localize('HEROES_GLORY.SpecializationUi.OnlyGmChanges'))}</span>`);
+  const confirmed = await HeroesGloryDialog.confirm({
+    hgColor: HeroesGloryDialog.actorColor(actor),
+    window: { title: i18n.localize('HEROES_GLORY.SpecializationUi.Title') },
+    content: lines.map((line) => `<p>${line}</p>`).join(''),
+    rejectClose: false,
+  });
+  if (!confirmed) return null;
+  const data = item.inCompendium ? game.items.fromCompendium(item, { clearFolder: true, keepId: true }) : item.toObject();
+  if (actor.items.has(data._id) || !item.inCompendium) delete data._id;
+  return replaceSpecialization(actor, data);
+}
+
 

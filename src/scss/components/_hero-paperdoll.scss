@@ -2200,6 +2200,12 @@ $hg-experience-highlight-pulse-duration: 2.6s;
   opacity: 0.6;
 }
 
+// Two specialization items on one hero (only the first counts): the cell's
+// state line turns the warning colour; its tooltip says which one counts.
+.hero-paperdoll__slot--spec-duplicate .hero-paperdoll__skill-cell-desc {
+  color: #ff9a7a;
+}
+
 // Clickable without a `data-action`: the Специализация cell (its click pins
 // our tooltip) and the empty book slot of a hero with race spells (opens them).
 .hero-paperdoll__slot--specialization[data-tooltip-click],

@@ -1,22 +1,27 @@
 /**
  * §4.3 p.23: specialization from level 10 — pure data/logic, no Foundry
  * globals, so it's unit-testable (`node --test`) the same way as
- * race-granted-items.mjs. module/documents/actor.mjs's
- * `#syncSpecializationEffect`, module/apps/specialization-window.mjs (the
- * sheet's cell and window) and roll-actions.mjs are the Foundry-facing
- * callers.
+ * race-granted-items.mjs. A hero's specialization is an item of type
+ * `specialization` (module/data/item-specialization.mjs) from the
+ * compendium «Специализации» (scripts/data/specialization-compendium-data.mjs);
+ * module/data/actor-hero.mjs derives `system.specialization` ({type, key})
+ * from it, module/documents/item.mjs guards it, module/apps/
+ * specialization-window.mjs and the hero sheet show and assign it.
  *
- * The 12 effect-text strings this file's SPECIALIZATION_EFFECT_TEXT_KEYS
- * point at live in lang/ru.json's HEROES_GLORY.Specialization.* block
- * (JSON has no comments, so the two verbatim book typos silently fixed in
- * transit are documented here instead — same "confirmed against the page
- * images, not a transcription slip on this end" convention as
- * scripts/data/skill-compendium-data.mjs's own header):
- *  - Интеллект: book has "Ваша максимальное значение Маны" — gender
- *    agreement is off ("значение" is neuter); fixed to "Ваше".
- *  - Цепная Молния: book has "а неполовину" (missing space); fixed to
- *    "а не половину".
+ * One place for each thing about a specialization (rules.md §4.3):
+ *  - which 12 there are, their keys, condition, effects, «применяет Ведущий»,
+ *    icon — this file (icons through skill-icons.mjs);
+ *  - the name — a skill's: its secondary skill's label in lang/
+ *    (CONFIG.HEROES_GLORY.secondarySkills); a spell's: its key below, the
+ *    book's spell name (`specializationLabel`);
+ *  - the book text — scripts/data/specialization-compendium-data.mjs, read
+ *    from the compendium entry (or the hero's copy of it).
  */
+
+import { HEROES_GLORY } from './config.mjs';
+
+/** The compendium of the 12 (system.json). */
+export const SPECIALIZATIONS_PACK = 'heroes-glory.specializations';
 
 /**
  * The 7 secondary-skill-based specializations (requires Expert tier in
@@ -29,61 +34,157 @@ export const SPECIALIZATION_SKILLS = ['assault', 'archery', 'armor', 'sorcery', 
  * The 5 spell-based specializations (requires owning the exact spell) —
  * matched by name, same as everywhere else a spell is referenced in this
  * project (item-spell.mjs has no stable key of its own — see
- * race-granted-items.mjs's own comment on this same asymmetry).
+ * race-granted-items.mjs's own comment on this same asymmetry). The key is
+ * the specialization's name too.
  * @type {string[]}
  */
 export const SPECIALIZATION_SPELLS = ['Цепная Молния', 'Воскрешение', 'Ускорение', 'Стена Огня', 'Клон'];
 
 /**
- * Localization key for each specialization's own effect-text tooltip —
- * lang/ru.json's HEROES_GLORY.Specialization.* block, book p.23,
- * verbatim except two silently-fixed book typos (see that block's own
- * comment in lang/ru.json). Kept independent of any given skill's own
- * per-tier `system.effects` text (item-skill.mjs) — several of these
- * texts happen to restate an earlier tier's own wording almost word for
- * word (Нападение/Стрельба in particular — flagged separately, not
- * reconciled: this is page 23's own list, taken as its own independent
- * source, the same way the price-list's weapon categories were kept
- * independent of §8.1's weaponType field).
- * @type {{skill: Record<string,string>, spell: Record<string,string>}}
+ * Which of the two groups a key belongs to — the namespaces never overlap
+ * (Latin skill keys, Russian spell names), so the key alone says it.
+ * @param {string} key
+ * @returns {'skill'|'spell'|null}   null — not one of the 12
  */
-export const SPECIALIZATION_EFFECT_TEXT_KEYS = {
-  skill: {
-    assault: 'HEROES_GLORY.Specialization.Assault',
-    archery: 'HEROES_GLORY.Specialization.Archery',
-    armor: 'HEROES_GLORY.Specialization.Armor',
-    sorcery: 'HEROES_GLORY.Specialization.Sorcery',
-    intellect: 'HEROES_GLORY.Specialization.Intellect',
-    necromancy: 'HEROES_GLORY.Specialization.Necromancy',
-    healing: 'HEROES_GLORY.Specialization.Healing',
-  },
-  spell: {
-    'Цепная Молния': 'HEROES_GLORY.Specialization.ChainLightning',
-    'Воскрешение': 'HEROES_GLORY.Specialization.Resurrection',
-    'Ускорение': 'HEROES_GLORY.Specialization.Haste',
-    'Стена Огня': 'HEROES_GLORY.Specialization.FireWall',
-    'Клон': 'HEROES_GLORY.Specialization.Clone',
-  },
-};
+export function specializationTypeOf(key) {
+  if (SPECIALIZATION_SKILLS.includes(key)) return 'skill';
+  if (SPECIALIZATION_SPELLS.includes(key)) return 'spell';
+  return null;
+}
 
 /**
- * @param {string} type   'skill' | 'spell' | '' (none chosen).
+ * A key as the `{type, key}` the rest of the system reads, or null.
  * @param {string} key
- * @returns {string|null}
+ * @returns {{type: 'skill'|'spell', key: string}|null}
  */
-export function specializationEffectTextKey(type, key) {
-  return SPECIALIZATION_EFFECT_TEXT_KEYS[type]?.[key] ?? null;
+export function specializationFromKey(key) {
+  const type = specializationTypeOf(key);
+  return type ? { type, key } : null;
+}
+
+/**
+ * The name's source for each of the 12, book order: a skill's — the lang key
+ * of its secondary skill; a spell's — the spell name itself (localizing a
+ * string that is no key returns it unchanged). The item's `system.key`
+ * choices and its sheet's drop-down.
+ * @returns {Record<string, string>}
+ */
+export function specializationLabelKeys() {
+  return Object.fromEntries([
+    ...SPECIALIZATION_SKILLS.map((key) => [key, HEROES_GLORY.secondarySkills[key]]),
+    ...SPECIALIZATION_SPELLS.map((key) => [key, key]),
+  ]);
+}
+
+/**
+ * The specialization's name.
+ * @param {{type: string, key: string}} spec
+ * @param {(key: string) => string} localize   `game.i18n.localize`, or a
+ *   lang/ru.json lookup at build time
+ * @returns {string}
+ */
+export function specializationLabel(spec, localize) {
+  if (spec.type === 'skill' && HEROES_GLORY.secondarySkills[spec.key]) return localize(HEROES_GLORY.secondarySkills[spec.key]);
+  return spec.key;
+}
+
+/**
+ * The hero's specialization among its `specialization` items (rules.md §4.3:
+ * one per hero). Should two be there anyway, the first by `sort`, then by id,
+ * counts. An item whose key is none of the 12 never counts.
+ * @param {Array<{id: string, sort: number, key: string}>} items
+ * @returns {{spec: {type: string, key: string}|null, itemId: string|null, count: number, unresolved: Array<{id: string, key: string}>}}
+ *   `count` — all specialization items; `unresolved` — those with no valid key
+ */
+export function pickSpecialization(items) {
+  const ordered = [...items].sort((a, b) => ((a.sort ?? 0) - (b.sort ?? 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const unresolved = ordered.filter((i) => !specializationTypeOf(i.key)).map((i) => ({ id: i.id, key: i.key }));
+  const first = ordered.find((i) => specializationTypeOf(i.key));
+  return {
+    spec: first ? specializationFromKey(first.key) : null,
+    itemId: first?.id ?? null,
+    count: ordered.length,
+    unresolved,
+  };
+}
+
+/**
+ * Why a specialization item may not be created (rules.md §4.3, §11), or null
+ * when it may. One rule for everyone, the GM too: a hero has at most one — a
+ * replacement deletes the old one first. Only a hero takes one. A player
+ * takes one of the 12 whose condition is met; the GM any of the 12.
+ * @param {object} args
+ * @param {string|null} args.parentType   the actor's type; null — a world or compendium item
+ * @param {boolean} args.isGM
+ * @param {number} args.existingCount   specialization items the hero has
+ * @param {boolean} args.valid   the key is one of the 12
+ * @param {boolean} args.met   its condition is met for this hero
+ * @returns {'notHero'|'already'|'invalid'|'unmet'|null}
+ */
+export function specializationCreateRefusal({ parentType, isGM, existingCount, valid, met }) {
+  if (parentType === null) return null;
+  if (parentType !== 'hero') return 'notHero';
+  if (existingCount > 0) return 'already';
+  if (!valid) return 'invalid';
+  if (!isGM && !met) return 'unmet';
+  return null;
+}
+
+/**
+ * A specialization dropped on the hero sheet (rules.md §4.3): what happens.
+ *  - a player: one of the 12, none on the hero yet, the condition met — asked
+ *    to confirm («Сменить потом сможет только Ведущий»); otherwise refused;
+ *  - the GM, in any mode: any of the 12 — asked to confirm, «Заменить «X»?»
+ *    when one is there, «Условие не выполнено» when not met; the very one
+ *    already there — nothing to do.
+ * @param {object} args
+ * @param {boolean} args.isGM
+ * @param {string|null} args.existingKey   the hero's specialization key, if any
+ * @param {number} args.existingCount   specialization items on the hero
+ * @param {string} args.key   the dropped one's key
+ * @param {boolean} args.met
+ * @returns {{action: 'refuse', reason: 'invalid'|'already'|'unmet'|'same'}|{action: 'confirm', replace: boolean, unmet: boolean}}
+ */
+export function specializationDropDecision({ isGM, existingKey, existingCount, key, met }) {
+  if (!specializationTypeOf(key)) return { action: 'refuse', reason: 'invalid' };
+  if (!isGM) {
+    if (existingCount > 0) return { action: 'refuse', reason: 'already' };
+    if (!met) return { action: 'refuse', reason: 'unmet' };
+    return { action: 'confirm', replace: false, unmet: false };
+  }
+  if (existingCount === 1 && existingKey === key) return { action: 'refuse', reason: 'same' };
+  return { action: 'confirm', replace: existingCount > 0, unmet: !met };
+}
+
+/**
+ * The world migration of one hero from the old `system.specialization` field
+ * (its stored value, `_source`; actor-hero.mjs) to an item: which key to
+ * create, if any. Nothing when the hero is migrated already, the old field is
+ * blank or none of the 12, or a specialization item is there already.
+ * @param {object} args
+ * @param {{type?: string, key?: string}|null} args.legacy
+ * @param {boolean} args.migrated   the actor's migration flag
+ * @param {number} args.itemCount   specialization items on the hero
+ * @returns {{create: string|null}}
+ */
+export function legacySpecializationPlan({ legacy, migrated, itemCount }) {
+  const key = legacy?.key ?? '';
+  const valid = !!key && specializationTypeOf(key) === legacy?.type;
+  return { create: !migrated && valid && itemCount === 0 ? key : null };
 }
 
 /**
  * §4.3: the one numeric specialization — Интеллект, +50 to max Mana —
- * applied through the same modifiers.mjs/ActiveEffect pipeline an
- * artifact's `system.modifiers` already uses (`mana.max` already
- * resolves to the ActiveEffect "final" phase there — see that file's own
- * comment). Every other specialization is procedural text with no number
- * to automate this way; Доспехи/Воскрешение are automated too, but
- * through their own dedicated hooks below, not through this list, since
- * neither is a flat stat modifier.
+ * applied through the same modifiers.mjs/ActiveEffect change pipeline an
+ * artifact's `system.modifiers` uses (`mana.max` resolves to the "final"
+ * phase there). Not stored on the actor: documents/actor.mjs yields an
+ * in-memory effect built from this list in `allApplicableEffects`, so the
+ * +50 is sorted among the artifacts' own Mana changes by the same priority
+ * as before (multiply first, then add) — see that method's comment for why
+ * prepareDerivedData was not the place. Every other specialization is
+ * procedural text with no number to automate this way; Доспехи/Воскрешение
+ * are automated too, but through their own dedicated hooks below, not
+ * through this list, since neither is a flat stat modifier.
  * @param {string} type
  * @param {string} key
  * @returns {Array<{stat: string, mode: string, value: number}>}
@@ -254,6 +355,22 @@ export function specializationShortage(hero) {
     level: hero.level < SPECIALIZATION_MIN_LEVEL ? hero.level : null,
     skills: anyQualifies ? null : closest,
     spells: !anyQualifies,
+  };
+}
+
+/**
+ * What the conditions read off a hero (a Foundry actor, or anything with its
+ * `system.level` and `items`).
+ * @param {{system: {level: number}, items: Iterable<object>}} actor
+ * @param {object} [options]   passed to `specializationSpellName`
+ * @returns {{level: number, ownedSkills: Array<{skillKey: string, tier: string}>, ownedSpellNames: string[]}}
+ */
+export function specializationHero(actor, options) {
+  const items = [...(actor.items ?? [])];
+  return {
+    level: actor.system.level,
+    ownedSkills: items.filter((i) => i.type === 'skill').map((i) => ({ skillKey: i.system.skillKey, tier: i.system.tier })),
+    ownedSpellNames: items.filter((i) => i.type === 'spell').map((i) => specializationSpellName(i, options)),
   };
 }
 

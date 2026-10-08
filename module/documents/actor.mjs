@@ -1,6 +1,6 @@
 import { isIncapacitated } from '../helpers/rolls.mjs';
 import { subchoiceModifiersFor } from '../helpers/race-stats.mjs';
-import { specializationModifiers } from '../helpers/specializations.mjs';
+import { specializationModifiers, pickSpecialization } from '../helpers/specializations.mjs';
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 import { summonedData, dismissSummoned } from '../helpers/combat.mjs';
 import { showHealthPopup } from '../helpers/health-popup.mjs';
@@ -15,12 +15,47 @@ import { showHealthPopup } from '../helpers/health-popup.mjs';
 const RACE_SUBCHOICE_EFFECT_FLAG = ['heroes-glory', 'raceSubchoiceModifiers'];
 
 /**
- * Same convention as RACE_SUBCHOICE_EFFECT_FLAG above, for the
- * specialization ActiveEffect (§4.3 — currently only Интеллект's +50
- * Mana carries one; every other specialization has nothing numeric to
- * apply, see specializations.mjs's own comment).
+ * The flag of the specialization's in-memory effect (§4.3, Интеллект's +50
+ * Mana — `specializationEffect`). Never stored: a stored effect with the
+ * old flag `specializationModifiers` is what the world migration removes
+ * (helpers/specialization-migration.mjs).
  */
-const SPECIALIZATION_EFFECT_FLAG = ['heroes-glory', 'specializationModifiers'];
+const SPECIALIZATION_EFFECT_FLAG = ['heroes-glory', 'specializationEffect'];
+
+/**
+ * The specialization effect of each hero, cached per item and key. A
+ * module-level map, not a private field: core prepares a document's data
+ * inside its constructor, before a subclass's private members exist.
+ * @type {WeakMap<Actor, {tag: string, effect: ActiveEffect}>}
+ */
+const specializationEffectCache = new WeakMap();
+
+/**
+ * A hero's specialization effect (§4.3, Интеллект's +50 Mana), built in
+ * memory from its specialization item — `HeroesGloryActor#allApplicableEffects`.
+ * @param {Actor} actor
+ * @returns {ActiveEffect|null}
+ */
+function specializationEffect(actor) {
+  if (actor.type !== 'hero' || !actor.items) return null;
+  const items = actor.items.filter((i) => i.type === 'specialization')
+    .map((i) => ({ id: i.id, sort: i.sort, key: i.system.key }));
+  const { spec, itemId } = pickSpecialization(items);
+  const modifiers = spec ? specializationModifiers(spec.type, spec.key) : [];
+  if (!modifiers.length) return null;
+  const tag = `${itemId}:${spec.key}`;
+  const cached = specializationEffectCache.get(actor);
+  if (cached?.tag === tag) return cached.effect;
+  const effect = new CONFIG.ActiveEffect.documentClass({
+    name: game.i18n?.localize('HEROES_GLORY.Hero.SpecializationEffectName') ?? spec.key,
+    img: 'icons/svg/aura.svg',
+    origin: actor.items.get(itemId)?.uuid ?? null,
+    system: { changes: buildEffectChanges(modifiers) },
+    flags: { [SPECIALIZATION_EFFECT_FLAG[0]]: { [SPECIALIZATION_EFFECT_FLAG[1]]: true } },
+  }, { parent: actor });
+  specializationEffectCache.set(actor, { tag, effect });
+  return effect;
+}
 
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
@@ -125,15 +160,6 @@ export class HeroesGloryActor extends Actor {
       this.#syncRaceSubchoiceEffect();
     }
 
-    // §4.3: keep the specialization ActiveEffect (currently only
-    // Интеллект's +50 Mana) in sync whenever `system.specialization`
-    // changes — covers picking one, switching to a different one, and
-    // the manual "снять специализацию" clear (hero-sheet.mjs's
-    // #onUnsetSpecialization) the same way. Same guards as the
-    // race-subchoice sync just above.
-    if (userId === game.user.id && this.type === 'hero' && 'specialization' in (changed.system ?? {})) {
-      this.#syncSpecializationEffect();
-    }
   }
 
   /**
@@ -168,34 +194,24 @@ export class HeroesGloryActor extends Actor {
   }
 
   /**
-   * Same shape as `#syncRaceSubchoiceEffect` above (rebuild-and-update
-   * rather than diff, no `transfer`, same reasoning both times) — kept as
-   * its own method rather than folded into that one since it watches a
-   * different field and has nothing else in common structurally (a
-   * specialization's `modifiers` come from `specializations.mjs`, keyed
-   * on `{type, key}`, not race-stats.mjs's `{race, subchoice}`).
-   * @returns {Promise<void>}
+   * Core's list of effects to apply, plus the specialization's — an effect
+   * that exists only in memory, rebuilt from the specialization item, never
+   * stored (nothing to keep in sync, nothing for the GM to edit or delete).
+   *
+   * Why here and not in prepareDerivedData (rules.md §4.3): its change is
+   * `mana.max` add 50 in the "final" phase, as the old stored effect's was,
+   * and core applies all of one phase's changes sorted by priority —
+   * multiply (10), add (20), downgrade, upgrade, override. An artifact may
+   * multiply `mana.max` (its modifier modes allow it): Mana = derived × M +
+   * 50 + the artifacts' adds. Added in prepareDerivedData the +50 would come
+   * before the multiplier — (derived + 50) × M; added after the final phase
+   * an override would no longer replace it. Here it takes its old place.
+   * @override
    */
-  async #syncSpecializationEffect() {
-    const { type, key } = this.system.specialization;
-    const modifiers = specializationModifiers(type, key);
-    const existing = this.effects.find((e) => e.getFlag(...SPECIALIZATION_EFFECT_FLAG));
-
-    if (modifiers.length === 0) {
-      if (existing) await existing.delete();
-      return;
-    }
-
-    const effectData = {
-      name: game.i18n.localize('HEROES_GLORY.Hero.SpecializationEffectName'),
-      icon: 'icons/svg/aura.svg',
-      origin: this.uuid,
-      system: { changes: buildEffectChanges(modifiers) },
-      flags: { [SPECIALIZATION_EFFECT_FLAG[0]]: { [SPECIALIZATION_EFFECT_FLAG[1]]: true } },
-    };
-
-    if (existing) await existing.update(effectData);
-    else await this.createEmbeddedDocuments('ActiveEffect', [effectData]);
+  *allApplicableEffects() {
+    yield* super.allApplicableEffects();
+    const effect = specializationEffect(this);
+    if (effect) yield effect;
   }
 
   /**

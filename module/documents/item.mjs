@@ -1,7 +1,11 @@
 import { buildEffectChanges } from '../helpers/modifiers.mjs';
 import { followWeaponTypeSlots } from '../helpers/paperdoll-slots.mjs';
 import { SPELLBOOK_IMG } from '../helpers/item-images.mjs';
-import { secondarySkillIconPath } from '../helpers/skill-icons.mjs';
+import { secondarySkillIconPath, specializationIconPath } from '../helpers/skill-icons.mjs';
+import {
+  SPECIALIZATIONS_PACK, SPECIALIZATION_SPELL_ICON_FRAMES, specializationFromKey, specializationLabel,
+  specializationCreateRefusal, specializationHero, specializationRequirement,
+} from '../helpers/specializations.mjs';
 
 /**
  * The flag namespace/key marking the ActiveEffect this system auto-manages
@@ -75,6 +79,66 @@ export class HeroesGloryItem extends Item {
   }
 
   /**
+   * §4.3: the rules of a hero's specialization, for every way an item gets
+   * created (a drop, the window, a macro, another sheet): only a hero takes
+   * one; never a second one — the GM too, a replacement deletes the old one
+   * first; a player only one of the 12 whose condition is met. Refused here
+   * with a notification on the creating client.
+   * @override
+   */
+  async _preCreate(data, options, user) {
+    const allowed = await super._preCreate(data, options, user);
+    if (allowed === false) return false;
+    if (this.type !== 'specialization') return;
+    const actor = this.parent instanceof Actor ? this.parent : null;
+    const spec = specializationFromKey(this.system.key);
+    const refusal = specializationCreateRefusal({
+      parentType: actor?.type ?? null,
+      isGM: user.isGM,
+      existingCount: actor ? actor.items.filter((i) => i.type === 'specialization').length : 0,
+      valid: !!spec,
+      met: !!(actor && spec && specializationRequirement(spec, specializationHero(actor)).met),
+    });
+    if (!refusal) return;
+    if (user.id === game.user.id) {
+      const name = spec ? specializationLabel(spec, (k) => game.i18n.localize(k)) : this.name;
+      ui.notifications.warn(game.i18n.format(`HEROES_GLORY.SpecializationUi.Refuse.${refusal}`, { name }));
+    }
+    return false;
+  }
+
+  /**
+   * §4.3: `_preCreate` sees one document at a time, so two specializations
+   * created in one batch would both pass it — only the first of the batch
+   * stays (its own `_preCreate` already checked the hero has none).
+   * @override
+   */
+  static async _preCreateOperation(documents, operation, user) {
+    const allowed = await super._preCreateOperation(documents, operation, user);
+    if (allowed === false) return false;
+    if (operation.parent?.type !== 'hero') return;
+    const extra = documents.filter((d) => d.type === 'specialization').slice(1);
+    if (!extra.length) return;
+    for (const doc of extra) documents.splice(documents.indexOf(doc), 1);
+    if (user.id === game.user.id) ui.notifications.warn(game.i18n.localize('HEROES_GLORY.SpecializationUi.Refuse.batch'));
+    if (!documents.length) return false;
+  }
+
+  /**
+   * §4.3: a player neither deletes the hero's specialization nor changes it —
+   * only the GM does (rules.md §11). A world or compendium item is free.
+   * @override
+   */
+  async _preDelete(options, user) {
+    const allowed = await super._preDelete(options, user);
+    if (allowed === false) return false;
+    if (this.type === 'specialization' && this.parent?.type === 'hero' && !user.isGM) {
+      if (user.id === game.user.id) ui.notifications.warn(game.i18n.localize('HEROES_GLORY.SpecializationUi.Refuse.onlyGm'));
+      return false;
+    }
+  }
+
+  /**
    * A brand-new artifact might already carry `system.modifiers` (e.g.
    * imported from a compendium), so the backing ActiveEffect needs to
    * exist from creation, not just from a later edit.
@@ -95,6 +159,7 @@ export class HeroesGloryItem extends Item {
   async _preUpdate(changed, options, user) {
     const allowed = await super._preUpdate(changed, options, user);
     if (allowed === false) return false;
+    if (this.type === 'specialization') return this.#preUpdateSpecialization(changed, user);
     // A skill item is named after its skill: choosing another skill renames
     // it and, if it still shows the old skill's icon (or none of its own),
     // swaps the icon too.
@@ -177,6 +242,49 @@ export class HeroesGloryItem extends Item {
 
     const conflict = this.#findEquippedSlotConflict();
     conflict?.update({ 'system.equipped': false });
+  }
+
+  /**
+   * §4.3: on a hero only the GM changes the specialization (its key, name,
+   * image, text). A new key renames the item and swaps its image, as a skill
+   * does, and brings the book text of that entry of the compendium
+   * «Специализации» (not there — the text is left, a console warning).
+   * @param {object} changed
+   * @param {User} user
+   * @returns {Promise<boolean|void>}
+   */
+  async #preUpdateSpecialization(changed, user) {
+    const touches = ['name', 'img', 'system'].some((k) => k in changed);
+    if (touches && this.parent?.type === 'hero' && !user.isGM) {
+      if (user.id === game.user.id) ui.notifications.warn(game.i18n.localize('HEROES_GLORY.SpecializationUi.Refuse.onlyGm'));
+      return false;
+    }
+    const newKey = changed.system?.key;
+    const spec = newKey && newKey !== this.system.key ? specializationFromKey(newKey) : null;
+    if (!spec) return;
+    changed.name = specializationLabel(spec, (k) => game.i18n.localize(k));
+    const oldSpec = specializationFromKey(this.system.key);
+    const oldIcon = oldSpec ? specializationIconPath(oldSpec, SPECIALIZATION_SPELL_ICON_FRAMES, { large: true }) : null;
+    const defaultIcon = this.constructor.getDefaultArtwork({ type: 'specialization' }).img;
+    const imgByHand = 'img' in changed && changed.img !== this.img;
+    if (!imgByHand && (!this.img || this.img === oldIcon || this.img === defaultIcon)) {
+      changed.img = specializationIconPath(spec, SPECIALIZATION_SPELL_ICON_FRAMES, { large: true });
+    }
+    const entry = await HeroesGloryItem.specializationEntry(newKey);
+    if (entry) changed.system.description = entry.system.description;
+    else console.warn(`heroes-glory | specialization "${newKey}" not found in ${SPECIALIZATIONS_PACK}; its text was left as it was`);
+  }
+
+  /**
+   * The compendium «Специализации» entry of one key, or null.
+   * @param {string} key
+   * @returns {Promise<Item|null>}
+   */
+  static async specializationEntry(key) {
+    const pack = game.packs.get(SPECIALIZATIONS_PACK);
+    if (!pack) return null;
+    const entry = (await pack.getIndex({ fields: ['system.key'] })).find((e) => e.system?.key === key);
+    return entry ? pack.getDocument(entry._id) : null;
   }
 
   /**

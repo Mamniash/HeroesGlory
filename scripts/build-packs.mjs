@@ -20,7 +20,7 @@
  * by having a pack open, which kept the working tree dirty for no real
  * content change. Run this only with Foundry fully closed (it holds
  * packs/<name>/LOCK while running) — `npm install && npm run build:packs`
- * regenerates all five packs from a fresh clone.
+ * regenerates every pack from a fresh clone.
  */
 
 import { buildPack } from './lib/pack-builder.mjs';
@@ -28,6 +28,7 @@ import { buildWeaponDocuments } from './data/weapon-compendium-data.mjs';
 import { buildSkillDocuments } from './data/skill-compendium-data.mjs';
 import { buildArtifactDocuments } from './data/artifact-compendium-data.mjs';
 import { buildSpellDocuments } from './data/spell-compendium-data.mjs';
+import { buildSpecializationDocuments } from './data/specialization-compendium-data.mjs';
 import { buildCreatureDocuments } from './data/creature-compendium-data.mjs';
 import { buildKnowledgeBaseDocuments } from './data/knowledge-base-compendium-data.mjs';
 
@@ -37,6 +38,7 @@ const PACKS = {
   skills: buildSkillDocuments,
   artifacts: buildArtifactDocuments,
   spells: buildSpellDocuments,
+  specializations: buildSpecializationDocuments,
   creatures: buildCreatureDocuments,
   'knowledge-base': buildKnowledgeBaseDocuments,
 };
