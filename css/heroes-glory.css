@@ -3693,6 +3693,9 @@
 .heroes-glory .hg-spec__open:hover, .heroes-glory .hg-spec__open:focus-visible {
   color: #ffffff;
 }
+.heroes-glory img[src*="-x4/"] {
+  image-rendering: auto;
+}
 
 /* Chat cards render in the chat log, outside any .heroes-glory wrapper */
 .heroes-glory-chat-card {

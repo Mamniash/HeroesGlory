@@ -42,6 +42,20 @@ function frame(n) {
 }
 
 /**
+ * The small slot icons (pskil42, secskill, imrl42, ilck42) are shown from
+ * their xBRZ ×4 versions in `assets/<set>-x4/` (same file names), which the
+ * browser scales down into the cell smoothly (_hd-icons.scss) — the originals
+ * stretched ×1.26 pixel by pixel came out uneven. Built by
+ * scripts/upscale_icons.py --hero-sheet; the originals stay in assets/<set>/.
+ * @param {string} set
+ * @param {number} n
+ * @returns {string}
+ */
+function smallIconPath(set, n) {
+  return `systems/${SYSTEM_ID}/assets/${set}-x4/${set}_g00_f${frame(n)}.png`;
+}
+
+/**
  * Primary-skill/Experience/Mana icons (assets/pskil42) are one static
  * frame each, not value-driven. Health has no dedicated icon — the design
  * doc calls for reusing the Experience frame as a deliberate placeholder;
@@ -80,9 +94,8 @@ const PRIMARY_SKILL_FRAMES_SMALL_OVERRIDE = {
  * @returns {string}
  */
 export function primarySkillIconPath(key, { large = false } = {}) {
-  const set = large ? 'pskill' : 'pskil42';
-  const frames = large ? PRIMARY_SKILL_FRAMES : { ...PRIMARY_SKILL_FRAMES, ...PRIMARY_SKILL_FRAMES_SMALL_OVERRIDE };
-  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(frames[key])}.png`;
+  if (!large) return smallIconPath('pskil42', { ...PRIMARY_SKILL_FRAMES, ...PRIMARY_SKILL_FRAMES_SMALL_OVERRIDE }[key]);
+  return `systems/${SYSTEM_ID}/assets/pskill/pskill_g00_f${frame(PRIMARY_SKILL_FRAMES[key])}.png`;
 }
 
 /**
@@ -93,9 +106,9 @@ export function primarySkillIconPath(key, { large = false } = {}) {
  * @returns {string}
  */
 export function secondarySkillIconPath(skillKey, tier, { large = false } = {}) {
-  const set = large ? 'secsk82' : 'secskill';
   const n = SECONDARY_SKILL_FRAMES[skillKey][tier];
-  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(n)}.png`;
+  if (!large) return smallIconPath('secskill', n);
+  return `systems/${SYSTEM_ID}/assets/secsk82/secsk82_g00_f${frame(n)}.png`;
 }
 
 /**
@@ -116,15 +129,15 @@ const SECONDARY_SKILL_EMPTY_FRAME = 0;
  * @returns {string}
  */
 export function secondarySkillEmptyIconPath({ large = false } = {}) {
-  const set = large ? 'secsk82' : 'secskill';
-  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(SECONDARY_SKILL_EMPTY_FRAME)}.png`;
+  if (!large) return smallIconPath('secskill', SECONDARY_SKILL_EMPTY_FRAME);
+  return `systems/${SYSTEM_ID}/assets/secsk82/secsk82_g00_f${frame(SECONDARY_SKILL_EMPTY_FRAME)}.png`;
 }
 
 /**
  * Morale/Luck sprite sheets only cover the -3..+3 range (rules.md §2.2)
- * with 7 frames; clamped defensively since artifacts/effects can in
- * practice push the stored value outside that range (schema only enforces
- * the -3..3 bound on Удача, not on Боевой дух).
+ * with 7 frames; clamped since Боевой дух has no limit at all (§11) and
+ * can go past ±3. Удача never does: its total is clamped to ±3 where it is
+ * computed (resolveLuckTotal, rolls.mjs) — the schema itself has no bound.
  * @param {number} value
  * @returns {number}
  */
@@ -140,19 +153,26 @@ function valueFrame(value) {
  * @returns {string}
  */
 export function moraleIconPath(value, { large = false, small = false } = {}) {
-  const set = large ? 'imrl82' : small ? 'imrl22' : 'imrl42';
+  if (!large && !small) return smallIconPath('imrl42', valueFrame(value));
+  const set = large ? 'imrl82' : 'imrl22';
   return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(valueFrame(value))}.png`;
 }
 
 /**
+ * HOMM3's ILCK42/ILCK82 draw −3…0 as one and the same picture, so −1…−3
+ * are our own frames — the +1…+3 horseshoes turned upside down
+ * (scripts/build_luck_negative.py): the large ones in assets/ilck82-neg/,
+ * the small ones inside assets/ilck42-x4/ (sources in assets/ilck42-neg/).
  * @param {number} value
  * @param {object} [options]
  * @param {boolean} [options.large]   82×93 version instead of the 42×38 slot icon.
  * @returns {string}
  */
 export function luckIconPath(value, { large = false } = {}) {
-  const set = large ? 'ilck82' : 'ilck42';
-  return `systems/${SYSTEM_ID}/assets/${set}/${set}_g00_f${frame(valueFrame(value))}.png`;
+  const n = valueFrame(value);
+  if (!large) return smallIconPath('ilck42', n);
+  const folder = n < 3 ? 'ilck82-neg' : 'ilck82';
+  return `systems/${SYSTEM_ID}/assets/${folder}/ilck82_g00_f${frame(n)}.png`;
 }
 
 /**
