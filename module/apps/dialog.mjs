@@ -2,6 +2,7 @@ import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { activateHgSelects, closeHgSelect } from '../helpers/hg-select.mjs';
 import { trackKeyboardFocus } from '../helpers/focus-modality.mjs';
 import { resolveEffectivePanelColor } from '../helpers/panel-color.mjs';
+import { trackUserResize } from '../helpers/window-resize.mjs';
 
 /** Button actions drawn with the «Отмена» sprite (icn6432); every other button is «OK» (iok6432). */
 const CANCEL_ACTIONS = new Set(['no', 'cancel']);
@@ -64,6 +65,9 @@ export function radioRow(name, value, label, checked) {
 export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
   static DEFAULT_OPTIONS = {
     classes: ['heroes-glory', 'hg-dialog-app'],
+    // Resizable like the sheets: the window starts at its content's size;
+    // once dragged, the frame fills it and the body scrolls (window-resize.mjs).
+    window: { resizable: true },
     hgColor: 'red',
   };
 
@@ -124,6 +128,12 @@ export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
       button.toggleAttribute('autofocus', isDefault);
       return button.outerHTML;
     }).join('');
+  }
+
+  /** @override */
+  async _onFirstRender(context, options) {
+    await super._onFirstRender(context, options);
+    trackUserResize(this);
   }
 
   /** @override */

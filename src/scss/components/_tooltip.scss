@@ -778,6 +778,12 @@ $hg-tile-gap: 6px;
 .hg-confirm__portrait-frame {
   flex: 0 0 220px;
   width: 220px;
+  // A fixed box, so the window doesn't grow when the picture loads (docs/
+  // rules.md «Клики и подсказки»: space for every image is reserved). 300px
+  // takes every portrait `contain`: race art (252–403×450), the faction
+  // backdrop (300×390), the class portrait (174×192).
+  height: 300px;
+  align-self: flex-start;
   display: flex;
 }
 

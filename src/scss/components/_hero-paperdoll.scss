@@ -1060,7 +1060,8 @@ $hg-speed-icon-offset-y: 0px;
 .hero-paperdoll__speed-group .hero-paperdoll__stat-icon {
   height: $hg-speed-icon-height;
   width: auto;
-  aspect-ratio: auto;
+  // lorc-wingfoot.svg's own viewBox — the width is known before it loads.
+  aspect-ratio: 495.75 / 491.5;
   margin-top: calc(#{$hg-speed-baseline} - #{$hg-speed-icon-height} + #{$hg-speed-icon-offset-y} * var(--hg-pixel-scale));
 }
 
@@ -2176,6 +2177,7 @@ $hg-experience-highlight-pulse-duration: 2.6s;
   flex: none;
   width: calc(20 / 66 * 100%);
   height: auto;
+  aspect-ratio: 20 / 18; // SMALRES frame 6, so the height is known before it loads
   image-rendering: pixelated;
 }
 

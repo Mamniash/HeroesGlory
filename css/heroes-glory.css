@@ -1487,7 +1487,7 @@
 .heroes-glory .hero-paperdoll__speed-group .hero-paperdoll__stat-icon {
   height: 0.68em;
   width: auto;
-  aspect-ratio: auto;
+  aspect-ratio: 495.75/491.5;
   margin-top: calc(0.835em - 0.68em + 0px * var(--hg-pixel-scale));
 }
 .heroes-glory .hero-paperdoll__speed-value {
@@ -1895,6 +1895,7 @@
   flex: none;
   width: 30.303030303%;
   height: auto;
+  aspect-ratio: 20/18;
   image-rendering: pixelated;
 }
 .heroes-glory .hero-paperdoll__gold-value {
@@ -2765,6 +2766,8 @@
 .heroes-glory .hg-confirm__portrait-frame {
   flex: 0 0 220px;
   width: 220px;
+  height: 300px;
+  align-self: flex-start;
   display: flex;
 }
 .heroes-glory .hg-confirm__portrait {
@@ -3080,7 +3083,7 @@
   display: flex;
   align-items: center;
   gap: calc(6px * var(--hg-pixel-scale));
-  height: calc(24px * var(--hg-pixel-scale));
+  min-height: calc(24px * var(--hg-pixel-scale));
   cursor: pointer;
 }
 .heroes-glory .hg-item__checkbox:has(:disabled) {
@@ -3598,9 +3601,17 @@
 .heroes-glory .hg-dialog__checklist {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   text-align: left;
 }
+.heroes-glory .hg-dialog__checklist .hg-item__checkbox {
+  align-items: flex-start;
+}
 .heroes-glory .hg-dialog__check-label {
+  min-width: 0;
+  padding-top: 3px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
   color: #ffffff;
 }
 .heroes-glory .hg-tooltip:has(.hg-spec) {
@@ -3734,6 +3745,45 @@
 }
 .heroes-glory .hg-spec__open:hover, .heroes-glory .hg-spec__open:focus-visible {
   color: #ffffff;
+}
+.heroes-glory.hg-dialog-app, .heroes-glory.hg-picker-app {
+  min-width: 280px;
+  min-height: 180px;
+}
+.heroes-glory.hg-resized .window-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.heroes-glory.hg-resized .window-content > .hg-tooltip {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  justify-content: flex-start;
+}
+.heroes-glory.hg-resized .hg-dialog__content,
+.heroes-glory.hg-resized .hg-option-list,
+.heroes-glory.hg-resized .hg-tile-list,
+.heroes-glory.hg-resized .hg-confirm {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+.heroes-glory.hg-resized .hg-tile-list {
+  grid-template-columns: repeat(auto-fill, 90px);
+  align-content: start;
+}
+.heroes-glory.hg-resized .hg-confirm__split,
+.heroes-glory.hg-resized .hg-spec__body {
+  flex-wrap: wrap;
+}
+.heroes-glory.hg-resized .hg-confirm__text {
+  flex: 1 1 240px;
+}
+.heroes-glory.hg-resized .hg-spec__details {
+  flex: 1 1 240px;
 }
 .heroes-glory img[src*="-x4/"] {
   image-rendering: auto;

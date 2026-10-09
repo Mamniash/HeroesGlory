@@ -1,6 +1,7 @@
 import { hideTooltip } from '../helpers/tooltip.mjs';
 import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { PickerThemePlayer } from '../helpers/picker-theme.mjs';
+import { trackUserResize } from '../helpers/window-resize.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ApplicationV2 } = foundry.applications.api;
@@ -62,8 +63,10 @@ const { ApplicationV2 } = foundry.applications.api;
  * chain (tooltip.mjs) for these four fields. Same architecture as
  * `HeroesGloryLevelUpApp` (level-up-app.mjs): framed window (Foundry's own
  * default chrome — title bar, close button, dragging — not hidden, same
- * choice as that window and as `HeroesGloryHeroSheet` itself), `resizable:
- * false`, centered on the sheet that opened it. Deliberately does NOT close
+ * choice as that window and as `HeroesGloryHeroSheet` itself), resizable
+ * (helpers/window-resize.mjs: sized to its content until the user drags the
+ * handle, then the frame fills the window), centered on the sheet that
+ * opened it. Deliberately does NOT close
  * on an outside click — that was this task's own initial premise, dropped
  * once it was pointed out that no other window in this system (or in
  * Foundry) behaves that way; Escape and the close button are enough, both
@@ -107,7 +110,7 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
     id: 'hg-picker-{id}',
     classes: ['heroes-glory', 'hg-picker-app'],
     tag: 'div',
-    window: { resizable: false },
+    window: { resizable: true },
     position: { width: 'auto', height: 'auto' },
     actions: {
       pick: this.#onPick,
@@ -214,6 +217,7 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
    */
   async _onFirstRender(context, options) {
     await super._onFirstRender(context, options);
+    trackUserResize(this);
     this.setPosition({ width: 'auto', height: 'auto' });
     const rect = this.element.getBoundingClientRect();
     const openerRect = this.#openerEl?.isConnected ? this.#openerEl.getBoundingClientRect() : null;

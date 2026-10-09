@@ -341,7 +341,9 @@ $hg-item-textarea-line-height: 1.2;
   display: flex;
   align-items: center;
   gap: hg-item-px($hg-item-checkbox-gap);
-  height: hg-item-px($hg-item-field-height);
+  // A floor, not a fixed height: a label that wraps (a dialog's long line)
+  // grows the row instead of running into the next one.
+  min-height: hg-item-px($hg-item-field-height);
   cursor: pointer;
 
   &:has(:disabled) {
