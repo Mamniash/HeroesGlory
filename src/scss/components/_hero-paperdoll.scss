@@ -2209,14 +2209,15 @@ $hg-experience-highlight-pulse-duration: 2.6s;
 }
 
 // Two specialization items on one hero (only the first counts): the cell's
-// state line turns the warning colour; its tooltip says which one counts.
+// state line turns the warning colour; the item's sheet says which one counts.
 .hero-paperdoll__slot--spec-duplicate .hero-paperdoll__skill-cell-desc {
   color: #ff9a7a;
 }
 
-// Clickable without a `data-action`: the Специализация cell (its click pins
-// our tooltip) and the empty book slot of a hero with race spells (opens them).
-.hero-paperdoll__slot--specialization[data-tooltip-click],
-.hero-paperdoll__slot[data-tooltip-trigger="race-spells"] {
+// Clickable without a `data-action`: the Специализация cell (unchosen — its
+// click pins our tooltip, chosen — opens the item's sheet) and the empty book
+// slot of a hero with race spells (opens them).
+.hero-paperdoll__slot--specialization,
+.hero-paperdoll__slot[data-action="openSpellbook"] {
   cursor: pointer;
 }

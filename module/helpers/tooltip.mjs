@@ -1,9 +1,11 @@
 /**
  * Custom tooltip layer for the hero sheet's left-half stats (primary
- * skills, Health/Mana/Experience, morale/luck, secondary skills), the
- * paperdoll/backpack item icons, the spellbook's per-spell tooltips, and
- * the level-up window's own skill/choice icons (module/apps/level-up-app.mjs
- * — a separate `ApplicationV2`, not part of the hero sheet's own DOM).
+ * skills, Health/Mana/Experience, morale/luck, Скорость/Зрение, Золото, the
+ * race and the unchosen specialization), the creature sheet's buttons, and
+ * the level-up window's primary skill (module/apps/level-up-app.mjs — a
+ * separate `ApplicationV2`, not part of the hero sheet's own DOM). Only
+ * elements without a sheet of their own, and only with more than a name
+ * to say (helpers/click-behavior.mjs, docs/rules.md «Клики и подсказки»).
  * Deliberately NOT Foundry's core `data-tooltip`/`data-tooltip-html`
  * machinery — that only shows plain text/HTML on hover, not the
  * pinned/interactive content this layer also needs to support (option
@@ -379,9 +381,6 @@ export function attachTooltip(triggerEl, templateEl, options = {}) {
   // framed sheets (creature) `data-color`.
   const color = boundsEl?.dataset.panelColor ?? boundsEl?.dataset.color ?? 'red';
   const clickToPin = options.clickToPin ?? false;
-  // Off where the trigger's right click does something else (the hero
-  // sheet's chosen specialization opens its item sheet).
-  const holdRight = options.holdRight ?? true;
   const showOptions = { boundsEl, mode, color };
 
   const onContextMenu = (event) => event.preventDefault();
@@ -401,10 +400,8 @@ export function attachTooltip(triggerEl, templateEl, options = {}) {
     ? () => pinTooltip(templateEl.content.cloneNode(true), showOptions)
     : null;
 
-  if (holdRight) {
-    triggerEl.addEventListener('contextmenu', onContextMenu);
-    triggerEl.addEventListener('mousedown', onMouseDown);
-  }
+  triggerEl.addEventListener('contextmenu', onContextMenu);
+  triggerEl.addEventListener('mousedown', onMouseDown);
   if (onClick) triggerEl.addEventListener('click', onClick);
 
   return () => {

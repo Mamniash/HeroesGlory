@@ -1942,8 +1942,8 @@
 .heroes-glory .hero-paperdoll__slot--spec-duplicate .hero-paperdoll__skill-cell-desc {
   color: #ff9a7a;
 }
-.heroes-glory .hero-paperdoll__slot--specialization[data-tooltip-click],
-.heroes-glory .hero-paperdoll__slot[data-tooltip-trigger=race-spells] {
+.heroes-glory .hero-paperdoll__slot--specialization,
+.heroes-glory .hero-paperdoll__slot[data-action=openSpellbook] {
   cursor: pointer;
 }
 .heroes-glory .window-content:has(.hg-lvlup) {

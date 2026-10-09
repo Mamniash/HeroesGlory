@@ -161,31 +161,18 @@ export function specializationCellHint(state) {
 }
 
 /**
- * The chosen specialization's full description, for the cell's tooltip:
- * the book text of the hero's specialization item, «Применяет Ведущий
- * вручную», the page, the warning when its condition isn't met (any more, or
- * never was — assigned by the GM), and — should the hero have two — which
- * one counts.
+ * The chosen specialization's cell: its icon and name, the item the click
+ * rule opens (its sheet carries the text, the condition and which one
+ * counts), and whether the hero has two.
  * @param {Actor} actor
  * @param {object} state   `specializationState`, with `chosen`
  * @returns {object}
  */
 export function chosenSpecializationDetails(actor, state) {
-  const i18n = game.i18n;
-  const view = specializationView(state.chosen);
-  const missing = missingLine(state.chosen, state.hero);
-  const item = actor.items.get(actor.system.specializationItemId);
   return {
-    ...view,
-    itemId: item?.id ?? null,
-    text: item?.system.description ?? '',
-    title: i18n.format('HEROES_GLORY.SpecializationUi.TooltipTitle', { name: view.label }),
-    warning: missing ? i18n.localize('HEROES_GLORY.SpecializationUi.NoLongerMet') : null,
-    missing,
-    castNote: castNote(actor, state.chosen),
-    duplicate: actor.system.specializationCount > 1
-      ? i18n.format('HEROES_GLORY.SpecializationUi.Duplicate', { count: actor.system.specializationCount, name: view.label })
-      : null,
+    ...specializationView(state.chosen),
+    itemId: actor.system.specializationItemId ?? null,
+    duplicate: actor.system.specializationCount > 1,
   };
 }
 

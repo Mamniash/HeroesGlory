@@ -1791,7 +1791,6 @@ function buildSpellCardContext(flags) {
   const elementLabel = (element) => i18n.localize(`HEROES_GLORY.Roll.SpellElement.${element || 'none'}`);
   context.damageSpell = true;
   context.targetSpell = true;
-  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellConfirmHint';
   context.noTarget = !flags.targets.length;
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
@@ -2155,7 +2154,6 @@ function buildSupportSpellCardContext(flags, context) {
   const results = resolveSupportSpellResolution(flags);
   const done = !!flags.confirmed;
   context.targetSpell = true;
-  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellSupportConfirmHint';
   context.noTarget = !flags.targets.length;
   context.rangeUnknown = flags.rangeUnknown;
   context.canConfirm = canConfirmSpell(flags);
@@ -2704,7 +2702,6 @@ function buildPlacementSpellCardContext(flags, context) {
   const i18n = game.i18n;
   const done = !!flags.confirmed;
   context.targetSpell = true;
-  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellSupportConfirmHint';
   context.confirmed = done;
   context.canConfirm = canConfirmSpell(flags);
   if (flags.effectKind === 'teleport') {
@@ -4099,7 +4096,6 @@ function buildModifierSpellCardContext(flags, context) {
   const effectText = lastingSpellEffectText(flags);
   const untilCombatEnd = flags.rounds === null || flags.rounds === undefined;
   context.targetSpell = true;
-  context.confirmHintKey = 'HEROES_GLORY.Roll.SpellModifierConfirmHint';
   context.endCastLine = flags.endCast
     ? i18n.format(done ? 'HEROES_GLORY.Roll.SpellEndApplied' : 'HEROES_GLORY.Roll.SpellEndPending', { cast: flags.endCast.label })
     : null;
@@ -4586,7 +4582,7 @@ export async function rollLevelUp(actor) {
  * one currently offered.
  * @param {Actor} actor
  * @param {string} itemId
- * @returns {{kind:"upgrade", itemId:string, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:string|null}|null}
+ * @returns {{kind:"upgrade", itemId:string, icon:string, tierLabel:string, skillLabel:string}|null}
  */
 export function buildUpgradeCandidateSlot(actor, itemId) {
   const item = actor.items.get(itemId);
@@ -4597,19 +4593,17 @@ export function buildUpgradeCandidateSlot(actor, itemId) {
     kind: 'upgrade',
     itemId,
     icon: secondarySkillIconPath(item.system.skillKey, targetTier),
-    iconLarge: secondarySkillIconPath(item.system.skillKey, targetTier, { large: true }),
     tierLabel: game.i18n.localize(config.skillTiers[targetTier]),
     skillLabel: game.i18n.localize(config.secondarySkills[item.system.skillKey]),
-    effectText: item.system.effects[targetTier] || null,
   };
 }
 
 /**
  * §6.2: build the "learn new" slot's display data. Always Базовый — no
- * owned Item exists yet for this candidate, so unlike an upgrade slot
- * there's no effects text anywhere to show — omitted rather than faked.
+ * owned Item exists yet for this candidate (its texts are on the
+ * «Навыки» compendium entry, which the right button opens).
  * @param {string} skillKey
- * @returns {{kind:"new", skillKey:string, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:null}}
+ * @returns {{kind:"new", skillKey:string, icon:string, tierLabel:string, skillLabel:string}}
  */
 function buildNewCandidateSlot(skillKey) {
   const config = CONFIG.HEROES_GLORY;
@@ -4617,10 +4611,8 @@ function buildNewCandidateSlot(skillKey) {
     kind: 'new',
     skillKey,
     icon: secondarySkillIconPath(skillKey, 'base'),
-    iconLarge: secondarySkillIconPath(skillKey, 'base', { large: true }),
     tierLabel: game.i18n.localize(config.skillTiers.base),
     skillLabel: game.i18n.localize(config.secondarySkills[skillKey]),
-    effectText: null,
   };
 }
 
@@ -4635,17 +4627,15 @@ function buildNewCandidateSlot(skillKey) {
  * `resolveLevelUpChoiceSlots`'s own comment for why it's computed once,
  * uniformly, for whichever kind of upgrade slot (placeholder or already-
  * picked-real) ends up built.
- * @returns {{kind:"upgrade", itemId:null, icon:string, iconLarge:string, tierLabel:string, skillLabel:string, effectText:null, isPlaceholder:true}}
+ * @returns {{kind:"upgrade", itemId:null, icon:string, tierLabel:string, skillLabel:string, isPlaceholder:true}}
  */
 function buildUpgradePlaceholderSlot() {
   return {
     kind: 'upgrade',
     itemId: null,
     icon: secondarySkillEmptyIconPath(),
-    iconLarge: secondarySkillEmptyIconPath({ large: true }),
     tierLabel: '',
     skillLabel: game.i18n.localize('HEROES_GLORY.LevelUp.UpgradePlaceholderLabel'),
-    effectText: null,
     isPlaceholder: true,
   };
 }

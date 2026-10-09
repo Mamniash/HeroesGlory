@@ -48,7 +48,8 @@ function elfRerollAllowed(message, { combat, combatant }) {
 }
 
 /**
- * `renderChatMessageHTML`: the Эльф reroll button on an initiative card.
+ * `renderChatMessageHTML`: the Эльф reroll button on an initiative card,
+ * with the rule as a line above it (no hover hint).
  * @param {ChatMessage} message
  * @param {HTMLElement} html
  */
@@ -60,12 +61,14 @@ export function decorateInitiativeCard(message, html) {
   button.type = 'button';
   button.className = 'heroes-glory-chat-card__confirm-btn';
   button.textContent = game.i18n.localize('HEROES_GLORY.Roll.ElfReroll');
-  button.title = game.i18n.localize('HEROES_GLORY.Roll.ElfRerollHint');
   button.addEventListener('click', async () => {
     button.disabled = true;
     await rerollElfInitiative(message);
   });
-  (html.querySelector('.message-content') ?? html).append(button);
+  const hint = document.createElement('p');
+  hint.className = 'heroes-glory-chat-card__line heroes-glory-chat-card__line--muted';
+  hint.textContent = game.i18n.localize('HEROES_GLORY.Roll.ElfRerollHint');
+  (html.querySelector('.message-content') ?? html).append(hint, button);
 }
 
 /**

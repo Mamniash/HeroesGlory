@@ -430,43 +430,23 @@
     <p>{{localize 'HEROES_GLORY.Tooltip.LuckHint'}}</p>
   </template>
 
-  {{!-- The empty book slot of a hero with race spells and no Книга Магии
-    (§6.1): a left click opens those spells, the right button holds this. --}}
-  {{#if raceSpellsWithoutBook}}
-    <template class="hg-tooltip-tpl" data-tooltip-key="race-spells">
-      <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}</p>
-    </template>
-  {{/if}}
   {{!-- ==================== Paperdoll (19 slots) ==================== --}}
   {{#each paperdollSlots}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--paperdoll-{{this.index}}" data-slot="{{this.index}}"
       {{#if this.opensRaceSpells}}data-action="openSpellbook" role="button" tabindex="0"
-      aria-label="{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}" data-tooltip-trigger="race-spells"{{/if}}>
+      aria-label="{{localize 'HEROES_GLORY.Spellbook.RaceSpellsHint'}}"{{/if}}>
       {{#if this.item}}
-        {{!-- §5.3: a weapon only attacks on click while equipped (always
-          true here — a paperdoll slot only ever holds an equipped item —
-          but not in the backpack loop below, where the same weapon can
-          land after being unequipped). Edit mode off + unequipped: no
-          `data-action` at all, same as an artifact — left click is a
-          no-op there, not a tooltip (paperdoll/backpack icons never get
-          `data-tooltip-click`, see the trigger-binding loop in
-          hero-sheet.mjs's `_onRender`). An artifact whose artifactType is
-          "enchantedWeapon" counts as a weapon here too (§8.2 — made to
-          behave exactly like a real one once equipped); the other 5
-          artifact types fall through to the plain editMode-only branch,
-          same as before. --}}
+        {{!-- Buttons by the click rule (helpers/click-behavior.mjs,
+          `clicks` from hero-sheet.mjs): the left — an equipped weapon's
+          attack, the book's spread, otherwise the item's sheet; the right —
+          the sheet (the book: its spread). No tooltip. --}}
         <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
-          {{#if (eq this.item.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (or (eq this.item.type 'weapon') (and (eq this.item.type 'artifact') (eq this.item.system.artifactType 'enchantedWeapon')))}}{{#if ../editMode}}data-action="openItem"{{else if this.item.system.equipped}}data-action="rollAttack"{{/if}}
-          {{else if ../editMode}}data-action="openItem"{{/if}}
-          data-tooltip-trigger="paperdoll-{{this.index}}">
+          {{#if (eq this.clicks.left 'action')}}data-action="rollAttack"{{else if (eq this.clicks.left 'spellbook')}}data-action="openSpellbook"{{/if}}
+          data-click-left="{{this.clicks.left}}" data-click-right="{{this.clicks.right}}">
         {{#if ../editMode}}
           <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
             aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
         {{/if}}
-        <template class="hg-tooltip-tpl" data-tooltip-key="paperdoll-{{this.index}}">
-          <p class="hg-tooltip__title">{{this.item.name}}</p>
-        </template>
       {{/if}}
     </div>
   {{/each}}
@@ -475,18 +455,13 @@
   {{#each backpackVisibleItems}}
     <div class="hero-paperdoll__slot hero-paperdoll__slot--backpack-{{inc @index}}" data-slot="backpack">
       {{#if this}}
-        <img class="draggable hero-paperdoll__icon-img" src="{{this.img}}" data-item-id="{{this.id}}"
-          {{#if (eq this.type 'spellbook')}}data-action="openSpellbook"
-          {{else if (or (eq this.type 'weapon') (and (eq this.type 'artifact') (eq this.system.artifactType 'enchantedWeapon')))}}{{#if ../editMode}}data-action="openItem"{{else if this.system.equipped}}data-action="rollAttack"{{/if}}
-          {{else if ../editMode}}data-action="openItem"{{/if}}
-          data-tooltip-trigger="backpack-{{inc @index}}">
+        <img class="draggable hero-paperdoll__icon-img" src="{{this.item.img}}" data-item-id="{{this.item.id}}"
+          {{#if (eq this.clicks.left 'action')}}data-action="rollAttack"{{else if (eq this.clicks.left 'spellbook')}}data-action="openSpellbook"{{/if}}
+          data-click-left="{{this.clicks.left}}" data-click-right="{{this.clicks.right}}">
         {{#if ../editMode}}
-          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.id}}"
+          <button type="button" class="hero-paperdoll__slot-delete" data-action="deleteItem" data-item-id="{{this.item.id}}"
             aria-label="{{localize 'HEROES_GLORY.Item.DeleteHint'}}">&times;</button>
         {{/if}}
-        <template class="hg-tooltip-tpl" data-tooltip-key="backpack-{{inc @index}}">
-          <p class="hg-tooltip__title">{{this.name}}</p>
-        </template>
       {{/if}}
     </div>
   {{/each}}
@@ -502,9 +477,10 @@
        "edit_zone") ==================== --}}
   {{!-- §4.3 p.23: Специализация — always shown (a character feature, not an
     edit-mode control), on the secondary-skill cell markup, positioned by
-    `.hero-paperdoll__slot--specialization`. Chosen: its icon and name; a
-    click on the whole cell (outside edit mode) pins the full description,
-    the GM in edit mode reassigns or clears it. None chosen: a padlock or a
+    `.hero-paperdoll__slot--specialization`. Chosen: its icon and name; the
+    click rule (helpers/click-behavior.mjs) — either button opens the item's
+    sheet, the GM in edit mode reassigns it with the left one or clears it
+    with ×. None chosen: a padlock or a
     laurel crown; a click pins the rule, «Не хватает: …» and the «Все
     специализации» button, which opens the window — to choose or to read
     (hero-sheet.mjs's #onPickSpecialization, apps/specialization-window.mjs).
@@ -513,8 +489,8 @@
   <div class="hero-paperdoll__slot hero-paperdoll__slot--specialization hero-paperdoll__skill-cell{{#if chosen.duplicate}} hero-paperdoll__slot--spec-duplicate{{/if}}"
     {{#if clickable}}data-action="pickSpecialization" role="button" tabindex="0"
     aria-label="{{localize 'HEROES_GLORY.Hero.SpecializationPickHint'}}"{{/if}}
-    {{#if chosen.itemId}}data-spec-sheet data-item-id="{{chosen.itemId}}"{{/if}}
-    data-tooltip-trigger="{{#if chosen}}specialization{{else}}specialization-info{{/if}}" data-tooltip-click>
+    {{#if chosen}}data-item-id="{{chosen.itemId}}" data-click-left="{{clicks.left}}" data-click-right="{{clicks.right}}"
+    {{else}}data-tooltip-trigger="specialization-info" data-tooltip-click{{/if}}>
     <div class="hero-paperdoll__skill-cell-icon">
       {{#if chosen}}
         <img class="hero-paperdoll__icon-img" src="{{chosen.icon}}" alt="">
@@ -544,18 +520,6 @@
       <button type="button" class="hg-spec__open" data-action="pickSpecialization">{{localize 'HEROES_GLORY.SpecializationUi.OpenAll'}}</button>
     </template>
   {{/unless}}
-  {{#if chosen}}
-    <template class="hg-tooltip-tpl" data-tooltip-key="specialization">
-      <img class="hg-tooltip__icon" src="{{chosen.iconLarge}}" width="82" height="93" alt="">
-      <p class="hg-tooltip__title">{{chosen.title}}</p>
-      {{#if chosen.text}}<p>{{chosen.text}}</p>{{/if}}
-      {{#if chosen.manual}}<p class="hg-spec__manual">{{localize 'HEROES_GLORY.SpecializationUi.Manual'}}</p>{{/if}}
-      <p class="hg-spec__page">{{localize 'HEROES_GLORY.SpecializationUi.PageRef'}}</p>
-      {{#if chosen.warning}}<p class="hg-spec__warn">{{chosen.warning}}</p><p class="hg-spec__missing">{{chosen.missing}}</p>{{/if}}
-      {{#if chosen.castNote}}<p class="hg-spec__warn">{{chosen.castNote}}</p>{{/if}}
-      {{#if chosen.duplicate}}<p class="hg-spec__warn">{{chosen.duplicate}}</p>{{/if}}
-    </template>
-  {{/if}}
   {{/with}}
   {{!-- Same highlight frame as Опыт's level-up (experience_highlight) — lit
     only while a pick is available and nothing is chosen yet. Comes AFTER

@@ -18,6 +18,7 @@ import { manaMultiplier } from '../../helpers/mana.mjs';
 import { highestSkillTier } from '../../helpers/skill-bonuses.mjs';
 import { experienceToNextLevel, experienceForLevel } from '../../helpers/experience.mjs';
 import { attachTooltip, hideTooltip } from '../../helpers/tooltip.mjs';
+import { elementClicks } from '../../helpers/click-behavior.mjs';
 import { PRESS_HOLD_MS } from '../../helpers/button-press.mjs';
 import { compareSpellsForBook } from '../../helpers/spellbook.mjs';
 import { paperdollSlotAccepts, paperdollValidSlots } from '../../helpers/paperdoll-slots.mjs';
@@ -134,6 +135,17 @@ const SPELLBOOK_PAPERDOLL_SLOT = 10;
 
 /** Item types that can be dragged into a paperdoll slot or the backpack. */
 const EQUIPABLE_TYPES = ['weapon', 'artifact', 'spellbook'];
+
+/** A click this soon after a drag ended belongs to the drop, not the icon. */
+const DRAG_CLICK_GUARD_MS = 300;
+
+/**
+ * §5.3/§8.2: a weapon, or an artifact that is one (Зачарованное оружие) —
+ * attacks on a click while equipped.
+ * @param {Item} item
+ */
+const isWeaponLike = (item) => item.type === 'weapon'
+  || (item.type === 'artifact' && item.system.artifactType === 'enchantedWeapon');
 
 /**
  * §2.3-2.5 identity block only — a short form for the one concrete class
@@ -273,6 +285,13 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @type {boolean}
    */
   #spellbookOpen = false;
+
+  /**
+   * When the last drag of a paperdoll/backpack icon ended — a click right
+   * after it isn't a click (the click rule must not open a sheet on a drop).
+   * @type {number}
+   */
+  #dragEndedAt = 0;
 
   /**
    * Which spread of the spellbook is currently shown (0-indexed).
@@ -596,10 +615,24 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const ownsSpellbook = this.actor.items.some((i) => i.type === 'spellbook');
     const raceSpellsWithoutBook = !ownsSpellbook
       && this.actor.items.some((i) => i.type === 'spell' && i.getFlag(...RACE_GRANTED_ITEM_FLAG));
+    // What each item icon's buttons do (helpers/click-behavior.mjs): the
+    // book opens the spread on either; any other item opens its sheet on the
+    // right button — the left attacks with an equipped weapon, otherwise
+    // opens the sheet too (the GM in edit mode: always the sheet).
+    const viewer = { editMode: this.#canEdit, isGM: game.user.isGM };
+    const itemClicks = (item) => elementClicks({
+      hasSheet: true,
+      isSpellbook: item.type === 'spellbook',
+      hasAction: isWeaponLike(item) && item.system.equipped,
+    }, viewer);
     context.paperdollSlots = Array.from({ length: PAPERDOLL_SLOT_COUNT }, (_, i) => {
       const index = i + 1;
       const item = equipable.find((it) => it.system.equipped && it.system.paperdollSlot === index) ?? null;
-      return { index, item, opensRaceSpells: !item && index === SPELLBOOK_PAPERDOLL_SLOT && raceSpellsWithoutBook };
+      return {
+        index, item,
+        clicks: item ? itemClicks(item) : null,
+        opensRaceSpells: !item && index === SPELLBOOK_PAPERDOLL_SLOT && raceSpellsWithoutBook,
+      };
     });
     context.raceSpellsWithoutBook = raceSpellsWithoutBook
       && !context.paperdollSlots[SPELLBOOK_PAPERDOLL_SLOT - 1].item;
@@ -623,7 +656,10 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     // paperdoll item back to an otherwise-empty backpack would have
     // nowhere in the DOM to land on.
     const visibleSlice = backpackItems.slice(this.#backpackOffset, this.#backpackOffset + BACKPACK_VISIBLE_COUNT);
-    context.backpackVisibleItems = Array.from({ length: BACKPACK_VISIBLE_COUNT }, (_, i) => visibleSlice[i] ?? null);
+    context.backpackVisibleItems = Array.from({ length: BACKPACK_VISIBLE_COUNT }, (_, i) => {
+      const item = visibleSlice[i];
+      return item ? { item, clicks: itemClicks(item) } : null;
+    });
     context.backpackPressedDirection = this.#backpackPressedDirection;
 
     // §3: owned secondary-skill items, padded to fill at least the
@@ -673,12 +709,12 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
 
     // §4.3 p.23: the Специализация cell (apps/specialization-window.mjs).
     // Chosen — its icon and name from the fixed list, never from the hero's
-    // copy of a spell, so the cell never empties; a click (outside edit
-    // mode) pins the full description. None chosen — a padlock or a laurel
-    // crown, a hover hint («Не хватает: …» / how many can be taken), and a
-    // click opens the window: to choose when this user may, to read
-    // otherwise. The GM in edit mode always chooses, bypassing the
-    // conditions (rules.md §11).
+    // copy of a spell, so the cell never empties; either button opens the
+    // specialization item's sheet (the click rule). None chosen — a padlock
+    // or a laurel crown; a click pins the hint («Не хватает: …» / how many
+    // can be taken) with the button that opens the window: to choose when
+    // this user may, to read otherwise. The GM in edit mode always chooses,
+    // bypassing the conditions (rules.md §11).
     const specState = specializationState(this.actor, this.#canEdit);
     if (specState.chosen) {
       context.specialization = { chosen: chosenSpecializationDetails(this.actor, specState) };
@@ -692,10 +728,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       };
     }
     // A click opens the window directly only for the GM in edit mode;
-    // otherwise it pins the cell's tooltip — the chosen one's description,
-    // or (none chosen) the rule, «Не хватает: …» and the «Все
-    // специализации» button, which opens the window.
+    // otherwise — chosen: the item's sheet, none chosen: the cell's pinned
+    // tooltip (the rule, «Не хватает: …» and the «Все специализации»
+    // button, which opens the window).
     context.specialization.clickable = this.#canEdit;
+    // §4.3: the chosen one has a sheet (the specialization item) — the click
+    // rule; the GM in edit mode keeps the window on the left button.
+    if (specState.chosen) {
+      context.specialization.clicks = elementClicks({ hasSheet: true, hasEditAction: true }, viewer);
+    }
     context.specializationHighlight = !specState.chosen && specState.anyMet && specState.canPick;
 
     // §6.1: possession is item-based — see the removed `hasSpellbook`
@@ -941,18 +982,11 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       const boundsEl = triggerEl.closest('.hero-paperdoll, .hero-spellbook');
       // A left click only pins the tooltip open on triggers that opt in
       // via the template's bare `data-tooltip-click` (the left-half stat
-      // icons, the secondary-skill icon, the spellbook's mana slot) and
-      // only while edit mode is off. Deliberately NOT inferred from "has
-      // no `data-action`" — paperdoll/backpack item icons (weapon/
-      // artifact/spellbook) never opt in even when they have none (an
-      // unequipped weapon or an artifact, edit mode off): left click is a
-      // no-op there, not a tooltip, so it stays free for a future drag/
-      // interact feature without this fighting it.
+      // icons, the unchosen specialization) and only while edit mode is
+      // off. Elements with a sheet have no tooltip at all (the click rule,
+      // below).
       const clickToPin = triggerEl.hasAttribute('data-tooltip-click') && !this.#editMode;
-      // The chosen specialization's right click opens its sheet (below), not
-      // the held tooltip.
-      const holdRight = !triggerEl.hasAttribute('data-spec-sheet');
-      attachTooltip(triggerEl, template, { boundsEl, clickToPin, holdRight });
+      attachTooltip(triggerEl, template, { boundsEl, clickToPin });
     });
 
     // Spellbook: a right click on a spell opens its own sheet (the left
@@ -971,13 +1005,28 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       icon.addEventListener('contextmenu', open);
       if (!icon.dataset.action) icon.addEventListener('click', open);
     });
-    // Специализация (§4.3): a right click on the chosen one opens its item's
-    // sheet — editable for the GM, read-only for players (the left click
-    // keeps pinning the cell's own description).
-    this.element.querySelectorAll('[data-spec-sheet]').forEach((cell) => {
-      cell.addEventListener('contextmenu', (event) => {
+    // The click rule (helpers/click-behavior.mjs, `clicks` in the context):
+    // paperdoll and backpack items, the chosen specialization. Their sheet
+    // opens editable for the GM, read-only for players; Книга Магии opens
+    // the spread on either button. A left action (attack, the GM's
+    // specialization window) is the element's own `data-action`.
+    const openSheet = (el) => this.actor.items.get(el.dataset.itemId)
+      ?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+    this.element.querySelectorAll('[data-click-right]').forEach((el) => {
+      const right = el.dataset.clickRight;
+      if (right !== 'sheet' && right !== 'spellbook') return;
+      el.addEventListener('contextmenu', (event) => {
         event.preventDefault();
-        this.actor.items.get(cell.dataset.itemId)?.sheet.render({ force: true, hgReadOnly: !game.user.isGM });
+        if (right === 'sheet') return openSheet(el);
+        this.#spellbookOpen = true;
+        return this.render();
+      });
+    });
+    this.element.querySelectorAll('[data-click-left="sheet"]').forEach((el) => {
+      el.addEventListener('click', (event) => {
+        if (Date.now() - this.#dragEndedAt < DRAG_CLICK_GUARD_MS) return;
+        event.preventDefault();
+        openSheet(el);
       });
     });
     this.element.querySelectorAll('[data-spell-sheet]').forEach((icon) => {
@@ -1071,6 +1120,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
         }
       });
       el.addEventListener('dragend', () => {
+        this.#dragEndedAt = Date.now();
         this.element.querySelectorAll('.hero-paperdoll__slot--drop-target').forEach((slotEl) => {
           slotEl.classList.remove('hero-paperdoll__slot--drop-target');
         });

@@ -10,6 +10,7 @@ import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { PixelScaleController } from '../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../helpers/skill-grant.mjs';
 import { recordCreationLevelUp } from '../helpers/hero-creation-flow.mjs';
+import { elementClicks } from '../helpers/click-behavior.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ApplicationV2 } = foundry.applications.api;
@@ -39,6 +40,18 @@ const REFERENCE_CANVAS_WIDTH_PX = 486;
  * @type {Map<string, HeroesGloryLevelUpApp>}
  */
 const openInstances = new Map();
+
+/**
+ * The «Навыки» compendium entry of a skill, by its key — or null.
+ * @param {string} skillKey
+ * @returns {Promise<Item|null>}
+ */
+async function skillCompendiumEntry(skillKey) {
+  const pack = game.packs.get('heroes-glory.skills');
+  const index = await pack?.getIndex({ fields: ['system.skillKey'] });
+  const entry = index?.find((e) => e.system?.skillKey === skillKey);
+  return entry ? pack.getDocument(entry._id) : null;
+}
 
 /**
  * §6/exploit-fix: guarantees `system.pendingLevelUp` holds dice that are
@@ -320,6 +333,12 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
       // the exact same value — see `#selectedChoice`'s own doc.
       this.#selectedChoice = resolveInitialSelection(this.#actor, pending, this.#selectedChoice);
       Object.assign(context, buildLevelUpViewContext(this.#actor, pending, this.#selectedChoice));
+      // The click rule (helpers/click-behavior.mjs): a real choice has a
+      // sheet — the hero's skill item or the «Навыки» entry — on the right
+      // button; the left keeps choosing. A placeholder has neither.
+      for (const slot of [context.soloChoiceData, context.choice1, context.choice2]) {
+        if (slot) slot.clicks = elementClicks({ hasSheet: !slot.isPlaceholder, hasAction: true }, { isGM: game.user.isGM });
+      }
     }
     context.effectivePanelColor = resolveEffectivePanelColor(this.#actor.system);
     return context;
@@ -382,20 +401,28 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
     }
 
     // §3 (task): `skill` gets a tooltip on both triggers (right-click-hold
-    // AND left-click-pin, via the template's `data-tooltip-click`);
-    // `choice_icon_1/2/solo` only right-click-hold — their left click
-    // already selects the secondary-skill choice (`data-action=
-    // "selectChoice"`), so the template deliberately omits
-    // `data-tooltip-click` on those triggers rather than this loop needing
-    // its own exemption logic (contrast hero-sheet.mjs's own binding loop,
-    // which DOES need one, because its triggers mix contexts with
-    // different left-click semantics — this window has only one).
+    // AND left-click-pin, via the template's `data-tooltip-click`). The
+    // choice icons have none — their right button opens the skill's sheet
+    // (below).
     this.element.querySelectorAll('[data-tooltip-trigger]').forEach((triggerEl) => {
       const key = triggerEl.dataset.tooltipTrigger;
       const template = this.element.querySelector(`template[data-tooltip-key="${key}"]`);
       if (!template) return;
       const clickToPin = triggerEl.hasAttribute('data-tooltip-click');
       attachTooltip(triggerEl, template, { boundsEl: canvasEl, clickToPin });
+    });
+
+    // The choice icons' right button: the skill's sheet, read-only — the
+    // hero's item for an upgrade, the «Навыки» compendium entry for a new
+    // skill (no item exists yet).
+    this.element.querySelectorAll('[data-click-right="sheet"]').forEach((el) => {
+      el.addEventListener('contextmenu', async (event) => {
+        event.preventDefault();
+        const sheetOf = el.dataset.kind === 'upgrade'
+          ? this.#actor.items.get(el.dataset.itemId)
+          : await skillCompendiumEntry(el.dataset.skillKey);
+        sheetOf?.sheet.render({ force: true, hgReadOnly: true });
+      });
     });
   }
 
