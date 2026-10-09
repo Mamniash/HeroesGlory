@@ -1,8 +1,9 @@
 /**
- * Shared logic for this system's two independent canvases that scale a
- * HOMM3 pixel font against their own live width — the hero sheet's
- * `.hero-paperdoll`/`.hero-spellbook` (hero-sheet.mjs) and the level-up
- * window's `.hg-lvlup` (level-up-app.mjs). Both used to carry their own
+ * Shared logic for this system's windows that scale with their own live
+ * width — the hero sheet's `.hero-paperdoll`/`.hero-spellbook`
+ * (hero-sheet.mjs), the level-up window's `.hg-lvlup` (level-up-app.mjs),
+ * and the dialogs and the picker (window-scale.mjs, whose content is in
+ * native px and is zoomed whole by the same ratio). Both used to carry their own
  * copy of the exact same `REFERENCE_CANVAS_WIDTH_PX`-relative formula and
  * `ResizeObserver` wiring — factored out here so there's one place to get
  * it right.
@@ -110,8 +111,29 @@ export class PixelScaleController {
   /** @type {ResizeObserver|null} */
   #observer = null;
 
-  /** @param {number} referenceWidthPx Canvas width at which the continuous scale is 1 — see each caller's own `REFERENCE_CANVAS_WIDTH_PX` doc. */
-  constructor(referenceWidthPx) {
+  /** @type {((scale: number) => void)|null} */
+  #onChange;
+
+  /** @type {number|null} the scale last written */
+  #scale = null;
+
+  /**
+   * @param {number} referenceWidthPx Canvas width at which the continuous scale is 1 — see each caller's own `REFERENCE_CANVAS_WIDTH_PX` doc.
+   * @param {object} [options]
+   * @param {(scale: number) => void} [options.onChange]   Called after the
+   *   scale changed (the dialogs re-measure their height, window-scale.mjs).
+   */
+  constructor(referenceWidthPx, { onChange = null } = {}) {
+    this.#referenceWidthPx = referenceWidthPx;
+    this.#onChange = onChange;
+  }
+
+  /**
+   * A new width at which the scale is 1 — the dialogs measure theirs on
+   * every render (window-scale.mjs: each picker screen has its own).
+   * @param {number} referenceWidthPx
+   */
+  setReference(referenceWidthPx) {
     this.#referenceWidthPx = referenceWidthPx;
   }
 
@@ -143,5 +165,9 @@ export class PixelScaleController {
     const width = canvasEl.getBoundingClientRect().width;
     const scale = computeContinuousScale(width, this.#referenceWidthPx);
     canvasEl.style.setProperty('--hg-pixel-scale', String(scale));
+    if (scale !== this.#scale) {
+      this.#scale = scale;
+      this.#onChange?.(scale);
+    }
   }
 }

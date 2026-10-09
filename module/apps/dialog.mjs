@@ -2,7 +2,7 @@ import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { activateHgSelects, closeHgSelect } from '../helpers/hg-select.mjs';
 import { trackKeyboardFocus } from '../helpers/focus-modality.mjs';
 import { resolveEffectivePanelColor } from '../helpers/panel-color.mjs';
-import { trackUserResize } from '../helpers/window-resize.mjs';
+import { ScaledWindow } from '../helpers/window-scale.mjs';
 
 /** Button actions drawn with the «Отмена» sprite (icn6432); every other button is «OK» (iok6432). */
 const CANCEL_ACTIONS = new Set(['no', 'cancel']);
@@ -65,8 +65,8 @@ export function radioRow(name, value, label, checked) {
 export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
   static DEFAULT_OPTIONS = {
     classes: ['heroes-glory', 'hg-dialog-app'],
-    // Resizable like the sheets: the window starts at its content's size;
-    // once dragged, the frame fills it and the body scrolls (window-resize.mjs).
+    // Resizable like the hero sheet: in proportion, the whole content
+    // scales 1:1 (window-scale.mjs).
     window: { resizable: true },
     hgColor: 'red',
   };
@@ -94,6 +94,19 @@ export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
 
   /** Set while the pressed frame holds, so a second click can't submit twice. */
   #submitting = false;
+
+  /** The proportional resize (window-scale.mjs). */
+  #scaled = new ScaledWindow(this);
+
+  /**
+   * The height follows the width — the content scales, its aspect stays
+   * (as the hero sheet's `_prePosition`).
+   * @override
+   */
+  _prePosition(position) {
+    super._prePosition(position);
+    position.height = 'auto';
+  }
 
   /** @override */
   async _renderHTML(context, options) {
@@ -131,16 +144,16 @@ export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
   }
 
   /** @override */
-  async _onFirstRender(context, options) {
-    await super._onFirstRender(context, options);
-    trackUserResize(this);
-  }
-
-  /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
     trackKeyboardFocus(this.element);
-    activateHgSelects(this.element, { color: this.options.hgColor, scaleEl: this.element });
+    this.#scaled.fit();
+    // The drop-down's list scales with the window (`--hg-pixel-scale` sits
+    // on `.window-content`).
+    activateHgSelects(this.element, {
+      color: this.options.hgColor,
+      scaleEl: this.element.querySelector('.window-content') ?? this.element,
+    });
   }
 
   /**
@@ -165,5 +178,6 @@ export class HeroesGloryDialog extends foundry.applications.api.DialogV2 {
   async _preClose(options) {
     await super._preClose(options);
     closeHgSelect();
+    this.#scaled.disconnect();
   }
 }

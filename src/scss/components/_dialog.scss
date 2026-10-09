@@ -225,59 +225,21 @@
   }
 }
 
-// Resizable dialogs and picker (module/helpers/window-resize.mjs). A window
-// starts at its content's size; these are the floors core keeps when it's
-// dragged (it reads min-width/min-height from CSS).
-&.hg-dialog-app,
-&.hg-picker-app {
-  min-width: 280px;
-  min-height: 180px;
+// Resizable dialogs and picker, in proportion like the hero sheet
+// (module/helpers/window-scale.mjs): `.window-content` carries
+// `--hg-pixel-scale` (its width ÷ the content's natural width), passed down
+// as `--hg-window-scale` — the frame redefines `--hg-pixel-scale` as 1 for
+// its own native-px sprites — and the whole frame is zoomed by it. Nothing
+// reflows: the layout is the natural one, only bigger or smaller.
+&.hg-dialog-app .window-content,
+&.hg-picker-app .window-content {
+  --hg-window-scale: var(--hg-pixel-scale, 1);
 }
 
-// Once the user has resized it: the frame fills the window instead of
-// wrapping at its own max-width, the body scrolls inside the frame, the
-// two-column layouts wrap — nothing sticks out of the frame.
-&.hg-resized {
-  .window-content {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .window-content > .hg-tooltip {
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: none;
-    min-height: 0;
-    justify-content: flex-start;
-  }
-
-  .hg-dialog__content,
-  .hg-option-list,
-  .hg-tile-list,
-  .hg-confirm {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
-    overflow-y: auto;
-  }
-
-  // Tiles flow into as many 90px columns as fit.
-  .hg-tile-list {
-    grid-template-columns: repeat(auto-fill, 90px);
-    align-content: start;
-  }
-
-  .hg-confirm__split,
-  .hg-spec__body {
-    flex-wrap: wrap;
-  }
-
-  .hg-confirm__text {
-    flex: 1 1 240px;
-  }
-
-  .hg-spec__details {
-    flex: 1 1 240px;
-  }
+&.hg-dialog-app .window-content > .hg-tooltip,
+&.hg-picker-app .window-content > .hg-tooltip {
+  zoom: var(--hg-window-scale, 1);
+  // Its own native-px sprites (the item sheets' checkbox) stay ×1 —
+  // the zoom already scales them.
+  --hg-pixel-scale: 1;
 }

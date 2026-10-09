@@ -1,7 +1,7 @@
 import { hideTooltip } from '../helpers/tooltip.mjs';
 import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
 import { PickerThemePlayer } from '../helpers/picker-theme.mjs';
-import { trackUserResize } from '../helpers/window-resize.mjs';
+import { ScaledWindow } from '../helpers/window-scale.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ApplicationV2 } = foundry.applications.api;
@@ -64,9 +64,9 @@ const { ApplicationV2 } = foundry.applications.api;
  * `HeroesGloryLevelUpApp` (level-up-app.mjs): framed window (Foundry's own
  * default chrome — title bar, close button, dragging — not hidden, same
  * choice as that window and as `HeroesGloryHeroSheet` itself), resizable
- * (helpers/window-resize.mjs: sized to its content until the user drags the
- * handle, then the frame fills the window), centered on the sheet that
- * opened it. Deliberately does NOT close
+ * in proportion like the hero sheet (helpers/window-scale.mjs: the content
+ * scales 1:1; a new screen takes its own shape at the same scale),
+ * centered on the sheet that opened it. Deliberately does NOT close
  * on an outside click — that was this task's own initial premise, dropped
  * once it was pointed out that no other window in this system (or in
  * Foundry) behaves that way; Escape and the close button are enough, both
@@ -152,6 +152,19 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
   /** The current screen's music, if it has one (§2.7: the faction confirm). */
   #theme = new PickerThemePlayer();
 
+  /** The proportional resize (window-scale.mjs). */
+  #scaled = new ScaledWindow(this);
+
+  /**
+   * The height follows the width — the content scales, its aspect stays
+   * (as the hero sheet's `_prePosition`).
+   * @override
+   */
+  _prePosition(position) {
+    super._prePosition(position);
+    position.height = 'auto';
+  }
+
   /**
    * @param {HTMLElement|null} openerEl
    * @param {string} panelColor
@@ -217,7 +230,6 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
    */
   async _onFirstRender(context, options) {
     await super._onFirstRender(context, options);
-    trackUserResize(this);
     this.setPosition({ width: 'auto', height: 'auto' });
     const rect = this.element.getBoundingClientRect();
     const openerRect = this.#openerEl?.isConnected ? this.#openerEl.getBoundingClientRect() : null;
@@ -233,6 +245,9 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
     // stay up once this window takes focus — same defensive clear
     // level-up-app.mjs's own _onRender does.
     hideTooltip();
+
+    // This screen's own shape, at the scale the window already has.
+    this.#scaled.fit();
 
     // §task: long lists (the level picker, 0-99) now scroll instead of
     // growing the window off-screen (`.hg-option-list`'s own `max-height`,
@@ -255,6 +270,7 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
   /** @override */
   _onClose(options) {
     super._onClose(options);
+    this.#scaled.disconnect();
     // Confirm, the window's ×, any close — the theme fades out.
     this.#theme.set(null);
   }

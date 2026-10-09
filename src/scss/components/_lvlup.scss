@@ -28,6 +28,14 @@ $hg-lvlup-canvas-ratio: '385 / 470';
   padding: 0;
 }
 
+// Resizable in proportion like the hero sheet; the window's width bounds
+// match `--hg-pixel-scale`'s 0.6…3 (pixel-scale.mjs) at the 486px reference
+// canvas + the 2px window border.
+&.hg-lvlup-app {
+  min-width: 294px;
+  max-width: 1460px;
+}
+
 .hg-lvlup {
   position: relative;
   width: 100%;

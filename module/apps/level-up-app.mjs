@@ -211,12 +211,12 @@ async function applyLevelUp(actor, selectedChoice) {
  * `.application`'s own background/border/border-radius/box-shadow. The
  * hero sheet already carries both its own window chrome AND the art's own
  * baked-in border at once without reading as a defect; this window matches
- * that rather than inventing a second visual treatment. The one deliberate
- * divergence from the hero sheet is `window.resizable: false` — the
- * confirm button sits in the same bottom-right corner
- * `.window-resize-handle` would occupy (checked directly in foundry.mjs:
- * `_renderFrame` only inserts that handle when `resizable` is true), so
- * resizing is turned off entirely rather than fighting that overlap.
+ * that rather than inventing a second visual treatment. Resizable like the
+ * hero sheet: in proportion (`_prePosition` keeps the height following the
+ * width, `--hg-pixel-scale` follows the canvas). Core's resize handle is
+ * 11×11px in the window's very corner (foundry2.css); the confirm button's
+ * slot ends ~6% of the canvas short of both edges (~30px at the reference
+ * width), so the two never overlap.
  *
  * Closing needs no code of its own either: the close button and Escape
  * both already work through Foundry's own core keybinding (`core.dismiss`,
@@ -232,7 +232,7 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
     tag: 'div',
     window: {
       title: 'HEROES_GLORY.LevelUp.WindowTitle',
-      resizable: false,
+      resizable: true,
     },
     // `488`, not `385` (the art's own native width) or `486`
     // (REFERENCE_CANVAS_WIDTH_PX above) — two different numbers, not a
@@ -277,12 +277,8 @@ export class HeroesGloryLevelUpApp extends HandlebarsApplicationMixin(Applicatio
    * Watches `.hg-lvlup` for width changes and keeps `--hg-pixel-scale` in
    * step — same reasoning and pattern as hero-sheet.mjs's own
    * `#pixelScaleController` (a plain `_onRender` recompute alone wouldn't
-   * react to the window's own resize-drag... except this window isn't
-   * resizable at all, see `DEFAULT_OPTIONS.window.resizable`'s own
-   * comment. Kept anyway for consistency with the sheet's established
-   * pattern and because a future change could make this window resizable
-   * again without silently losing live pixel-scale updates. See
-   * helpers/pixel-scale.mjs for the mechanism itself.
+   * react to the window's own resize-drag). See helpers/pixel-scale.mjs
+   * for the mechanism itself.
    * @type {PixelScaleController}
    */
   #pixelScaleController = new PixelScaleController(REFERENCE_CANVAS_WIDTH_PX);
