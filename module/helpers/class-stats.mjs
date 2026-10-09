@@ -59,27 +59,10 @@ export function classDescriptionKey(classKey) {
 }
 
 /**
- * Class portrait for the classType-change confirm dialog's right-hand
- * column — same contract as `race-stats.mjs`'s `raceIconPath`/
- * `faction-icons.mjs`'s `factionIconPath`. Unlike the faction crests
- * (this project's own placeholder, no book source), these are real HOMM3
- * hero portraits, one per class, extracted from the base game + expansion
- * assets under `D:\HOMM3_Extracted` (`h3ab_bmp\HPL###<code>.bmp`, decoded
- * as plain BMP — no custom decoder needed, unlike the HotA-format ones
- * below) with `scripts/def2png.py`'s sibling convention (native px x6,
- * nearest-neighbor, matching the faction crests' own upscale factor):
- * 18 of the 20 classes match a HOMM3/Armageddon's Blade class 1:1 by the
- * source files' own 2-letter class-code suffix (not a guess — confirmed
- * both by the code and by the portrait's own art matching the class,
- * e.g. `Dk` = a skeletal face in a knight's helm for Death Knight, `Wz` =
- * a white-bearded pointed-hat wizard for Mage). `captain`/`navigator`
- * (Причал/Haven, HotA's own Cove faction — not part of the base game or
- * Armageddon's Blade) have no such filename-confirmed match; those two
- * are a visual best-guess from HotA's own portrait set
- * (`Data\HotA_1.8\01_Raw_PCX`, decoded with `scripts/h3pcx2png.py`, this
- * project's own existing HOMM3/HotA "PCX" decoder — no new script
- * written) — picked for reading as "pirate captain" / "ship's navigator"
- * respectively, not confirmed by a filename the way the other 18 are.
+ * Class portrait for the classType-change confirm screen: the class's HOMM3
+ * hero portrait (h3ab_bmp\HPL###<class code>.bmp, 58×64; Капитан and
+ * Навигатор — HotA's, picked by eye), xBRZ ×3 — built by
+ * scripts/build_faction_art.py, where each class's file is listed.
  * @param {string} classKey
  * @returns {string|null}   null for an unknown class key.
  */

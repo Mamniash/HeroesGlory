@@ -607,6 +607,66 @@ $hg-option-list-icon-size: 44px;
   // tier crowding straight into the name below it.
 }
 
+// §2.7: the faction picker's list as tiles — the town portrait (xBRZ ×3,
+// helpers/faction-icons.mjs's factionTownPath) with the name under it, 5 a
+// row (10 factions: 2 rows). The tile is 90px wide — the longest name
+// («Сопряжение», «Некрополис») fits under it on one line.
+$hg-tile-width: 90px;
+$hg-tile-gap: 6px;
+
+// Five tiles + gaps (5*90 + 4*6 = 474) + the window's own horizontal
+// padding (56*2) = 586 — wider than the plain 318px cap, so the same
+// :has() widening as the split layout below.
+.hg-tooltip:has(.hg-tile-list) {
+  max-width: 640px;
+}
+
+.hg-tile-list {
+  display: grid;
+  grid-template-columns: repeat(5, $hg-tile-width);
+  gap: $hg-tile-gap;
+  justify-content: center;
+}
+
+.hg-tile-list__item {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: $hg-tile-width;
+  font-family: $font-h3-small;
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: $hg-font-h3-small-height;
+  line-height: 1;
+  color: $hg-parchment;
+
+  &:hover span {
+    text-decoration: underline;
+  }
+
+  // The faction now chosen — gold name and frame, like the plain list's
+  // `data-current`.
+  &[data-current='true'] {
+    color: $hg-gold;
+
+    img {
+      outline: 2px solid $hg-gold;
+    }
+  }
+}
+
+// 174×192 source shown at half size — smooth, not the window's pixelated
+// rendering (an xBRZ upscale, like the hero sheet's icons).
+.hg-tile-list__img {
+  width: 87px;
+  height: 96px;
+  image-rendering: auto;
+}
+
 // tooltip.mjs's pinConfirm — this project's own Yes/No dialog, replacing
 // DialogV2.confirm for the race/faction/classType recompute confirmations
 // (hero-sheet.mjs's #confirmRaceChange/#confirmClassEffectiveChange).
@@ -728,8 +788,9 @@ $hg-option-list-icon-size: 44px;
 // inside the pixel-art frame around it. Real alpha-cutout source art (no
 // rectangular photo edge), confirmed directly against the extracted files
 // — sits straight on .hg-tooltip's own dark fill with nothing extra
-// needed. Faction/classType confirms have no portrait — #confirmRaceChange
-// is the only caller that adds one, and only for races that have art.
+// needed. Faction and classType confirms show their xBRZ ×3 upscales
+// (town backdrop, class portrait — scripts/build_faction_art.py) the same
+// smooth way.
 //
 // A flex item's default `flex-basis: auto` resolves a replaced element
 // (an `<img>`) from its own INTRINSIC size, not from whatever box the
@@ -746,16 +807,6 @@ $hg-option-list-icon-size: 44px;
   height: 100%;
   object-fit: contain;
   image-rendering: auto;
-}
-
-// Faction confirm's own portrait (hero-sheet.mjs's
-// #confirmClassEffectiveChange, faction changes only) — genuine low-res
-// HOMM3 sprite art (extracted CREST58.def frames, see faction-icons.mjs's
-// own doc comment) scaled well past native size, unlike the race
-// portraits' smooth painterly source — crisp nearest-neighbor upscaling
-// reads as authentic pixel art here, `auto` would just look soft.
-.hg-confirm__portrait--pixelated {
-  image-rendering: pixelated;
 }
 
 .hg-confirm__buttons {

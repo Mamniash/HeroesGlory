@@ -30,7 +30,19 @@
   drawing a transparent border because it had no image to slice. --}}
 <div class="hg-tooltip hg-picker" data-color="{{panelColor}}">
   {{#if (eq screen.type "list")}}
-    {{#if screen.options.length}}
+    {{#if screen.tiles}}
+      {{!-- §2.7: the faction picker — town portraits with the name under
+        each (hero-sheet.mjs's #buildListScreen with a tile per option). --}}
+      <div class="hg-tile-list">
+        {{#each screen.options}}
+          <button type="button" class="hg-tile-list__item" data-action="pick" data-key="{{this.key}}"
+            {{#if this.current}}data-current="true"{{/if}}>
+            <img class="hg-tile-list__img" src="{{this.tile}}" alt="">
+            <span>{{this.label}}</span>
+          </button>
+        {{/each}}
+      </div>
+    {{else if screen.options.length}}
       <div class="hg-option-list">
         {{#each screen.options}}
           <button type="button" class="hg-option-list__item" data-action="pick" data-key="{{this.key}}"
@@ -58,8 +70,7 @@
         <div class="hg-confirm__split">
           <div class="hg-confirm__text">{{{screen.bodyHtml}}}</div>
           <div class="hg-confirm__portrait-frame">
-            <img class="hg-confirm__portrait{{#if screen.pixelated}} hg-confirm__portrait--pixelated{{/if}}"
-              src="{{screen.iconPath}}" alt="">
+            <img class="hg-confirm__portrait" src="{{screen.iconPath}}" alt="">
           </div>
         </div>
       {{else}}

@@ -10,3 +10,5 @@ recrop_out/
 # CURRENT/MANIFEST/*.log housekeeping files just by having a pack open,
 # which kept the working tree dirty for no real content change.
 packs/
+# Scratch comparison pages and other throwaway output — never committed.
+tmp/

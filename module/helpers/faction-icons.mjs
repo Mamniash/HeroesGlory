@@ -1,42 +1,44 @@
 /**
- * Faction art for the faction-change confirm dialog's right-hand column
- * (`hero-sheet.mjs`'s `#confirmClassEffectiveChange`, faction changes
- * only — see that method's own `isFactionChange` check) — same contract
- * as `race-stats.mjs`'s `raceIconPath`: one file per `CONFIG.HEROES_GLORY
- * .factions` key, swapping in later is just replacing the file at the
- * same path, no code change.
- *
- * Placeholder art, not final: `docs/OKP_Heroes_Glory_v2_1.pdf` has no
- * per-faction illustration anywhere (checked directly — the faction page,
- * p. 14, is a plain text list; every later page with a faction name as
- * its own section header has nothing but the book's reused decorative
- * banner-frame graphic and background texture, not per-faction art).
- * 8 of the 10 use a real HOMM3 asset instead of an invented graphic:
- * `CREST58.def` (`D:\HOMM3_Extracted\...\Data\h3sprite\CREST58.def`,
- * extracted with this project's own `scripts/def2png.py` — no new
- * extraction script written for this) turned out to be the game's 8
- * standard player-color banners (red/blue/tan/green/orange/purple/teal/
- * pink, confirmed by sampling each frame's dominant non-trim color, not
- * by eye alone), which happen to line up with 8 of this project's own
- * `CONFIG.HEROES_GLORY.panelColorByFaction` entries. The remaining two
- * panel colors (`necropolis`: black, `tower`: white) have no matching
- * banner frame in that set — those two files are a flat color fill
- * instead, not a generated question-mark/text placeholder (agreed with
- * the user: an empty color field reads honestly as "art goes here",
- * where a rendered "?" risks reading as a broken image, and the project
- * has no other UI using a plain system font, which a text-based
- * placeholder would have needed).
- * @param {string} factionKey
- * @returns {string|null}   null for an unknown faction key.
+ * Faction art and town themes from HOMM3 (docs/rules.md §2.7), one file per
+ * `CONFIG.HEROES_GLORY.factions` key — built by scripts/build_faction_art.py
+ * from the game files (Причал — HotA's Cove, by the hashes in that script):
+ *  - town: the town portrait with a fort (ITPT.def, 58×64), xBRZ ×3 — the
+ *    faction picker's list tiles;
+ *  - backdrop: the creature window's background of the town (CRBKG*.bmp,
+ *    100×130), xBRZ ×3 — the faction confirm screen's picture;
+ *  - theme: the town's music (Mp3 folder of the game), MP3 96 kbit/s —
+ *    played on the confirm screen (helpers/picker-theme.mjs).
+ * Pure — no Foundry globals.
  */
 const KNOWN_FACTIONS = new Set([
   'castle', 'stronghold', 'tower', 'fortress', 'dungeon',
   'inferno', 'necropolis', 'citadel', 'nexus', 'haven',
 ]);
 
-export function factionIconPath(factionKey) {
-  if (!KNOWN_FACTIONS.has(factionKey)) return null;
-  return `systems/heroes-glory/assets/factions/${factionKey}.png`;
+const ROOT = 'systems/heroes-glory/assets';
+
+/**
+ * @param {string} factionKey
+ * @returns {string|null}   null for an unknown faction key.
+ */
+export function factionTownPath(factionKey) {
+  return KNOWN_FACTIONS.has(factionKey) ? `${ROOT}/factions/town/${factionKey}.png` : null;
+}
+
+/**
+ * @param {string} factionKey
+ * @returns {string|null}   null for an unknown faction key.
+ */
+export function factionBackdropPath(factionKey) {
+  return KNOWN_FACTIONS.has(factionKey) ? `${ROOT}/factions/backdrop/${factionKey}.png` : null;
+}
+
+/**
+ * @param {string} factionKey
+ * @returns {string|null}   null for an unknown faction key.
+ */
+export function factionThemePath(factionKey) {
+  return KNOWN_FACTIONS.has(factionKey) ? `${ROOT}/music/${factionKey}.mp3` : null;
 }
 
 /**

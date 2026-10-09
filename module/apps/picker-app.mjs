@@ -1,5 +1,6 @@
 import { hideTooltip } from '../helpers/tooltip.mjs';
 import { PRESS_HOLD_MS } from '../helpers/button-press.mjs';
+import { PickerThemePlayer } from '../helpers/picker-theme.mjs';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ApplicationV2 } = foundry.applications.api;
@@ -9,6 +10,8 @@ const { ApplicationV2 } = foundry.applications.api;
  * @property {string} key
  * @property {string} label   Already localized.
  * @property {boolean} current   Highlighted as the presently active value.
+ * @property {string|null} [tile]   A picture — set on every option of a
+ *   `tiles` screen (the faction picker's town portraits).
  */
 
 /**
@@ -25,6 +28,7 @@ const { ApplicationV2 } = foundry.applications.api;
  * @property {'list'|'confirm'} type
  * // 'list' only:
  * @property {PickerListOption[]} [options]
+ * @property {boolean} [tiles]   Render the options as picture tiles.
  * @property {string} [emptyMessage]   Shown instead of the (empty) options
  *   list when `options` has zero entries — e.g. Специализация's picker at
  *   level 10+ with no Expert skill and no listed spell owned yet. Already
@@ -41,10 +45,8 @@ const { ApplicationV2 } = foundry.applications.api;
  *   `windowTitle` in the OS window chrome above it.
  * @property {string} [iconPath]   Portrait path — omit for no portrait
  *   (single-column layout instead of the two-column split).
- * @property {boolean} [pixelated]   Faction crests are pixel art
- *   (`image-rendering: pixelated`); race portraits are smooth painterly art
- *   (the CSS default) — see race-stats.mjs/faction-icons.mjs's own icon-path
- *   comments for which is which.
+ * @property {string|null} [theme]   Music played while this screen is up
+ *   (the faction's town theme) — helpers/picker-theme.mjs.
  * @property {string} [bodyHtml]   Pre-built HTML — the exact same
  *   `#buildRecomputeDialogContent` output the old pinConfirm flow passed to
  *   `innerHTML`, not re-templated here.
@@ -144,6 +146,9 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
    */
   #windowTitle;
 
+  /** The current screen's music, if it has one (§2.7: the faction confirm). */
+  #theme = new PickerThemePlayer();
+
   /**
    * @param {HTMLElement|null} openerEl
    * @param {string} panelColor
@@ -237,6 +242,17 @@ export class HeroesGloryPickerApp extends HandlebarsApplicationMixin(Application
       this.element.querySelector('.hg-option-list__item[data-current="true"]')
         ?.scrollIntoView({ block: 'center' });
     }
+
+    // §2.7: the screen's music — a faction confirm plays its town theme;
+    // going back to the list («Нет») fades it out.
+    this.#theme.set(this.#currentScreen().theme ?? null);
+  }
+
+  /** @override */
+  _onClose(options) {
+    super._onClose(options);
+    // Confirm, the window's ×, any close — the theme fades out.
+    this.#theme.set(null);
   }
 
   /**

@@ -2701,6 +2701,45 @@
   text-align: left;
   line-height: 1.2;
 }
+.heroes-glory .hg-tooltip:has(.hg-tile-list) {
+  max-width: 640px;
+}
+.heroes-glory .hg-tile-list {
+  display: grid;
+  grid-template-columns: repeat(5, 90px);
+  gap: 6px;
+  justify-content: center;
+}
+.heroes-glory .hg-tile-list__item {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 90px;
+  font-family: "HG Fira 400", "Roboto", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  font-size: 14px;
+  line-height: 1;
+  color: #ffffff;
+}
+.heroes-glory .hg-tile-list__item:hover span {
+  text-decoration: underline;
+}
+.heroes-glory .hg-tile-list__item[data-current=true] {
+  color: #C8AD63;
+}
+.heroes-glory .hg-tile-list__item[data-current=true] img {
+  outline: 2px solid #C8AD63;
+}
+.heroes-glory .hg-tile-list__img {
+  width: 87px;
+  height: 96px;
+  image-rendering: auto;
+}
 .heroes-glory .hg-confirm {
   display: flex;
   flex-direction: column;
@@ -2733,9 +2772,6 @@
   height: 100%;
   object-fit: contain;
   image-rendering: auto;
-}
-.heroes-glory .hg-confirm__portrait--pixelated {
-  image-rendering: pixelated;
 }
 .heroes-glory .hg-confirm__buttons {
   display: flex;

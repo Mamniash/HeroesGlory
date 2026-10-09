@@ -33,7 +33,9 @@ import {
   assignSpecialization, clearSpecialization, dropSpecialization,
 } from '../../apps/specialization-window.mjs';
 import { specializationRequirement } from '../../helpers/specializations.mjs';
-import { factionIconPath, factionDescriptionKey } from '../../helpers/faction-icons.mjs';
+import {
+  factionTownPath, factionBackdropPath, factionThemePath, factionDescriptionKey,
+} from '../../helpers/faction-icons.mjs';
 import { resolveEffectivePanelColor } from '../../helpers/panel-color.mjs';
 import { PixelScaleController } from '../../helpers/pixel-scale.mjs';
 import { grantSecondarySkill } from '../../helpers/skill-grant.mjs';
@@ -1460,11 +1462,15 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
    * @param {Record<string,string>} choices   value -> already-localized display text.
    * @param {string} currentValue
    * @param {(key: string) => Promise<import('../../apps/picker-app.mjs').PickerScreen|null>} onPick
+   * @param {(key: string) => string|null} [tileOf]   a picture per option —
+   *   the list renders as tiles (the faction picker's town portraits).
    * @returns {import('../../apps/picker-app.mjs').PickerScreen}
    */
-  #buildListScreen(choices, currentValue, onPick) {
-    const options = Object.entries(choices).map(([key, label]) => ({ key, label, current: key === currentValue }));
-    return { type: 'list', options, onPick };
+  #buildListScreen(choices, currentValue, onPick, tileOf = null) {
+    const options = Object.entries(choices).map(([key, label]) => ({
+      key, label, current: key === currentValue, tile: tileOf?.(key) ?? null,
+    }));
+    return { type: 'list', options, onPick, tiles: !!tileOf };
   }
 
   /**
@@ -1545,7 +1551,7 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
     const config = CONFIG.HEROES_GLORY;
     const choices = Object.fromEntries(Object.entries(config.factions).map(([k, v]) => [k, game.i18n.localize(v)]));
     const screen = this.#buildListScreen(choices, this.actor.system.faction,
-      (factionKey) => this.#buildClassEffectiveConfirmScreen({ faction: factionKey }));
+      (factionKey) => this.#buildClassEffectiveConfirmScreen({ faction: factionKey }), factionTownPath);
     return this.#openPicker(game.i18n.localize('HEROES_GLORY.Hero.Faction'), screen);
   }
 
@@ -2033,22 +2039,21 @@ export class HeroesGloryHeroSheet extends HeroesGloryActorSheet {
       creationWarning: true,
     });
 
-    // A faction change shows that FACTION's own crest (unaffected by
-    // classType, same reasoning as descriptionKey above); a classType
+    // A faction change shows that FACTION's town backdrop and plays its
+    // town theme (helpers/faction-icons.mjs, picker-theme.mjs); a classType
     // change shows the resulting CONCRETE CLASS's own HOMM3 hero portrait
     // (classIconPath(null) -> null when there's no faction yet, same
     // graceful fallback as descriptionKey) — both dialogs are two-column,
     // matching race, when there IS an icon; single-column (see picker.hbs)
-    // when there isn't. Both are genuine low-res pixel art (unlike the
-    // race portraits' smooth painterly source), hence `pixelated: true`
-    // unconditionally here.
-    const iconPath = isFactionChange ? factionIconPath(newFaction) : classIconPath(newConcreteKey);
+    // when there isn't. Both are xBRZ ×3 upscales — smooth, not pixelated,
+    // like the hero sheet's own icons.
+    const iconPath = isFactionChange ? factionBackdropPath(newFaction) : classIconPath(newConcreteKey);
 
     return {
       type: 'confirm',
       title: game.i18n.localize('HEROES_GLORY.Hero.ClassStatsRecomputeConfirmTitle'),
       iconPath,
-      pixelated: true,
+      theme: isFactionChange ? factionThemePath(newFaction) : null,
       bodyHtml,
       onConfirm: async () => {
         const statUpdate = {};
