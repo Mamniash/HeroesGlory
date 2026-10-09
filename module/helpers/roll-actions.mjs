@@ -72,7 +72,7 @@ import {
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
-  fieldCellChoice, fieldExpiresRound, lastingRoundsLeft, lastingCastRow, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
+  fieldCellChoice, fieldExpiresRound, lastingRoundsLeft, lastingCastRow, spellEffectTiming, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
@@ -3934,7 +3934,7 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
   for (const target of actors) {
     for (const effect of target.effects) {
       const data = effect.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG);
-      if (!data || data.skipsTurn || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
+      if (!data || data.skipsTurn || data.casterUuid !== caster.uuid) continue;
       const castId = data.castId ?? `${data.spellName}|${data.combatId}|${effect._source.start?.round}`;
       if (!casts.has(castId)) {
         // Counted from the cast (its `start`) in the caster's battle, not
@@ -3942,7 +3942,7 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
         // Молитва lasts to the end of the battle.
         const untilCombatEnd = !!data.untilCombatEnd;
         const remaining = untilCombatEnd ? null : lastingRoundsLeft(
-          fieldExpiresRound(effect._source.start?.round, effect._source.duration?.value),
+          spellEffectTiming(data, effect._source).expiresRound,
           game.combats.get(data.combatId)?.round,
         );
         casts.set(castId, {
@@ -4176,18 +4176,20 @@ async function confirmModifierSpell(message, flags) {
       .filter((e) => e.getFlag(FLAG_SCOPE, SPELL_EFFECT_FLAG)?.spellName === flags.spellName)
       .map((e) => e.id);
     if (previous.length) await targetActor.deleteEmbeddedDocuments('ActiveEffect', previous);
-    // Молитва (rounds null) has no duration: the end of the battle takes it
-    // off (clearSpellEffectsAfterCombat). Cards from before group А1 carry
-    // a single `modifier`.
+    // No core duration: the effect ends by our own count at the start of
+    // the caster's turn (expireLastingSpellEffects, helpers/combat.mjs) —
+    // core's count read Infinity whenever it couldn't find the battle and
+    // then switched the effect off early. Молитва (rounds null) lasts to the
+    // end of the battle (clearSpellEffectsAfterCombat). Cards from before
+    // group А1 carry a single `modifier`.
     const untilCombatEnd = flags.rounds === null || flags.rounds === undefined;
     await targetActor.createEmbeddedDocuments('ActiveEffect', [{
       name: flags.spellName,
       img: flags.spellImg,
       origin: flags.actorUuid,
       description: flags.description,
-      ...(untilCombatEnd ? {} : { duration: { value: flags.rounds, units: 'rounds', expiry: 'turnStart' } }),
       // Core shows an effect's icon (token, tracker) only while it has a
-      // duration unless told «always» — Молитва has none.
+      // duration unless told «always».
       showIcon: CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS,
       start: flags.castStart,
       statuses: flags.status ? [flags.status] : [],
@@ -4201,6 +4203,8 @@ async function confirmModifierSpell(message, flags) {
             skipsTurn: !!flags.skipsTurn,
             casterUuid: flags.actorUuid,
             combatId: flags.castStart.combat,
+            casterCombatant: flags.castStart.combatant,
+            expiresRound: untilCombatEnd ? null : fieldExpiresRound(flags.castStart.round, flags.rounds),
             castId: flags.castId,
           },
         },

@@ -332,7 +332,10 @@ export function spellEffectModifiers(data) {
 
 /**
  * The spell modifiers an actor carries now (§6.4) — one entry per spell and
- * stat; disabled or expired effects left out. Reads plain `flags`, so it
+ * stat; disabled effects left out. Core's own `duration.expired` is not
+ * read: a spell effect ends by its own count (lastingSpellExpires) — core
+ * marked effects expired early whenever it couldn't find the battle. Reads
+ * plain `flags`, so it
  * works on ActiveEffect documents and on test objects alike.
  * @param {Iterable<object>} effects   the actor's ActiveEffects
  * @returns {Array<{effectId: string, spellName: string, stat: string, value: number, floorOne: boolean, floor: number|null}>}
@@ -342,7 +345,7 @@ export function actorSpellModifiers(effects = []) {
   const result = [];
   for (const effect of effects ?? []) {
     const data = effect?.flags?.[SPELL_EFFECT_SCOPE]?.[SPELL_EFFECT_KEY];
-    if (!data || effect.disabled || effect.duration?.expired) continue;
+    if (!data || effect.disabled) continue;
     for (const modifier of spellEffectModifiers(data)) {
       const key = `${data.spellName}|${modifier.stat}`;
       if (seen.has(key)) continue;
@@ -647,10 +650,65 @@ export function lastingRoundsLeft(expiresRound, currentRound) {
 }
 
 /**
+ * When a spell effect ends and whose turn counts it: the round it ends in
+ * and the caster's combatant — from its flag (`expiresRound`,
+ * `casterCombatant`, written since effects carry no core duration), else,
+ * for an effect put on before that, from its `start` and core duration.
+ * @param {object|null|undefined} data   the effect's spellEffect flag
+ * @param {object|null|undefined} source   the effect's `_source`
+ * @returns {{expiresRound: number|null, casterCombatant: string|null}}
+ */
+export function spellEffectTiming(data, source) {
+  const expiresRound = Number.isFinite(data?.expiresRound)
+    ? data.expiresRound
+    : fieldExpiresRound(source?.start?.round, source?.duration?.value);
+  return {
+    expiresRound: Number.isFinite(expiresRound) ? expiresRound : null,
+    casterCombatant: data?.casterCombatant ?? source?.start?.combatant ?? null,
+  };
+}
+
+/**
+ * Whether a lasting spell ends on this turn change (p. 32: counted down at
+ * the start of the caster's turn) — as the fields and the summoned. Its
+ * rounds are out (the round has reached `expiresRound`) and it is the
+ * caster's turn starting; with the caster out of the battle (dead, taken off
+ * the tracker, gone) no turn of theirs comes — then at the start of a round.
+ * Without the numbers — never: such an effect stays and shows «бой окончен».
+ * @param {object} args
+ * @param {number|null} args.expiresRound
+ * @param {string|null} args.casterCombatant
+ * @param {boolean} args.casterPresent   the caster's combatant is in the battle, alive
+ * @param {number|null} args.round       the battle's round now
+ * @param {string|null} args.currentCombatant   whose turn starts
+ * @param {boolean} args.roundStarted    the turn change began a new round
+ * @returns {boolean}
+ */
+export function lastingSpellExpires({ expiresRound, casterCombatant, casterPresent, round, currentCombatant, roundStarted }) {
+  if (!Number.isFinite(expiresRound) || !Number.isFinite(round) || round < expiresRound) return false;
+  if (casterPresent) return !!casterCombatant && currentCombatant === casterCombatant;
+  return !!roundStarted;
+}
+
+/**
+ * Our spell effects whose battle no longer exists — swept when the active
+ * GM enters the world (the end of the battle normally takes them off).
+ * Only effects with our spell flag and a battle id; anything else is left.
+ * @template T
+ * @param {Array<T & {data: object|null|undefined}>} entries   effects with their spellEffect flag
+ * @param {(combatId: string) => boolean} combatExists
+ * @returns {T[]}
+ */
+export function orphanedSpellEffects(entries, combatExists) {
+  return entries.filter(({ data }) => !!data?.combatId && !combatExists(data.combatId));
+}
+
+/**
  * One lasting cast as text — the limit-of-three window's row, and through
  * it the card's «Закончится / Закончено» line: spell, targets, then the
- * rounds left, «до конца боя» (Молитва) or «вне боя» (no battle to count
- * from — still a lasting spell, still in the limit).
+ * rounds left, «до конца боя» (Молитва) or «бой окончен» (no battle to
+ * count from — lasting spells aren't put on outside one; still in the
+ * limit).
  * @param {{spellName: string, targetNames: string[], untilCombatEnd?: boolean, remaining: number|null}} cast
  * @param {(key: string, data: object) => string} format   game.i18n.format
  * @returns {string}
@@ -658,7 +716,7 @@ export function lastingRoundsLeft(expiresRound, currentRound) {
 export function lastingCastRow(cast, format) {
   const data = { spell: cast.spellName, targets: cast.targetNames.join(', ') };
   if (cast.untilCombatEnd) return format('HEROES_GLORY.Roll.SpellLimitRowCombat', data);
-  if (!Number.isFinite(cast.remaining)) return format('HEROES_GLORY.Roll.SpellLimitRowOutOfCombat', data);
+  if (!Number.isFinite(cast.remaining)) return format('HEROES_GLORY.Roll.SpellLimitRowNoCombat', data);
   return format('HEROES_GLORY.Roll.SpellLimitRow', { ...data, rounds: cast.remaining });
 }
 

@@ -17,7 +17,7 @@ import { activateChatListeners } from './helpers/chat.mjs';
 import { decorateInitiativeCard } from './helpers/initiative.mjs';
 import { HeroesGloryCombat, HeroesGloryCombatant, drawCombatantCoin, markLateJoiner, recordRolledSpeed } from './documents/combat.mjs';
 import {
-  resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireSpellEffect, clearSpellEffectsAfterCombat,
+  resetMoraleAfterCombat, clearCombatStatesAfterCombat, expireDefending, expireLastingSpellEffects, clearOrphanedSpellEffects, clearSpellEffectsAfterCombat,
   stampEffectStartFromActorCombat, endTemporaryResurrections, advanceBlindness,
   expireFieldSpells, clearFieldSpellsAfterCombat, expireSummons, clearSummonsAfterCombat, excludeAmbushOrSurprise,
 } from './helpers/combat.mjs';
@@ -239,8 +239,9 @@ Hooks.on('deleteCombat', resetMoraleAfterCombat);
 // §5.6: Падение and Без сознания both clear at the end of the battle.
 Hooks.on('deleteCombat', clearCombatStatesAfterCombat);
 Hooks.on('updateActiveEffect', expireDefending);
-// §6.4, stage 2: spell effects end with their rounds and with the battle.
-Hooks.on('updateActiveEffect', expireSpellEffect);
+// §6.4: spell effects end with their rounds (our own count, at the start of
+// the caster's turn) and with the battle.
+Hooks.on('combatTurnChange', expireLastingSpellEffects);
 Hooks.on('deleteCombat', clearSpellEffectsAfterCombat);
 // An effect's duration counts in its actor's own combat, not the one on screen.
 Hooks.on('preCreateActiveEffect', stampEffectStartFromActorCombat);
@@ -279,6 +280,8 @@ Hooks.once('ready', function () {
   runMigrations();
   // §2.7: starting artifacts that waited while no GM was online.
   grantPendingArtifacts();
+  // §6.4: spell effects of battles that are gone.
+  clearOrphanedSpellEffects();
 });
 
 /* -------------------------------------------- */

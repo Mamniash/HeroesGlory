@@ -1,3 +1,5 @@
+import { spellEffectTiming, lastingSpellExpires, orphanedSpellEffects } from './spell-effects.mjs';
+
 /**
  * §5.8: "Боевой дух: после боя восстанавливается до 0" — for a hero,
  * back to its base (Лидерство, Минотавр; rules.md §11): `system.morale`
@@ -260,18 +262,76 @@ export async function endTemporaryResurrections(combat) {
 const SPELL_EFFECT_FLAG = 'spellEffect';
 
 /**
- * §6.4, stage 2: a spell effect whose Сила Магии rounds ran out at the
- * start of its caster's turn (p. 32) — core only marks it expired
- * (CONFIG.ActiveEffect.expiryAction "update"); remove it so its token icon
- * goes too, as with «Защита». Active GM only, once.
- * @param {ActiveEffect} effect
- * @param {object} changes
+ * Every actor a battle's spell effects can sit on: world actors, the
+ * tokens (unlinked ones included) on its scene, its combatants'.
+ * @param {Combat} combat
+ * @returns {Set<Actor>}
  */
-export function expireSpellEffect(effect, changes) {
+function combatActors(combat) {
+  const actors = new Set(game.actors);
+  const scene = combat.scene ?? game.scenes.get(combat._source?.scene);
+  for (const token of scene?.tokens ?? []) if (token.actor) actors.add(token.actor);
+  for (const combatant of combat.combatants) if (combatant.actor) actors.add(combatant.actor);
+  return actors;
+}
+
+/**
+ * §6.4: `combatTurnChange` — a lasting spell's rounds ran out (p. 32:
+ * counted down at the start of the caster's turn): its effect goes at the
+ * start of the caster's turn, as Силовое Поле and Стена Огня do; with the
+ * caster out of the battle, at the start of a round (lastingSpellExpires).
+ * Our own count, not core's expiry flag. Молитва (to the end of the battle)
+ * and Слепота (its own turn) are left alone. Active GM only.
+ * @param {Combat} combat
+ * @param {{round: number}} previous
+ * @param {{round: number, combatantId: string|null}} current
+ */
+export async function expireLastingSpellEffects(combat, previous, current) {
   if (game.users.activeGM !== game.user) return;
-  if (!changes?.duration?.expired) return;
-  if (!effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG)) return;
-  effect.delete();
+  for (const actor of combatActors(combat)) {
+    const ids = actor.effects.filter((effect) => {
+      const data = effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG);
+      if (!data || data.combatId !== combat.id || data.untilCombatEnd || data.skipsTurn) return false;
+      const { expiresRound, casterCombatant } = spellEffectTiming(data, effect._source);
+      const combatant = casterCombatant ? combat.combatants.get(casterCombatant) : null;
+      return lastingSpellExpires({
+        expiresRound,
+        casterCombatant,
+        casterPresent: !!combatant?.actor && !combatant.isDefeated,
+        round: current?.round ?? combat.round,
+        currentCombatant: current?.combatantId ?? null,
+        roundStarted: (current?.round ?? combat.round) !== previous?.round,
+      });
+    }).map((effect) => effect.id);
+    if (ids.length) await actor.deleteEmbeddedDocuments('ActiveEffect', ids);
+  }
+}
+
+/**
+ * §6.4: `ready` — our spell effects whose battle is gone (the end of the
+ * battle didn't take them off) go when the active GM enters the world; one
+ * whispered line to the GMs says what came off whom. Effects without our
+ * spell flag or without a battle id are left alone.
+ */
+export async function clearOrphanedSpellEffects() {
+  if (game.users.activeGM !== game.user) return;
+  const actors = new Set(game.actors);
+  for (const scene of game.scenes) {
+    for (const token of scene.tokens) if (token.actor && !token.actorLink) actors.add(token.actor);
+  }
+  const removed = [];
+  for (const actor of actors) {
+    const entries = actor.effects.map((effect) => ({ effect, data: effect.getFlag('heroes-glory', SPELL_EFFECT_FLAG) }));
+    const orphans = orphanedSpellEffects(entries, (id) => game.combats.has(id));
+    if (!orphans.length) continue;
+    await actor.deleteEmbeddedDocuments('ActiveEffect', orphans.map(({ effect }) => effect.id));
+    for (const { effect } of orphans) removed.push(`«${effect.name}» — ${actor.name}`);
+  }
+  if (!removed.length) return;
+  await ChatMessage.create({
+    content: `<p>${foundry.utils.escapeHTML(game.i18n.format('HEROES_GLORY.Roll.SpellEffectsOrphaned', { list: removed.join('; ') }))}</p>`,
+    whisper: game.users.filter((u) => u.isGM).map((u) => u.id),
+  });
 }
 
 /**
@@ -282,11 +342,7 @@ export function expireSpellEffect(effect, changes) {
  */
 export async function clearSpellEffectsAfterCombat(combat) {
   if (game.users.activeGM !== game.user) return;
-  const actors = new Set(game.actors);
-  const scene = combat.scene ?? game.scenes.get(combat._source?.scene);
-  for (const token of scene?.tokens ?? []) if (token.actor) actors.add(token.actor);
-  for (const combatant of combat.combatants) if (combatant.actor) actors.add(combatant.actor);
-  for (const actor of actors) {
+  for (const actor of combatActors(combat)) {
     const ids = actor.effects
       .filter((e) => e.getFlag('heroes-glory', SPELL_EFFECT_FLAG)?.combatId === combat.id)
       .map((e) => e.id);

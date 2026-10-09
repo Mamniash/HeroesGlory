@@ -593,12 +593,12 @@ describe('actorSpellModifiers — what an actor carries now', () => {
     assert.deepEqual(list.map((m) => [m.effectId, m.spellName, m.stat, m.value]),
       [['a', 'Молитва', 'attack', 2], ['a', 'Молитва', 'speed', 2], ['b', 'Щит', 'meleeDamageTaken', -6]]);
   });
-  test('disabled and expired effects left out', () => {
+  test("disabled effects left out; core's expired flag is not read (our own count ends them)", () => {
     const list = actorSpellModifiers([
       effect('a', { spellName: 'Ускорение', modifiers: [{ stat: 'speed', value: 3 }] }, { disabled: true }),
       effect('b', { spellName: 'Замедление', modifiers: [{ stat: 'speed', value: -3 }] }, { duration: { expired: true } }),
     ]);
-    assert.deepEqual(list, []);
+    assert.deepEqual(list.map((m) => [m.effectId, m.spellName]), [['b', 'Замедление']]);
   });
 });
 
