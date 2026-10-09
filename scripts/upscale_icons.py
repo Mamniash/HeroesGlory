@@ -14,7 +14,8 @@ upscale_icons.py — увеличивает маленькие иконки HOMM
   пишет assets/pskil42-x4/ (6), assets/secskill-x4/ (кадры из SECONDARY_SKILL_FRAMES и пустой
   кадр — module/helpers/skill-icons.mjs), assets/imrl42-x4/ (7) и assets/ilck42-x4/ (7: −3…−1 из
   assets/ilck42-neg/, их собирает scripts/build_luck_negative.py — его запускать раньше;
-  0…+3 из assets/ilck42/). Имена файлов — как у исходных кадров.
+  0…+3 из assets/ilck42/) и assets/smalres-x3/ (монеты Золота, кадр 6 SMALRES — ×3, не ×4).
+  Имена файлов — как у исходных кадров.
 
 Python и пакеты. xBRZ — пакет «xbrz.py» с PyPI (C++ через ctypes). Готовое колесо под Windows есть
 только для CPython 3.9; на более новых пакет собирается из исходников и требует Visual C++. Поэтому —
@@ -146,8 +147,9 @@ def _frame(set_name, n, folder=None):
 
 
 def hero_sheet_jobs():
-    """(output folder, [source files]) for every small icon the hero sheet shows. The secondary-skill
-    frames are read from skill-icons.mjs (SECONDARY_SKILL_FRAMES + SECONDARY_SKILL_EMPTY_FRAME)."""
+    """(output folder, [source files], scale) for every small icon the hero sheet shows. The
+    secondary-skill frames are read from skill-icons.mjs (SECONDARY_SKILL_FRAMES +
+    SECONDARY_SKILL_EMPTY_FRAME). The gold coins (SMALRES frame 6) are ×3."""
     with open(os.path.join(ROOT, 'module', 'helpers', 'skill-icons.mjs'), encoding='utf-8') as f:
         src = f.read()
     table = src[src.index('const SECONDARY_SKILL_FRAMES'):]
@@ -156,22 +158,23 @@ def hero_sheet_jobs():
     empty = int(re.search(r'const SECONDARY_SKILL_EMPTY_FRAME = (\d+);', src).group(1))
     luck = [_frame('ilck42', n, 'ilck42-neg') for n in range(3)] + [_frame('ilck42', n) for n in range(3, 7)]
     return [
-        ('pskil42-x4', [_frame('pskil42', n) for n in range(6)]),
-        ('secskill-x4', [_frame('secskill', n) for n in sorted(sec | {empty})]),
-        ('imrl42-x4', [_frame('imrl42', n) for n in range(7)]),
-        ('ilck42-x4', luck),
+        ('pskil42-x4', [_frame('pskil42', n) for n in range(6)], 4),
+        ('secskill-x4', [_frame('secskill', n) for n in sorted(sec | {empty})], 4),
+        ('imrl42-x4', [_frame('imrl42', n) for n in range(7)], 4),
+        ('ilck42-x4', luck, 4),
+        ('smalres-x3', [_frame('smalres', 6)], 3),
     ]
 
 
 def build_hero_sheet():
     fn, _ = BACKENDS['xbrz']
-    for folder, files in hero_sheet_jobs():
+    for folder, files, scale in hero_sheet_jobs():
         out_dir = os.path.join(ROOT, 'assets', folder)
         os.makedirs(out_dir, exist_ok=True)
         total = 0
         for src in files:
             dst = os.path.join(out_dir, os.path.basename(src))
-            _padded(fn, Image.open(src), 4).save(dst, optimize=True)
+            _padded(fn, Image.open(src), scale).save(dst, optimize=True)
             total += os.path.getsize(dst)
         print(f'assets/{folder}: {len(files)} files, {total} bytes')
     return 0
@@ -180,7 +183,7 @@ def build_hero_sheet():
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--hero-sheet', action='store_true',
-                   help='rebuild every hero-sheet icon set in assets/ (xBRZ ×4, --pad)')
+                   help='rebuild every hero-sheet icon set in assets/ (xBRZ ×4, the gold coins ×3; --pad)')
     p.add_argument('--method', choices=BACKENDS)
     p.add_argument('--scale', type=int, nargs='+')
     p.add_argument('--out', help='output root (must not contain the inputs)')

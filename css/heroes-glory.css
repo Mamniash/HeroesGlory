@@ -1889,6 +1889,7 @@
 .heroes-glory .hero-paperdoll__gold {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4%;
 }
 .heroes-glory .hero-paperdoll__gold-icon {
@@ -1896,10 +1897,9 @@
   width: 30.303030303%;
   height: auto;
   aspect-ratio: 20/18;
-  image-rendering: pixelated;
 }
 .heroes-glory .hero-paperdoll__gold-value {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   color: #ffffff;
   text-align: left;
@@ -1927,7 +1927,10 @@
   margin: 0;
 }
 .heroes-glory .hero-paperdoll__gold-input {
-  width: 100%;
+  field-sizing: content;
+  width: auto;
+  min-width: 1ch;
+  max-width: 70%;
   cursor: text;
 }
 .heroes-glory .hero-paperdoll__spec-placeholder {
@@ -3757,7 +3760,8 @@
   zoom: var(--hg-window-scale, 1);
   --hg-pixel-scale: 1;
 }
-.heroes-glory img[src*="-x4/"] {
+.heroes-glory img[src*="-x4/"],
+.heroes-glory img[src*="-x3/"] {
   image-rendering: auto;
 }
 

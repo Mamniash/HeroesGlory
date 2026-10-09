@@ -2168,8 +2168,15 @@ $hg-experience-highlight-pulse-duration: 2.6s;
 // 20 / 66 of the slot's width) and the amount beside it, in the primary
 // values' font. The GM's quick field looks the same as the plain number.
 .hero-paperdoll__gold {
+  // The strip left of the specialization cell (`gold` in $hg-named-slots,
+  // 312–378 × 425–455 of 600×473) is centred on 345 — the mirror of the
+  // edit button's centre (555) across the cell's — and on the cell's own
+  // vertical centre (440). The icon and the amount sit together in its
+  // middle; all of it in % of the canvas and `--hg-pixel-scale`, so it keeps
+  // its place as the sheet scales.
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4%;
 }
 
@@ -2177,21 +2184,27 @@ $hg-experience-highlight-pulse-duration: 2.6s;
   flex: none;
   width: calc(20 / 66 * 100%);
   height: auto;
-  aspect-ratio: 20 / 18; // SMALRES frame 6, so the height is known before it loads
-  image-rendering: pixelated;
+  // The coins' own ratio (SMALRES frame 6, 20×18; the ×3 file 60×54), so the
+  // height is known before it loads. Drawn smooth (_hd-icons.scss, `-x3/`).
+  aspect-ratio: 20 / 18;
 }
 
 .hero-paperdoll__gold-value {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   color: $hg-parchment;
   text-align: left;
   @include hg-pixel-font($font-h3-medium, $hg-font-h3-medium-height);
 }
 
+// The GM's field: as wide as its number, so the pair stays centred; never
+// wider than the strip leaves it.
 .hero-paperdoll__gold-input {
   @include hg-canvas-input-reset;
-  width: 100%;
+  field-sizing: content;
+  width: auto;
+  min-width: 1ch;
+  max-width: 70%;
   cursor: text;
 }
 

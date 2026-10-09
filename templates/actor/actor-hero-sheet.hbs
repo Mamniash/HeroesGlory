@@ -271,11 +271,13 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck"{{#if editMode}} data-action="editLuckCorrection"{{else}} data-tooltip-click{{/if}}>
 
-  {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6) and the amount.
-    Everyone who sees the sheet sees it; the GM changes it with a quick
-    field — no name, its own update (hero-sheet.mjs `_onRender`). --}}
+  {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6, its xBRZ ×3
+    version — scripts/upscale_icons.py) and the amount, centred in the strip
+    left of the specialization cell. Everyone who sees the sheet sees it;
+    the GM changes it with a quick field — no name, its own update
+    (hero-sheet.mjs `_onRender`). --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--gold hero-paperdoll__gold">
-    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="{{localize 'HEROES_GLORY.Hero.Gold'}}"
+    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres-x3/smalres_g00_f006.png" alt="{{localize 'HEROES_GLORY.Hero.Gold'}}"
       {{#if isGM}}data-tooltip-trigger="gold" data-tooltip-click{{/if}}>
     {{#if isGM}}
       <input class="hero-paperdoll__gold-value hero-paperdoll__gold-input" type="text" inputmode="numeric"
@@ -289,7 +291,7 @@
     player has no field — no tooltip. --}}
   {{#if isGM}}
     <template class="hg-tooltip-tpl" data-tooltip-key="gold">
-      <img class="hg-tooltip__icon" src="systems/heroes-glory/assets/smalres/smalres_g00_f006.png" alt="">
+      <img class="hg-tooltip__icon" src="systems/heroes-glory/assets/smalres-x3/smalres_g00_f006.png" width="60" height="54" alt="">
       <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Gold'}}</p>
       <p>{{localize 'HEROES_GLORY.Hero.GoldInputHow'}}</p>
     </template>
