@@ -21,6 +21,7 @@ import { paperdollValidSlots } from './paperdoll-slots.mjs';
 import {
   CREATION_GRANT_FLAG, CLASS_BASE_SKILL_FLAG, ARTIFACT_TABLE_ROW_FLAG, ARTIFACT_TABLE_ROWS,
   STARTING_GOLD_MULTIPLIER, resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow,
+  pickUniqueArtifact, takenStartingArtifactKeys, createSerialQueue, STARTING_ARTIFACT_KEYS,
   startingWeaponSpecs, startingSpellbookGrant, missingIdentityFields, pickFreeSlot,
   resolveCreationRollback, isCreationLevelUp, creationResetExperience,
 } from './hero-creation.mjs';
@@ -40,6 +41,12 @@ const ARTIFACTS_PACK = 'heroes-glory.artifacts';
 
 /** Safety cap on rerolling a 12 on a 2–11 artifact table. */
 const MAX_ARTIFACT_ROW_ROLLS = 50;
+
+/**
+ * Safety cap on whole rerolls (d6 and 2d6) of an artifact some hero
+ * already has; past it — the fallback, not unique.
+ */
+const MAX_ARTIFACT_ATTEMPTS = 200;
 
 /**
  * Evaluates one Roll and returns its dice results.
@@ -66,22 +73,48 @@ export function missingIdentityMessage(system) {
 }
 
 /**
- * The creation dice (p. 16 second skill, p. 18 gold and artifact).
- * @returns {Promise<{skillDie: number, goldDice: number[], artifactTypeDie: number, artifactRow: number, artifactRerolls: number}>}
+ * The creation dice (p. 16 second skill, p. 18 gold). The artifact is
+ * rolled apart — by the active GM (grantStartingArtifact).
+ * @returns {Promise<{skillDie: number, goldDice: number[]}>}
  */
 async function rollCreationDice() {
   const [skillDie] = await rollDice('1d20');
   const goldDice = await rollDice('2d6');
-  const [artifactTypeDie] = await rollDice('1d6');
-  const rowCount = ARTIFACT_TABLE_ROWS[artifactTypeForDie(artifactTypeDie)];
-  const totals = [];
-  let pick = null;
-  while (!pick && totals.length < MAX_ARTIFACT_ROW_ROLLS) {
+  return { skillDie, goldDice };
+}
+
+/**
+ * One artifact attempt (p. 18): d6 for the type, 2d6 for the row until the
+ * table has it (a 12 on a 2–11 table is rerolled).
+ * @returns {Promise<{typeDie: number, rowTotals: number[]}>}
+ */
+async function rollArtifactAttempt() {
+  const [typeDie] = await rollDice('1d6');
+  const rowCount = ARTIFACT_TABLE_ROWS[artifactTypeForDie(typeDie)];
+  const rowTotals = [];
+  while (rowTotals.length < MAX_ARTIFACT_ROW_ROLLS && !pickArtifactRow(rowTotals, rowCount)) {
     const [a, b] = await rollDice('2d6');
-    totals.push(a + b);
-    pick = pickArtifactRow(totals, rowCount);
+    rowTotals.push(a + b);
   }
-  return { skillDie, goldDice, artifactTypeDie, artifactRow: pick.row, artifactRerolls: pick.rerolls };
+  return { typeDie, rowTotals };
+}
+
+/**
+ * The starting artifact, unique in the world (§11): attempts are rolled
+ * until one falls on an artifact no hero has, up to the cap; with every
+ * table artifact taken — a single attempt. Then pickUniqueArtifact decides,
+ * the fallback included.
+ * @param {Set<string>} taken
+ */
+async function rollStartingArtifact(taken) {
+  const allTaken = STARTING_ARTIFACT_KEYS.every((key) => taken.has(key));
+  const attempts = [];
+  let pick = null;
+  while (attempts.length < (allTaken ? 1 : MAX_ARTIFACT_ATTEMPTS) && !pick?.unique) {
+    attempts.push(await rollArtifactAttempt());
+    pick = pickUniqueArtifact(attempts, taken);
+  }
+  return pick;
 }
 
 /**
@@ -160,12 +193,6 @@ export async function grantCreation(actor, targetLevel) {
   const classKey = concreteClassKey(system.faction, system.classType);
   const baseSkillKey = statsForClass(classKey)?.secondarySkillKey ?? null;
   const skill = resolveStartingSecondarySkill({ die: dice.skillDie, faction: system.faction, baseSkillKey });
-  const artifactType = artifactTypeForDie(dice.artifactTypeDie);
-  const artifactEntry = await findArtifactEntry(artifactType, dice.artifactRow);
-  if (!artifactEntry) {
-    ui.notifications.error(game.i18n.localize('HEROES_GLORY.Creation.ArtifactMissing'));
-    return false;
-  }
 
   const grant = (kind) => ({ [FLAG_SCOPE]: { [CREATION_GRANT_FLAG]: kind } });
   const occupied = new Set(actor.items
@@ -238,9 +265,6 @@ export async function grantCreation(actor, targetLevel) {
     }, occupied));
   }
 
-  // p. 18: the random artifact — worn if its slot is free, else the backpack.
-  itemData.push(placeInPaperdoll(await compendiumItemData(ARTIFACTS_PACK, artifactEntry._id, 'artifact'), occupied));
-
   await actor.createEmbeddedDocuments('Item', itemData);
 
   const goldSum = dice.goldDice.reduce((a, b) => a + b, 0);
@@ -251,15 +275,107 @@ export async function grantCreation(actor, targetLevel) {
     'system.creation': {
       complete: true, gold, upgradedSkillKey, targetLevel,
       experienceBefore: actor._source.system.experience, levelUps: [],
+      artifactPending: true,
     },
   });
   await fillHealthAndMana(actor);
 
+  // p. 18: the random artifact, unique in the world — handed out by the
+  // active GM, one at a time. The GM's own creation gets it right away; a
+  // player's waits for the GM's updateActor hook (or the GM's ready).
+  const artifact = game.users.activeGM === game.user ? await grantStartingArtifact(actor) : null;
+
   await postCreationCard(actor, {
-    dice, goldSum, gold, skill, baseSkillKey, book: spellbook.book,
-    raceItems, weapons, artifactType, artifactName: artifactEntry.name,
+    dice, goldSum, gold, skill, baseSkillKey, book: spellbook.book, raceItems, weapons, artifact,
   });
   return true;
+}
+
+/** The active GM's queue of starting-artifact grants. */
+const artifactQueue = createSerialQueue();
+
+/**
+ * Hands out a hero's waiting starting artifact — in the active GM's queue,
+ * so the taken set is read only after the previous grant has created its
+ * item. Nothing if the hero is gone, was reset, or got it already.
+ * @param {Actor} actor
+ * @returns {Promise<object|null>} what was handed out (artifactLines input)
+ */
+export function grantStartingArtifact(actor) {
+  return artifactQueue(async () => {
+    const hero = game.actors.get(actor.id);
+    const creation = hero?._source.system.creation;
+    if (!creation?.complete || !creation.artifactPending) return null;
+
+    const pick = await rollStartingArtifact(takenStartingArtifactKeys(game.actors));
+    const entry = pick && await findArtifactEntry(pick.artifactType, pick.row);
+    if (!entry) {
+      ui.notifications.error(game.i18n.localize('HEROES_GLORY.Creation.ArtifactMissing'));
+      return null;
+    }
+    // p. 18: worn if its slot is free, else the backpack.
+    const occupied = new Set(hero.items
+      .filter((i) => i.system.equipped && i.system.paperdollSlot != null)
+      .map((i) => i.system.paperdollSlot));
+    await hero.createEmbeddedDocuments('Item', [
+      placeInPaperdoll(await compendiumItemData(ARTIFACTS_PACK, entry._id, 'artifact'), occupied),
+    ]);
+    await hero.update({ 'system.creation.artifactPending': false });
+    return { ...pick, name: entry.name };
+  });
+}
+
+/**
+ * The active GM's updateActor hook: a player's creation left the artifact
+ * waiting — hand it out and post it as a line of its own. The GM's own
+ * creation is skipped: grantCreation hands it out itself, into the card.
+ * @param {Actor} actor
+ * @param {object} changed
+ * @param {object} options
+ * @param {string} userId
+ */
+export async function grantPendingArtifactOnUpdate(actor, changed, options, userId) {
+  if (game.users.activeGM !== game.user || userId === game.user.id || actor.type !== 'hero') return;
+  if (foundry.utils.getProperty(changed, 'system.creation.artifactPending') !== true) return;
+  await grantAndPostArtifact(actor);
+}
+
+/**
+ * The active GM's ready: the artifacts that waited while no GM was online.
+ */
+export async function grantPendingArtifacts() {
+  if (game.users.activeGM !== game.user) return;
+  for (const actor of game.actors) {
+    if (actor.type === 'hero' && actor._source.system.creation?.artifactPending) await grantAndPostArtifact(actor);
+  }
+}
+
+/** grantStartingArtifact, then its line in the chat. */
+async function grantAndPostArtifact(actor) {
+  const artifact = await grantStartingArtifact(actor);
+  if (!artifact) return;
+  const content = await foundry.applications.handlebars.renderTemplate(
+    'systems/heroes-glory/templates/chat/hero-creation-artifact.hbs',
+    { actorName: actor.name, artifactLines: artifactLines(artifact) },
+  );
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content, whisper: ownersAndGmIds(actor) });
+}
+
+/**
+ * The card lines for a starting artifact: the dice that gave it, the
+ * rerolls, and the fallback note when no unique one was left.
+ * @param {object} artifact   grantStartingArtifact's result
+ * @returns {string[]}
+ */
+function artifactLines(artifact) {
+  const type = game.i18n.localize(CONFIG.HEROES_GLORY.artifactTypes[artifact.artifactType]);
+  let roll = `${game.i18n.format('HEROES_GLORY.Creation.ArtifactType', { die: artifact.typeDie, type })}; `
+    + game.i18n.format('HEROES_GLORY.Creation.ArtifactRow', { row: artifact.row, name: artifact.name });
+  if (artifact.rowRerolls) roll += ` ${game.i18n.format('HEROES_GLORY.Creation.ArtifactRerolls', { count: artifact.rowRerolls })}`;
+  const lines = [roll];
+  if (artifact.takenRerolls) lines.push(game.i18n.format('HEROES_GLORY.Creation.ArtifactTakenRerolls', { count: artifact.takenRerolls }));
+  if (!artifact.unique) lines.push(game.i18n.localize('HEROES_GLORY.Creation.ArtifactNoneUnique'));
+  return lines;
 }
 
 /**
@@ -280,7 +396,7 @@ export async function recordCreationLevelUp(actor, record) {
  * The creation card — whispered to the hero's owners and the GM. No
  * `rolls`: the dice are in the card text (same as the level-up cards).
  */
-async function postCreationCard(actor, { dice, goldSum, gold, skill, baseSkillKey, book, raceItems, weapons, artifactType, artifactName }) {
+async function postCreationCard(actor, { dice, goldSum, gold, skill, baseSkillKey, book, raceItems, weapons, artifact }) {
   const config = CONFIG.HEROES_GLORY;
   const content = await foundry.applications.handlebars.renderTemplate(
     'systems/heroes-glory/templates/chat/hero-creation.hbs',
@@ -296,8 +412,7 @@ async function postCreationCard(actor, { dice, goldSum, gold, skill, baseSkillKe
       book,
       raceItems: describeRaceItems(raceItems),
       weapons: weapons.map((w) => ({ name: w.name, damage: w.damage })),
-      artifactTypeLabelKey: config.artifactTypes[artifactType],
-      artifactName,
+      artifactLines: artifact ? artifactLines(artifact) : null,
     },
   );
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content, whisper: ownersAndGmIds(actor) });
@@ -360,6 +475,7 @@ export async function resetHeroCreation(actor) {
     'system.pendingLevelUp': null,
     'system.creation': {
       complete: false, gold: 0, upgradedSkillKey: '', experienceBefore: 0, targetLevel: 0, levelUps: [],
+      artifactPending: false,
     },
   };
   for (const [key, delta] of Object.entries(rollback.primaryDeltas)) {

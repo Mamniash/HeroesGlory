@@ -37,6 +37,86 @@ export const ARTIFACT_TABLE_ROWS = {
   magicItem: 10,
 };
 
+/**
+ * The key of an artifact from a book table: "<artifactType>:<tableRow>".
+ * Read from the type and the row flag, both copied onto the hero's item —
+ * so a renamed or duplicated item keeps it. No row flag (an unbranded
+ * «Доспех/Щит (N уровень)», a weapon, anything else) — no key.
+ * @param {{system?: {artifactType?: string}, flags?: object}} item
+ * @returns {string|null}
+ */
+export function artifactKey(item) {
+  const type = item?.system?.artifactType;
+  const row = item?.flags?.['heroes-glory']?.[ARTIFACT_TABLE_ROW_FLAG];
+  if (!type || !Number.isInteger(row)) return null;
+  return `${type}:${row}`;
+}
+
+/** Every key a starting artifact can have: the 61 rows of the six tables. */
+export const STARTING_ARTIFACT_KEYS = ARTIFACT_TYPE_BY_D6.flatMap((type) =>
+  Array.from({ length: ARTIFACT_TABLE_ROWS[type] }, (_, i) => `${type}:${i + 2}`));
+
+/**
+ * Starting artifacts taken in the world (§11, Сеня's request: the random
+ * starting artifact is unique): the keys of every item with one on every
+ * hero — however it got there, the GM's hand included.
+ * @param {Iterable<{type: string, items: Iterable<object>}>} actors
+ * @returns {Set<string>}
+ */
+export function takenStartingArtifactKeys(actors) {
+  const taken = new Set();
+  for (const actor of actors) {
+    if (actor.type !== 'hero') continue;
+    for (const item of actor.items) {
+      const key = artifactKey(item);
+      if (key) taken.add(key);
+    }
+  }
+  return taken;
+}
+
+/**
+ * The starting artifact from the attempts rolled so far. Each attempt is a
+ * d6 for the type and the 2d6 totals for the row (a 12 on a 2–11 table is
+ * rerolled inside the attempt, pickArtifactRow). An artifact some hero
+ * already has throws out the whole attempt — type and row are rolled again.
+ * With no free artifact among the attempts, the fallback is the first
+ * attempt as it fell, not unique.
+ * @param {Array<{typeDie: number, rowTotals: number[]}>} dice
+ * @param {Set<string>} taken   takenStartingArtifactKeys
+ * @returns {{artifactType: string, typeDie: number, row: number, rowRerolls: number,
+ *   takenRerolls: number, unique: boolean}|null}  null if no attempt has a row yet
+ */
+export function pickUniqueArtifact(dice, taken) {
+  let fallback = null;
+  let valid = 0;
+  for (const { typeDie, rowTotals } of dice) {
+    const artifactType = artifactTypeForDie(typeDie);
+    const pick = pickArtifactRow(rowTotals, ARTIFACT_TABLE_ROWS[artifactType]);
+    if (!pick) continue;
+    const result = { artifactType, typeDie, row: pick.row, rowRerolls: pick.rerolls, takenRerolls: valid };
+    if (!taken.has(`${artifactType}:${pick.row}`)) return { ...result, unique: true };
+    fallback ??= { ...result, takenRerolls: 0, unique: false };
+    valid += 1;
+  }
+  return fallback;
+}
+
+/**
+ * A queue that runs tasks strictly one at a time, in the order added — the
+ * GM hands out starting artifacts through one, so two creations at once
+ * can't both see the same artifact free.
+ * @returns {(task: () => Promise<any>) => Promise<any>}
+ */
+export function createSerialQueue() {
+  let tail = Promise.resolve();
+  return (task) => {
+    const run = tail.then(task);
+    tail = run.catch(() => {});
+    return run;
+  };
+}
+
 /** p. 18: starting gold is 2d6 × 10. */
 export const STARTING_GOLD_MULTIPLIER = 10;
 

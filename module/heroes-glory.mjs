@@ -25,6 +25,7 @@ import { addMassRestButton } from './helpers/rest.mjs';
 import { registerSpellFxSetting, playSpellFx, syncFieldFx, resetFieldFx } from './helpers/spell-fx.mjs';
 import { offerCombatExperience } from './helpers/experience-award.mjs';
 import { registerMigrationSetting, runMigrations } from './helpers/specialization-migration.mjs';
+import { grantPendingArtifactOnUpdate, grantPendingArtifacts } from './helpers/hero-creation-flow.mjs';
 // Import DataModel classes
 import * as models from './data/_module.mjs';
 
@@ -260,6 +261,10 @@ Hooks.on('deleteCombat', endTemporaryResurrections);
 // §4.1: the GM's experience window for the battle that just ended.
 Hooks.on('deleteCombat', offerCombatExperience);
 
+// §2.7: a player's new hero waits for the active GM to hand out the
+// starting artifact, unique in the world.
+Hooks.on('updateActor', grantPendingArtifactOnUpdate);
+
 // §5.10: «Отдых всем героям» in the Actors directory header, GM only.
 Hooks.on('renderActorDirectory', addMassRestButton);
 
@@ -272,6 +277,8 @@ Hooks.once('ready', function () {
   Hooks.on('hotbarDrop', (bar, data, slot) => createItemMacro(data, slot));
   // World migrations not run yet (§4.3: specializations became items).
   runMigrations();
+  // §2.7: starting artifacts that waited while no GM was online.
+  grantPendingArtifacts();
 });
 
 /* -------------------------------------------- */

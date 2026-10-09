@@ -127,7 +127,10 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
     // experience before creation, the level picked, and every level-up made
     // up to that level (helpers/hero-creation.mjs's resolveCreationRollback
     // reads this list). `complete` alone doesn't decide "created" — see
-    // isHeroCreated.
+    // isHeroCreated. `artifactPending`: the random starting artifact (p. 18,
+    // unique in the world) waits for the active GM to hand it out
+    // (grantStartingArtifact) — a player's creation can't see the taken set
+    // safely. A missing field reads as its initial, no migration.
     schema.creation = new fields.SchemaField({
       complete: new fields.BooleanField({ initial: false }),
       gold: new fields.NumberField({ ...requiredInteger, initial: 0, min: 0 }),
@@ -141,6 +144,7 @@ export default class HeroesGloryHero extends HeroesGloryDataModel {
         upgradedItemId: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
         upgradedFromTier: new fields.StringField({ required: true, nullable: true, initial: null, blank: false }),
       })),
+      artifactPending: new fields.BooleanField({ initial: false }),
     });
 
     // §4.3 p.23: the specialization is an item now (item-specialization.mjs).

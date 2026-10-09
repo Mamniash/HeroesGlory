@@ -8,7 +8,8 @@ import {
   resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow, ARTIFACT_TABLE_ROWS,
   ARTIFACT_TYPE_BY_D6, startingWeaponSpecs, startingSpellbookGrant, isValidSpellChoice,
   isHeroCreated, missingIdentityFields, IDENTITY_FIELDS, pickFreeSlot, resolveCreationRollback,
-  isCreationLevelUp, creationResetExperience,
+  isCreationLevelUp, creationResetExperience, artifactKey, takenStartingArtifactKeys,
+  pickUniqueArtifact, createSerialQueue, STARTING_ARTIFACT_KEYS,
 } from '../module/helpers/hero-creation.mjs';
 import { WEAPON_EPIC_TABLES, MELEE_WEAPON_CATEGORIES } from '../module/helpers/weapon-epic-tables.mjs';
 import { raceGrantedItems } from '../module/helpers/race-granted-items.mjs';
@@ -68,6 +69,112 @@ describe('starting artifact — p. 18, d6 type then 2d6 row', () => {
     for (const type of ARTIFACT_TYPE_BY_D6) {
       const expected = Array.from({ length: ARTIFACT_TABLE_ROWS[type] }, (_, i) => i + 2);
       assert.deepEqual(rows[type], expected, type);
+    }
+  });
+});
+
+describe('unique starting artifact — §11, по просьбе Сени', () => {
+  const artifact = (artifactType, row, extra = {}) => ({
+    name: 'Артефакт', type: 'artifact', system: { artifactType },
+    flags: row === undefined ? {} : { 'heroes-glory': { tableRow: row, ...extra } },
+  });
+  const all61 = () => new Set(STARTING_ARTIFACT_KEYS);
+
+  test('artifactKey: type and table row', () => {
+    assert.equal(artifactKey(artifact('necklace', 7)), 'necklace:7');
+  });
+
+  test('artifactKey: no table row — no key (unbranded armour, a weapon)', () => {
+    assert.equal(artifactKey(artifact('enchantedArmor')), null);
+    assert.equal(artifactKey({ type: 'weapon', system: { damage: 5 }, flags: {} }), null);
+  });
+
+  test('artifactKey: renaming keeps the key', () => {
+    assert.equal(artifactKey({ ...artifact('magicItem', 3), name: 'Мой клевер' }), 'magicItem:3');
+  });
+
+  test('takenStartingArtifactKeys: every hero, creation grant or not', () => {
+    const actors = [
+      { type: 'hero', items: [artifact('necklace', 7, { creationGrant: 'artifact' }), artifact('enchantedArmor')] },
+      { type: 'hero', items: [artifact('enchantedWeapon', 12)] },
+      { type: 'creature', items: [artifact('magicItem', 2)] },
+      { type: 'hero', items: [{ type: 'weapon', system: {}, flags: {} }] },
+    ];
+    assert.deepEqual([...takenStartingArtifactKeys(actors)].sort(), ['enchantedWeapon:12', 'necklace:7']);
+  });
+
+  test('pickUniqueArtifact: a free artifact — no rerolls', () => {
+    assert.deepEqual(pickUniqueArtifact([{ typeDie: 4, rowTotals: [7] }], new Set()),
+      { artifactType: 'necklace', typeDie: 4, row: 7, rowRerolls: 0, takenRerolls: 0, unique: true });
+  });
+
+  test('pickUniqueArtifact: a taken one rerolls both d6 and 2d6', () => {
+    const pick = pickUniqueArtifact([{ typeDie: 4, rowTotals: [7] }, { typeDie: 1, rowTotals: [7] }], new Set(['necklace:7']));
+    assert.deepEqual(pick, { artifactType: 'enchantedWeapon', typeDie: 1, row: 7, rowRerolls: 0, takenRerolls: 1, unique: true });
+  });
+
+  test('pickUniqueArtifact: 12 on a 2–11 table is still rerolled inside the attempt', () => {
+    const pick = pickUniqueArtifact([{ typeDie: 2, rowTotals: [12, 12, 5] }], new Set());
+    assert.equal(pick.row, 5);
+    assert.equal(pick.rowRerolls, 2);
+    assert.equal(pick.unique, true);
+  });
+
+  test('pickUniqueArtifact: all 61 taken — the fallback is the first roll as it fell', () => {
+    const pick = pickUniqueArtifact([{ typeDie: 3, rowTotals: [9] }], all61());
+    assert.deepEqual(pick, { artifactType: 'enchantedShield', typeDie: 3, row: 9, rowRerolls: 0, takenRerolls: 0, unique: false });
+  });
+
+  test('pickUniqueArtifact: attempts run out — the fallback', () => {
+    const taken = new Set(['necklace:7', 'magicItem:8']);
+    const pick = pickUniqueArtifact([{ typeDie: 4, rowTotals: [7] }, { typeDie: 6, rowTotals: [8] }], taken);
+    assert.equal(pick.unique, false);
+    assert.equal(pick.artifactType, 'necklace');
+    assert.equal(pick.row, 7);
+  });
+
+  test('pickUniqueArtifact: no row yet — null', () => {
+    assert.equal(pickUniqueArtifact([{ typeDie: 2, rowTotals: [12] }], new Set()), null);
+  });
+
+  test('the compendium has exactly the 61 table entries, keys unique', async () => {
+    const { buildArtifactDocuments } = await import('../scripts/data/artifact-compendium-data.mjs');
+    const keys = buildArtifactDocuments().map(artifactKey).filter(Boolean);
+    assert.equal(keys.length, 61);
+    assert.equal(new Set(keys).size, 61);
+    assert.deepEqual([...keys].sort(), [...STARTING_ARTIFACT_KEYS].sort());
+  });
+
+  test('queue: two grants in a row with one artifact free — no duplicate', async () => {
+    const enqueue = createSerialQueue();
+    const free = 'magicItem:11';
+    const taken = new Set(STARTING_ARTIFACT_KEYS.filter((key) => key !== free));
+    const heroes = [{ type: 'hero', items: [] }, { type: 'hero', items: [] }];
+    const allActors = [...heroes, { type: 'hero', items: [...taken].map((k) => {
+      const [type, row] = k.split(':');
+      return artifact(type, Number(row));
+    }) }];
+    const grant = (hero) => enqueue(async () => {
+      const pick = pickUniqueArtifact([{ typeDie: 6, rowTotals: [11] }], takenStartingArtifactKeys(allActors));
+      await new Promise((resolve) => setTimeout(resolve, 5)); // the item creation round trip
+      hero.items.push(artifact(pick.artifactType, pick.row));
+      return pick;
+    });
+    const [first, second] = await Promise.all(heroes.map(grant));
+    assert.equal(first.unique, true);
+    assert.equal(second.unique, false);
+  });
+
+  test('queue: a failed task does not stop the next', async () => {
+    const enqueue = createSerialQueue();
+    await assert.rejects(enqueue(async () => { throw new Error('boom'); }));
+    assert.equal(await enqueue(async () => 42), 42);
+  });
+
+  test('the new card lines exist in lang/ru.json', () => {
+    const ru = JSON.parse(fs.readFileSync(new URL('../lang/ru.json', import.meta.url), 'utf8'));
+    for (const key of ['ArtifactTakenRerolls', 'ArtifactNoneUnique', 'ArtifactPending', 'ArtifactChatTitle']) {
+      assert.equal(typeof ru.HEROES_GLORY.Creation[key], 'string', key);
     }
   });
 });

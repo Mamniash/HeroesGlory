@@ -13,8 +13,11 @@
     <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.ChatWeapon' name=name damage=damage}}</p>
   {{/each}}
   <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.GoldRolled' dice=goldDiceText sum=goldSum gold=gold}}</p>
-  <p class="heroes-glory-chat-card__line">
-    {{localize 'HEROES_GLORY.Creation.ArtifactType' die=dice.artifactTypeDie type=(localize artifactTypeLabelKey)}};
-    {{localize 'HEROES_GLORY.Creation.ArtifactRow' row=dice.artifactRow name=artifactName}}{{#if dice.artifactRerolls}} {{localize 'HEROES_GLORY.Creation.ArtifactRerolls' count=dice.artifactRerolls}}{{/if}}
-  </p>
+  {{#if artifactLines}}
+    {{#each artifactLines}}
+      <p class="heroes-glory-chat-card__line">{{this}}</p>
+    {{/each}}
+  {{else}}
+    <p class="heroes-glory-chat-card__line">{{localize 'HEROES_GLORY.Creation.ArtifactPending'}}</p>
+  {{/if}}
 </div>
