@@ -380,9 +380,14 @@ $hg-named-slots: (
   // $hg-stat-panel-darken's own comment for why this is a darkened copy
   // of the underlying leather rather than a patch cut from elsewhere.
   stat_backdrop: (314 / 600 * 100, 15 / 473 * 100, 115 / 600 * 100, 31 / 473 * 100),
-  // Gold — the free strip left of the specialization cell, under the
-  // paperdoll's bottom line.
-  gold: (312 / 600 * 100, 425 / 473 * 100, 66 / 600 * 100, 30 / 473 * 100),
+  // Gold — exactly the visible leather between the paperdoll's left seam
+  // (its ridge at 302–303, shadow at 304: the first leather column is 305,
+  // read off heroscr4) and the specialization cell's left edge (381), under
+  // the paperdoll's bottom line; same vertical centre as the cell (440). The
+  // icon and the amount are centred in it together (.hero-paperdoll__gold),
+  // so the gap from the seam to the coins equals the gap from the number to
+  // the cell, whatever the number.
+  gold: (305 / 600 * 100, 425 / 473 * 100, 76 / 600 * 100, 30 / 473 * 100),
 );
 
 @each $name, $box in $hg-named-slots {
@@ -2168,24 +2173,22 @@ $hg-experience-highlight-pulse-duration: 2.6s;
 // 20 / 66 of the slot's width) and the amount beside it, in the primary
 // values' font. The GM's quick field looks the same as the plain number.
 .hero-paperdoll__gold {
-  // The strip left of the specialization cell (`gold` in $hg-named-slots,
-  // 312–378 × 425–455 of 600×473) is centred on 345 — the mirror of the
-  // edit button's centre (555) across the cell's — and on the cell's own
-  // vertical centre (440). The icon and the amount sit together in its
-  // middle; all of it in % of the canvas and `--hg-pixel-scale`, so it keeps
-  // its place as the sheet scales.
+  // The strip (`gold` in $hg-named-slots) is the visible leather from the
+  // seam to the specialization cell; the icon and the amount sit together
+  // in its middle, equal gaps either side. All of it in % of the canvas and
+  // `--hg-pixel-scale`, so it keeps its place as the sheet scales.
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4%;
+  gap: calc(3 / 76 * 100%);
 }
 
 .hero-paperdoll__gold-icon {
   flex: none;
-  width: calc(20 / 66 * 100%);
+  width: calc(20 / 76 * 100%); // 20 native px of the 76px strip
   height: auto;
-  // The coins' own ratio (SMALRES frame 6, 20×18; the ×3 file 60×54), so the
-  // height is known before it loads. Drawn smooth (_hd-icons.scss, `-x3/`).
+  // The coins' own ratio (SMALRES frame 6, 20×18; the ×4 file 80×72), so the
+  // height is known before it loads. Drawn smooth (_hd-icons.scss, `-x4/`).
   aspect-ratio: 20 / 18;
 }
 

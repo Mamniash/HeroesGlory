@@ -271,14 +271,14 @@
   <img class="hero-paperdoll__slot hero-paperdoll__slot--luck" src="{{icons.luck}}" alt=""
     data-tooltip-trigger="luck"{{#if editMode}} data-action="editLuckCorrection"{{else}} data-tooltip-click{{/if}}>
 
-  {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6, its xBRZ ×3
-    version — scripts/upscale_icons.py) and the amount, centred in the strip
-    left of the specialization cell. Everyone who sees the sheet sees it;
-    the GM changes it with a quick field — no name, its own update
-    (hero-sheet.mjs `_onRender`). --}}
+  {{!-- Gold: HOMM3's resource-bar gold (SMALRES, frame 6, its xBRZ ×4
+    version — scripts/upscale_icons.py) and the amount, centred together in
+    the leather between the seam and the specialization cell. No tooltip, the
+    icon isn't clickable. Everyone who sees the sheet sees it; the GM changes
+    it with a quick field — no name, its own update (hero-sheet.mjs
+    `_onRender`). --}}
   <div class="hero-paperdoll__slot hero-paperdoll__slot--gold hero-paperdoll__gold">
-    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres-x3/smalres_g00_f006.png" alt="{{localize 'HEROES_GLORY.Hero.Gold'}}"
-      {{#if isGM}}data-tooltip-trigger="gold" data-tooltip-click{{/if}}>
+    <img class="hero-paperdoll__gold-icon" src="systems/heroes-glory/assets/smalres-x4/smalres_g00_f006.png" alt="{{localize 'HEROES_GLORY.Hero.Gold'}}">
     {{#if isGM}}
       <input class="hero-paperdoll__gold-value hero-paperdoll__gold-input" type="text" inputmode="numeric"
         value="{{source.gold}}" data-gold-input
@@ -287,15 +287,6 @@
       <span class="hero-paperdoll__gold-value">{{system.gold}}</span>
     {{/if}}
   </div>
-  {{!-- The GM's click on the coins: «Золото» and how the field reads. The
-    player has no field — no tooltip. --}}
-  {{#if isGM}}
-    <template class="hg-tooltip-tpl" data-tooltip-key="gold">
-      <img class="hg-tooltip__icon" src="systems/heroes-glory/assets/smalres-x3/smalres_g00_f006.png" width="60" height="54" alt="">
-      <p class="hg-tooltip__title">{{localize 'HEROES_GLORY.Hero.Gold'}}</p>
-      <p>{{localize 'HEROES_GLORY.Hero.GoldInputHow'}}</p>
-    </template>
-  {{/if}}
 
   {{!-- ==================== Secondary skills (8 slots, scrolls past 8 —
     see _hero-paperdoll.scss's own comment on

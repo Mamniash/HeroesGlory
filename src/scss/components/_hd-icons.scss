@@ -1,5 +1,5 @@
 // Small stat icons (primary skills, Опыт, Мана, secondary skills, Боевой дух,
-// Удача; the gold coins ×3, assets/smalres-x3/) come from their xBRZ ×4 versions in assets/<set>-x4/ (skill-icons.mjs,
+// Удача, the gold coins) come from their xBRZ ×4 versions in assets/<set>-x4/ (skill-icons.mjs,
 // scripts/upscale_icons.py) and are drawn smaller than the file: the browser
 // has to scale them down smoothly. Everything else on the sheets — the art,
 // frames, buttons — stays `pixelated` as before.
@@ -9,7 +9,6 @@
 // and window, option lists) without touching their own rules. Specificity
 // (two classes + an element, inside `.heroes-glory`) beats each
 // `pixelated` rule on those elements, the strongest being two classes.
-img[src*='-x4/'],
-img[src*='-x3/'] {
+img[src*='-x4/'] {
   image-rendering: auto;
 }

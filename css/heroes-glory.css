@@ -971,9 +971,9 @@
   height: 6.5539112051%;
 }
 .heroes-glory .hero-paperdoll__slot--gold {
-  left: 52%;
+  left: 50.8333333333%;
   top: 89.8520084567%;
-  width: 11%;
+  width: 12.6666666667%;
   height: 6.3424947146%;
 }
 .heroes-glory .hero-paperdoll__stat-backdrop {
@@ -1890,11 +1890,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4%;
+  gap: 3.9473684211%;
 }
 .heroes-glory .hero-paperdoll__gold-icon {
   flex: none;
-  width: 30.303030303%;
+  width: 26.3157894737%;
   height: auto;
   aspect-ratio: 20/18;
 }
@@ -3760,8 +3760,7 @@
   zoom: var(--hg-window-scale, 1);
   --hg-pixel-scale: 1;
 }
-.heroes-glory img[src*="-x4/"],
-.heroes-glory img[src*="-x3/"] {
+.heroes-glory img[src*="-x4/"] {
   image-rendering: auto;
 }
 
