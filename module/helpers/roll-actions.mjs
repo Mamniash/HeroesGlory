@@ -72,7 +72,7 @@ import {
   resolveLastingSpellLimit, lastingSpellRounds, actorSpellModifiers, spellHeroesOnly, spellEffectModifiers,
   cleansingRemovals, isFriendlyTarget, resurrectionBlockingTag, resolveSupportSpellResolution,
   antimagicBlocks, rangedSeriesAfterSpells, resolveFireShieldDamage, visibleSpellTakes, areaCells, tokenInArea,
-  fieldCellChoice, fieldExpiresRound, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
+  fieldCellChoice, fieldExpiresRound, lastingRoundsLeft, lastingCastRow, quicksandOwnership, dispelCellRegionIds, isLastingSpellCard, footprintAnchor, cancelledCardRefund, chainLayout, chainTargetsToPick,
   SUMMON_ELEMENTALS, summonedCreatureStats, summonOwnership,
 } from './spell-effects.mjs';
 import { PRIMARY_SKILL_ROLL_RANGES, PRIMARY_SKILL_ROLL_RANGES_FALLBACK, concreteClassKey } from './class-stats.mjs';
@@ -3923,7 +3923,7 @@ function castModifiers(actor, spell, effect) {
  * in a battle under way count too (rules.md §11) — as their cards.
  * @param {object} [options]
  * @param {boolean} [options.pending]
- * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], remaining: number, effects: ActiveEffect[], regions?: RegionDocument[], tokens?: TokenDocument[], pendingMessage?: ChatMessage}>}
+ * @returns {Array<{castId: string, spellName: string, targetIds: string[], targetNames: string[], untilCombatEnd?: boolean, remaining: number|null, effects: ActiveEffect[], regions?: RegionDocument[], tokens?: TokenDocument[], pendingMessage?: ChatMessage}>}
  */
 function lastingSpellCasts(caster, { pending = true } = {}) {
   const actors = new Set(game.actors);
@@ -3937,9 +3937,17 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
       if (!data || data.skipsTurn || data.casterUuid !== caster.uuid || effect.duration?.expired) continue;
       const castId = data.castId ?? `${data.spellName}|${data.combatId}|${effect._source.start?.round}`;
       if (!casts.has(castId)) {
-        // Молитва lasts to the end of the battle: no rounds left to show.
-        const remaining = data.untilCombatEnd ? null : effect.duration.remaining;
-        casts.set(castId, { castId, spellName: data.spellName, targetIds: [], targetNames: [], remaining, effects: [] });
+        // Counted from the cast (its `start`) in the caster's battle, not
+        // core's duration (Infinity when core can't find the battle);
+        // Молитва lasts to the end of the battle.
+        const untilCombatEnd = !!data.untilCombatEnd;
+        const remaining = untilCombatEnd ? null : lastingRoundsLeft(
+          fieldExpiresRound(effect._source.start?.round, effect._source.duration?.value),
+          game.combats.get(data.combatId)?.round,
+        );
+        casts.set(castId, {
+          castId, spellName: data.spellName, targetIds: [], targetNames: [], untilCombatEnd, remaining, effects: [],
+        });
       }
       const cast = casts.get(castId);
       cast.targetIds.push(target.uuid);
@@ -3958,7 +3966,7 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
         spellName: data.spellName,
         targetIds: [],
         targetNames: [game.i18n.localize('HEROES_GLORY.Roll.SpellFieldOnScene')],
-        remaining: combat ? Math.max(0, data.expiresRound - combat.round) : 0,
+        remaining: lastingRoundsLeft(data.expiresRound, combat?.round),
         effects: [],
         regions: [region],
       });
@@ -3973,7 +3981,7 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
       spellName: data.spellName,
       targetIds: [],
       targetNames: [],
-      remaining: combat ? Math.max(0, data.expiresRound - combat.round) : 0,
+      remaining: lastingRoundsLeft(data.expiresRound, combat?.round),
       effects: [],
       tokens: [],
     };
@@ -3991,6 +3999,7 @@ function lastingSpellCasts(caster, { pending = true } = {}) {
         spellName: flags.spellName,
         targetIds: (flags.targets ?? []).map((t) => actorFromCard(t.tokenUuid, t.actorId)?.uuid).filter(Boolean),
         targetNames: lastingCardTargetNames(flags),
+        untilCombatEnd: flags.rounds === null || flags.rounds === undefined,
         remaining: flags.rounds ?? null,
         effects: [],
         pendingMessage: message,
@@ -4053,9 +4062,7 @@ async function chooseLastingSpellToEnd(actor, spellName, targetIds, casts = last
   });
   if (!needsChoice) return null;
   const i18n = game.i18n;
-  const rowOf = (cast) => i18n.format(cast.remaining === null ? 'HEROES_GLORY.Roll.SpellLimitRowCombat' : 'HEROES_GLORY.Roll.SpellLimitRow', {
-    spell: cast.spellName, targets: cast.targetNames.join(', '), rounds: cast.remaining,
-  });
+  const rowOf = (cast) => lastingCastRow(cast, (key, data) => i18n.format(key, data));
   const labelOf = (cast) => (cast.pendingMessage ? i18n.format('HEROES_GLORY.Roll.SpellLimitPending', { row: rowOf(cast) }) : rowOf(cast));
   const content = document.createElement('div');
   content.innerHTML = `<p>${foundry.utils.escapeHTML(i18n.format('HEROES_GLORY.Roll.SpellLimitText', { caster: actor.name, spell: spell.name }))}</p>

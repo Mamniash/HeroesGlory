@@ -630,6 +630,39 @@ export function fieldExpiresRound(startRound, rounds) {
 }
 
 /**
+ * Rounds a lasting spell has left (p. 32: «В начале хода уменьшайте
+ * отмеченное значение на 1» — on the caster's turn): the round it ends in
+ * (fieldExpiresRound: cast round + duration) minus the current round of the
+ * caster's battle, never below 0. The same count for effects, fields and
+ * the summoned — not core's `effect.duration.remaining`, which reads
+ * Infinity whenever core can't find the battle. null when there is nothing
+ * to count from: no battle (cast outside one, or it is gone) or no numbers.
+ * @param {number|null|undefined} expiresRound
+ * @param {number|null|undefined} currentRound   the caster's battle's round
+ * @returns {number|null}
+ */
+export function lastingRoundsLeft(expiresRound, currentRound) {
+  if (!Number.isFinite(expiresRound) || !Number.isFinite(currentRound)) return null;
+  return Math.max(0, expiresRound - currentRound);
+}
+
+/**
+ * One lasting cast as text — the limit-of-three window's row, and through
+ * it the card's «Закончится / Закончено» line: spell, targets, then the
+ * rounds left, «до конца боя» (Молитва) or «вне боя» (no battle to count
+ * from — still a lasting spell, still in the limit).
+ * @param {{spellName: string, targetNames: string[], untilCombatEnd?: boolean, remaining: number|null}} cast
+ * @param {(key: string, data: object) => string} format   game.i18n.format
+ * @returns {string}
+ */
+export function lastingCastRow(cast, format) {
+  const data = { spell: cast.spellName, targets: cast.targetNames.join(', ') };
+  if (cast.untilCombatEnd) return format('HEROES_GLORY.Roll.SpellLimitRowCombat', data);
+  if (!Number.isFinite(cast.remaining)) return format('HEROES_GLORY.Roll.SpellLimitRowOutOfCombat', data);
+  return format('HEROES_GLORY.Roll.SpellLimitRow', { ...data, rounds: cast.remaining });
+}
+
+/**
  * Group Г: who sees a Зыбучий Песок trap — «невидимые ловушки», seen by the
  * GM and the caster (rules.md §11): the region's ownership, Observer for the
  * users owning the caster, nobody else (the GM sees every region anyway).
