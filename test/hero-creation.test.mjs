@@ -9,7 +9,7 @@ import {
   ARTIFACT_TYPE_BY_D6, startingWeaponSpecs, startingSpellbookGrant, isValidSpellChoice,
   isHeroCreated, missingIdentityFields, IDENTITY_FIELDS, pickFreeSlot, resolveCreationRollback,
   isCreationLevelUp, creationResetExperience, artifactKey, takenStartingArtifactKeys,
-  pickUniqueArtifact, createSerialQueue, STARTING_ARTIFACT_KEYS,
+  pickUniqueArtifact, createSerialQueue, STARTING_ARTIFACT_KEYS, startingArtifactAction,
 } from '../module/helpers/hero-creation.mjs';
 import { WEAPON_EPIC_TABLES, MELEE_WEAPON_CATEGORIES } from '../module/helpers/weapon-epic-tables.mjs';
 import { raceGrantedItems } from '../module/helpers/race-granted-items.mjs';
@@ -163,6 +163,43 @@ describe('unique starting artifact — §11, по просьбе Сени', () =
     const [first, second] = await Promise.all(heroes.map(grant));
     assert.equal(first.unique, true);
     assert.equal(second.unique, false);
+  });
+
+  test('startingArtifactAction: waiting and no creation artifact yet — grant', () => {
+    const items = [artifact('necklace', 7), { flags: { 'heroes-glory': { creationGrant: 'weapon' } } }];
+    assert.equal(startingArtifactAction({ complete: true, artifactPending: true }, items), 'grant');
+  });
+
+  test('startingArtifactAction: the creation artifact is there but the mark hangs — clearOnly', () => {
+    const items = [artifact('necklace', 7, { creationGrant: 'artifact' })];
+    assert.equal(startingArtifactAction({ complete: true, artifactPending: true }, items), 'clearOnly');
+  });
+
+  test('startingArtifactAction: reset, nothing waiting, no creation — skip', () => {
+    assert.equal(startingArtifactAction({ complete: false, artifactPending: false }, []), 'skip');
+    assert.equal(startingArtifactAction({ complete: false, artifactPending: true }, []), 'skip');
+    assert.equal(startingArtifactAction({ complete: true, artifactPending: false }, []), 'skip');
+    assert.equal(startingArtifactAction(undefined, []), 'skip');
+  });
+
+  test('queue: two tasks for one hero — one artifact', async () => {
+    const enqueue = createSerialQueue();
+    const hero = { type: 'hero', creation: { complete: true, artifactPending: true }, items: [] };
+    let granted = 0;
+    const task = () => enqueue(async () => {
+      const action = startingArtifactAction(hero.creation, hero.items);
+      if (action === 'skip') return action;
+      if (action === 'grant') {
+        await new Promise((resolve) => setTimeout(resolve, 5)); // the item creation round trip
+        hero.items.push(artifact('necklace', 7, { creationGrant: 'artifact' }));
+        granted += 1;
+      }
+      hero.creation = { ...hero.creation, artifactPending: false };
+      return action;
+    });
+    assert.deepEqual(await Promise.all([task(), task()]), ['grant', 'skip']);
+    assert.equal(granted, 1);
+    assert.equal(hero.items.length, 1);
   });
 
   test('queue: a failed task does not stop the next', async () => {

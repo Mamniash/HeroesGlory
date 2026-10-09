@@ -22,6 +22,7 @@ import {
   CREATION_GRANT_FLAG, CLASS_BASE_SKILL_FLAG, ARTIFACT_TABLE_ROW_FLAG, ARTIFACT_TABLE_ROWS,
   STARTING_GOLD_MULTIPLIER, resolveStartingSecondarySkill, artifactTypeForDie, pickArtifactRow,
   pickUniqueArtifact, takenStartingArtifactKeys, createSerialQueue, STARTING_ARTIFACT_KEYS,
+  startingArtifactAction,
   startingWeaponSpecs, startingSpellbookGrant, missingIdentityFields, pickFreeSlot,
   resolveCreationRollback, isCreationLevelUp, creationResetExperience,
 } from './hero-creation.mjs';
@@ -297,15 +298,22 @@ const artifactQueue = createSerialQueue();
 /**
  * Hands out a hero's waiting starting artifact — in the active GM's queue,
  * so the taken set is read only after the previous grant has created its
- * item. Nothing if the hero is gone, was reset, or got it already.
+ * item. Nothing if the hero is gone, was reset, or got it already
+ * (startingArtifactAction); the item is created before the mark is
+ * cleared, and a mark left over a created item is only cleared.
  * @param {Actor} actor
  * @returns {Promise<object|null>} what was handed out (artifactLines input)
  */
 export function grantStartingArtifact(actor) {
   return artifactQueue(async () => {
     const hero = game.actors.get(actor.id);
-    const creation = hero?._source.system.creation;
-    if (!creation?.complete || !creation.artifactPending) return null;
+    if (!hero) return null;
+    const action = startingArtifactAction(hero._source.system.creation, hero.items);
+    if (action === 'skip') return null;
+    if (action === 'clearOnly') {
+      await hero.update({ 'system.creation.artifactPending': false });
+      return null;
+    }
 
     const pick = await rollStartingArtifact(takenStartingArtifactKeys(game.actors));
     const entry = pick && await findArtifactEntry(pick.artifactType, pick.row);

@@ -103,6 +103,24 @@ export function pickUniqueArtifact(dice, taken) {
 }
 
 /**
+ * What the active GM does with a hero's waiting starting artifact, decided
+ * inside its queue task: nothing if creation isn't complete or nothing
+ * waits (reset, already handed out); only clear the mark if the hero
+ * already holds the creation artifact (the item was created but clearing
+ * the mark failed); otherwise hand it out.
+ * @param {{complete?: boolean, artifactPending?: boolean}|null|undefined} creation
+ * @param {Iterable<{flags?: object}>} items
+ * @returns {'grant'|'clearOnly'|'skip'}
+ */
+export function startingArtifactAction(creation, items) {
+  if (!creation?.complete || !creation.artifactPending) return 'skip';
+  for (const item of items) {
+    if (item?.flags?.['heroes-glory']?.[CREATION_GRANT_FLAG] === 'artifact') return 'clearOnly';
+  }
+  return 'grant';
+}
+
+/**
  * A queue that runs tasks strictly one at a time, in the order added — the
  * GM hands out starting artifacts through one, so two creations at once
  * can't both see the same artifact free.
