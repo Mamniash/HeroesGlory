@@ -3,9 +3,12 @@
   {{!-- §4.3: one of the 12 is chosen in the header (headerSelect); the name
     and image follow it (documents/item.mjs). The book text is the item's
     own; the requirement, «Применяет Ведущий вручную» and, on a hero, the
-    condition come from the code by the key (specialization-sheet.mjs). --}}
+    condition come from the code by the key (specialization-sheet.mjs); on a
+    hero also which item counts and «Сотворить пока нельзя». --}}
   {{#if notSpecialization}}<div class="hg-item__note">{{notSpecialization}}</div>{{/if}}
   {{#if notCounted}}<div class="hg-item__note">{{notCounted}}</div>{{/if}}
+  {{#if duplicate}}<p class="hg-spec__warn">{{duplicate}}</p>{{/if}}
+  {{#if castNote}}<p class="hg-spec__warn">{{castNote}}</p>{{/if}}
   <textarea class="hg-item__input hg-item__textarea" name="system.description" rows="3"
     aria-label="{{localize 'HEROES_GLORY.SpecializationUi.Text'}}">{{system.description}}</textarea>
   {{#if requirement}}

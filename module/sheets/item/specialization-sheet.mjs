@@ -1,15 +1,17 @@
 import { HeroesGloryFramedItemSheet } from './framed-item-sheet.mjs';
 import {
-  specializationLabelKeys, specializationLabel, isManualSpecialization,
+  specializationLabelKeys, specializationLabel, isManualSpecialization, specializationSheetNotes,
 } from '../../helpers/specializations.mjs';
-import { specializationMissingLine } from '../../apps/specialization-window.mjs';
+import { specializationMissingLine, castNote } from '../../apps/specialization-window.mjs';
 
 /**
  * §4.3 p. 23: a specialization's sheet, in the hero's style. The header picks
  * one of the 12 (name and image follow it, documents/item.mjs); the body is
  * the book text, then what the code decides by the key: the requirement,
  * «Применяет Ведущий вручную», the page — and, on a hero, whether the
- * condition is met. On a hero only the GM edits it (players open it read-only).
+ * condition is met, which of two items counts and «Сотворить пока нельзя»
+ * (specializationSheetNotes). On a hero only the GM edits it (players open
+ * it read-only).
  */
 export class HeroesGlorySpecializationSheet extends HeroesGloryFramedItemSheet {
   static PARTS = {
@@ -42,10 +44,17 @@ export class HeroesGlorySpecializationSheet extends HeroesGloryFramedItemSheet {
       context.status = missing
         ? { ok: false, warning: i18n.localize('HEROES_GLORY.SpecializationUi.NoLongerMet'), text: missing }
         : { ok: true, text: i18n.localize('HEROES_GLORY.SpecializationUi.StatusMet') };
-      if (hero.system.specializationItemId && hero.system.specializationItemId !== this.item.id) {
-        context.notCounted = i18n.localize('HEROES_GLORY.SpecializationUi.NotCounted');
-      }
     }
+    const notes = specializationSheetNotes({
+      onHero: !!hero,
+      itemId: this.item.id,
+      countingItemId: hero?.system.specializationItemId ?? null,
+      count: hero?.system.specializationCount ?? 0,
+      castNote: hero ? castNote(hero, spec) : null,
+    });
+    if (notes.notCounted) context.notCounted = i18n.localize('HEROES_GLORY.SpecializationUi.NotCounted');
+    if (notes.duplicate) context.duplicate = i18n.localize('HEROES_GLORY.SpecializationUi.Duplicate');
+    context.castNote = notes.castNote;
     return context;
   }
 }

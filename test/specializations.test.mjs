@@ -9,6 +9,7 @@ import {
   specializationRequirement, specializationShortage, specializationSpellName,
   specializationTypeOf, specializationFromKey, specializationLabel, specializationLabelKeys, pickSpecialization,
   specializationCreateRefusal, specializationDropDecision, legacySpecializationPlan, specializationHero,
+  specializationSheetNotes,
 } from '../module/helpers/specializations.mjs';
 import { specializationIconPath, specializationPlaceholderIconPath } from '../module/helpers/skill-icons.mjs';
 
@@ -316,5 +317,30 @@ describe('specializationSpellName — by compendium origin, the name as fallback
     assert.equal(specializationSpellName({ name: 'Клон', _stats: { compendiumSource: 'Compendium.world.x.Item.abc' } }, { lookup }), 'Клон');
     assert.equal(specializationSpellName({ name: 'Клон', _stats: { compendiumSource: 'Compendium.heroes-glory.spells.Item.zzz' } }, { lookup }), 'Клон');
     assert.equal(specializationSpellName({ name: 'Клон' }, { lookup: undefined }), 'Клон');
+  });
+});
+
+describe('specializationSheetNotes — the hero-only notes on the sheet (§4.3)', () => {
+  const none = { notCounted: false, duplicate: false, castNote: null };
+
+  test('off a hero (the compendium entry): nothing, whatever is passed', () => {
+    assert.deepEqual(specializationSheetNotes({ onHero: false, itemId: 'a', countingItemId: 'b', count: 2, castNote: 'x' }), none);
+  });
+
+  test('one specialization on the hero, castable: nothing', () => {
+    assert.deepEqual(specializationSheetNotes({ onHero: true, itemId: 'a', countingItemId: 'a', count: 1 }), none);
+  });
+
+  test('two on the hero: the counting one says «действует эта», the other «эта не действует»', () => {
+    assert.deepEqual(specializationSheetNotes({ onHero: true, itemId: 'a', countingItemId: 'a', count: 2 }),
+      { notCounted: false, duplicate: true, castNote: null });
+    assert.deepEqual(specializationSheetNotes({ onHero: true, itemId: 'b', countingItemId: 'a', count: 2 }),
+      { notCounted: true, duplicate: false, castNote: null });
+  });
+
+  test('«Сотворить пока нельзя» shows on the hero when there is one', () => {
+    assert.equal(specializationSheetNotes({ onHero: true, itemId: 'a', countingItemId: 'a', count: 1, castNote: 'Сотворить пока нельзя: нужна Книга Магии' }).castNote,
+      'Сотворить пока нельзя: нужна Книга Магии');
+    assert.equal(specializationSheetNotes({ onHero: true, itemId: 'a', countingItemId: 'a', count: 1, castNote: null }).castNote, null);
   });
 });

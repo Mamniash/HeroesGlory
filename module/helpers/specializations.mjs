@@ -286,6 +286,30 @@ export function isManualSpecialization(type, key) {
 }
 
 /**
+ * The hero-only notes on a specialization's sheet (rules.md §4.3): «эта не
+ * действует» on a second item that doesn't count, «действует эта» on the one
+ * that does while the hero has more than one, and «Сотворить пока нельзя: …»
+ * (`castNote`) for a spell he can't cast yet. Nothing off a hero (the
+ * compendium entry, an item in the sidebar).
+ * @param {object} args
+ * @param {boolean} args.onHero
+ * @param {string} args.itemId
+ * @param {string|null} [args.countingItemId]   the hero's `specializationItemId`
+ * @param {number} [args.count]                 the hero's `specializationCount`
+ * @param {string|null} [args.castNote]
+ * @returns {{notCounted: boolean, duplicate: boolean, castNote: string|null}}
+ */
+export function specializationSheetNotes({ onHero, itemId, countingItemId = null, count = 0, castNote = null }) {
+  if (!onHero) return { notCounted: false, duplicate: false, castNote: null };
+  const counts = !!countingItemId && countingItemId === itemId;
+  return {
+    notCounted: !!countingItemId && !counts,
+    duplicate: counts && count > 1,
+    castNote: castNote || null,
+  };
+}
+
+/**
  * The tier order of a secondary skill, for "the highest one owned".
  * @type {string[]}
  */

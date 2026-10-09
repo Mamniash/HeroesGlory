@@ -83,7 +83,7 @@ function missingLine(spec, hero) {
  * @param {{type: string, key: string}} spec
  * @returns {string|null}
  */
-function castNote(actor, spec) {
+export function castNote(actor, spec) {
   if (spec.type !== 'spell') return null;
   const spell = actor.items.find((i) => i.type === 'spell' && specializationSpellName(i) === spec.key);
   if (!spell) return null;
